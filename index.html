@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+    .button {
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      background-color: #4CAF50;
+      cursor: pointer;
+    }
+    </style>
+  </head>
+  <body>
+    <h2 style="text-align: center; font-family:arial,helvetica;"><strong>Import Missing Accounts&nbsp;</strong><br /><br /></h2>
+    <p>&nbsp;</p>
+    <p style="text-align: center;"><button type="button" class="button" id="doimport" onclick="importNow()">Import</button></p>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jsforce/1.9.1/jsforce.min.js"></script>
+    <script>
+    
+      jsforce.browser.init({
+        clientId: 'eAmwMUXzgqHsQgJZ8sYw0ZxHcxb6gvh9Ll7YfvsEHGYBe', // [your OAuth2 client ID]
+        redirectUri: logRedirectUri() //[your OAuth2 redirect URI]
+      });
+      
+      function handleError(err) {
+        alert("Error!");
+      };
+      
+      function handleResult(err) {
+        alert("Result!");
+      };
+
+      function importNow() {
+        $("#doimport").prop('disabled',true).html("Started").css('background-color', 'grey');
+        
+        
+        // Does NOT work
+        jsforce.browser.on('connect', function(conn) {
+          conn.query('SELECT Id, Name FROM Account', function(err, res) {
+          if (err) { return handleError(err); }
+            handleResult(res);
+          });
+        });
+        
+        jsforce.browser.login();
+        
+        //google.script.run.helloWorld();
+      }
+
+    </script>
+  </body>
+  
+</html>
+
+
