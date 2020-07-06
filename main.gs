@@ -62,7 +62,7 @@ const STAFF_ROLE = 4;
 const STAFF_ROLE_REP = "EAM 1"
 
 const OPPORTUNITIES = "Opportunities";
-const OP_COLUMNS = 11;
+const OP_COLUMNS = 12;
 const OP_ID = 0;
 const OP_OWNER = 3;
 const OP_SE_PRIMARY = 1;
@@ -74,6 +74,7 @@ const OP_CLOSE_DATE = 10;
 const OP_ACCOUNT_ID = 11;
 const OP_STAGE = 5;
 const OP_TYPE = 6;
+const OP_ACTIVITY_DATE = 12;
 
 const HISTORY = "Op History";
 const HISTORY_COLUMNS = 3;

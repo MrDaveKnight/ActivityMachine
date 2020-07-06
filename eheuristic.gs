@@ -61,23 +61,31 @@ function lookForProducts_(text) {
     hasTerraform : false,
     hasVault : false,
     hasConsul : false,
-    hasNomad : false
+    hasNomad : false,
+    count : function () {
+      let retval = 0;
+      if (this.hasTerraform) retval++;
+      if (this.hasVault) retval++;
+      if (this.hasNomad) retval++;
+      if (this.hasConsul) retval++;
+      return retval;
+    }
   }
   
   if (!text) return returnValue;
   var x = text.toLowerCase();
   
-  returnValue.hasTerraform = x.indexOf("terraform") != -1;
+  returnValue.hasTerraform = x.indexOf("terraform") != -1 || x.indexOf("tf cloud") != -1;
   if (!returnValue.hasTerraform) {
     let regex = RegExp("p?tf[ce]");
     returnValue.hasTerraform = regex.test(x);
   }
-  if (!returnValue.hasTerraform) {
-    returnValue.hasTerraform = x.indexOf("tf cloud") != -1;
-  }
-  returnValue.hasVault = x.indexOf("vault") != -1;
-  returnValue.hasConsul = x.indexOf("consul") != -1;
-  returnValue.hasNomad = x.indexOf("nomad") != -1;
+  
+  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secrets management") != -1;
+  
+  returnValue.hasConsul = x.indexOf("consul") != -1 || x.indexOf("service discovery") != -1 || x.indexOf("service mesh") != -1;
+  
+  returnValue.hasNomad = x.indexOf("nomad") != -1 || x.indexOf("orchestration") != -1;
   
   return returnValue;
   
@@ -274,7 +282,7 @@ function filterAndAnalyzeDescription_(text) {
   //
 
   // Process Prep tag
-  let regex = /[Pp][Rr][Ee][Pp] *: *[0-9]+[ ]?[MmHhDd]?/; // e.g. Prep:30m
+  let regex = /[Pp][Rr][Ee][Pp] *: *[0-9]+[ ]?[MmHhDd]?/; // e.g. "Prep:60m" or "prep : 1H"
   let prepArray = text.match(regex);
   if (prepArray && prepArray[0]) {
     let kv = prepArray[0].split(':');

@@ -170,6 +170,25 @@ function makeProductKey_(productScan, primary) {
   
 }
 
+function makeSingleProductKeys_(productScan) {
+
+  // Function is used to create "individual product" keys. If a calendar
+  // invite specifies multiple products, but there are no opportunities for 
+  // that combination of products, we want to look for opportunities that may
+  // have one of the products. So, we need to create an array of possible keys
+  
+  let retval = []
+  let i = 0;
+  
+  if (productScan.hasTerraform) retval[i++] = "-" + TERRAFORM;
+  if (productScan.hasVault) retval[i++] = "-" + VAULT;
+  if (productScan.hasConsul) retval[i++] = "-" + CONSUL;
+  if (productScan.hasNomad) retval[i++] = "-" + NOMAD;
+  
+  return retval;
+  
+}
+
 /*
 function testregex() {
   

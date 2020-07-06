@@ -10,7 +10,7 @@ function build_se_events() {
   // - The organizer
   //.- The person invited by the organizer
   // - All the attendee emails
-  // - The products beginning discussed
+  // - The products being discussed
   // - The "general" type of activity (workshop, demo, presentation, more on this later)
   //
   // Determine the CUSTOMERS associated with all of the attendees. Determine which, if any,
@@ -56,7 +56,7 @@ function build_se_events() {
   // eligable for selection. In addition, some are "re-mapped" a bit to have a slightly different meaning.
   //
   // Here are the "Meeting Types" this system will identify. They are ordered generally based on the prep, effort and skill 
-  // required of an SE to do it:
+  // required of an SE to do it, i.e. for easy to hard ...
   // 
   //    - Shadow
   //    - Social (pre or post-sales activity)
@@ -74,7 +74,8 @@ function build_se_events() {
   // 
   //
   //  Here are the mappings from internal to Salesforce Meeting Types. Note that some Meeting Types are only eligible 
-  //  in certain Opportunity Stages, so they will invoke a "forced stage SWITCH"
+  //  in certain Opportunity Stages, so they will invoke a "forced stage SWITCH". For the up-to-date mapping, reference
+  //  the lookForMeetingType_ function in the eheuristic.gs file.
   //
   //  Discovery & Qualification
   //    - Shadow -> Shadow
@@ -195,13 +196,15 @@ function build_se_events() {
   // Build the opportunity indexes  
   //
   // There may be many opportunities for a particular customer and product (renewal, new business, services, etc);
-  // We want to give priority to the op type, and the date. Pick the earlier op for the meeting. Pick an op that brings in 
+  // We want to give priority to the opportunity with the latest activity. Pick an op that brings in 
   // new business over services and renewals
   // Also track Ops that are closed/lost. We don't want those to be the default even if they were first.
-  let opTypeIndexedByCustomerAndProduct = {}; // For op selection priority DEPRECATED
+  
+  let opTypeIndexedByCustomerAndProduct = {}; // For op selection priority ... DEPRECATED
   let opStageIndexedByCustomerAndProduct = {}; // For op selection priority 
-  let primaryOpTypeIndexedByCustomer = {}; // For selecting the primary opportunity out of a set with different products
+  let primaryOpTypeIndexedByCustomer = {}; // For selecting the primary opportunity out of a set with different products ... DEPRECATED
   let primaryOpStageIndexedByCustomer = {}; // Don't want Closed/Lost to be a default
+  let primaryOpActivityDateIndexedByCustomer = {}; // What to target op with most recent activiity
   for (j = 0 ; j < olr - 1; j++) {
     let scanResults = lookForProducts_(opInfo[j][OP_NAME]);
     let productKey = makeProductKey_(scanResults, opInfo[j][OP_PRIMARY_PRODUCT]);
@@ -209,7 +212,7 @@ function build_se_events() {
       Logger.log("WARNING: " + opInfo[j][OP_NAME] + " has no product!");
     }
     
- 
+    let latestActivityDate = Date.parse(opInfo[j][OP_ACTIVITY_DATE]);
     
     // Important Note:
     // The OP_ACCOUNT_ID provided in the opportunity record does NOT have the
@@ -218,13 +221,8 @@ function build_se_events() {
     // use the full "18 Digit Account ID". Since these account IDs need to sync
     // up at some point, we will be stripping off the 3 character postfix when
     // we create the keys from emails. We don't do that here mind you (they are already gone),
-    // but later we will. Just a heads up.
+    // but later we will. Just a heads up on this goofy problem created by Salesforce
     let key = opInfo[j][OP_ACCOUNT_ID] + productKey;
-    
-    //REMOVEME
-    if ("Jet.com Nomad Enterprise Renewal 2020" == opInfo[j][OP_NAME]) {
-      Logger.log("DEBUG: Jet:" + key);
-    }
     
     if (!numberOfOpsByCustomer[opInfo[j][OP_ACCOUNT_ID]]) {
       numberOfOpsByCustomer[opInfo[j][OP_ACCOUNT_ID]] = 1;
@@ -283,16 +281,38 @@ function build_se_events() {
       primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
       primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
       primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
-      
+      primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;    
     }
-    else if (opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1) {
+    else {
+      if ((opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1) || 
+      (primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] < latestActivityDate)) {
+        primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
+        primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
+        primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
+        primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
+      }
+   
+      /*
+      for debug logging
+      if ((opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1)) {
       primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
       primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
       primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
+      primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
+      }
+      else if ((primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] < latestActivityDate)) {
+      Logger.log("Reselected a primary op. Old: " + primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ":" + primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ":" + primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ", New: " + 
+      opInfo[j][OP_TYPE] + ":" + opInfo[j][OP_STAGE] + ":" + latestActivityDate + "(" + opInfo[j][OP_ACTIVITY_DATE] + ")");
+      primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
+      primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
+      primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
+      primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
+      }
+      */
     }
     
     
-    /*
+    /* deprecated
     else if ((primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Closed/Lost") ||
              (primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Services" && opInfo[j][OP_TYPE] != "Services") ||
       (primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Renewal" && (opInfo[j][OP_TYPE] != "Services" && opInfo[j][OP_TYPE] != "Services"))) {
@@ -381,6 +401,18 @@ function build_se_events() {
     }
   }
   
+  //
+  // Load Special meetings and Account overrides
+  //
+  
+  let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS); 
+  let overrideRange = parms.getRange(5,8,16,4); // Hardcoded to format of cells in RUN_PARMS!
+  let overrides = overrideRange.getValues();
+  let specialRange = parms.getRange(31,7,16,3); // Hardcoded to format of cells in RUN_PARMS!
+  let specials = specialRange.getValues();
+  let bogusRange = parms.getRange(53,7,16,2); // Hardcoded to format of cells in RUN_PARMS!
+  let bogusStuff = bogusRange.getValues();
+  
   // 
   // Process Calendar invites
   //
@@ -433,14 +465,88 @@ function build_se_events() {
     }
     
     //
-    // Look for "special" known meetings we want to track: Virtual Office Hours
+    // Skip bogus meetings
+    //
+    
+    let foundBogusMeeting = false;
+    for (let row in bogusStuff) {
+      if (bogusStuff[row][0] || bogusStuff[row][1]) {      
+        
+        let subjectTest = false;
+        let emailTest = false;
+        
+        if (bogusStuff[row][0]) {
+          let subjectRegex = new RegExp(bogusStuff[row][0]);
+          subjectTest = subjectRegex.test(inviteInfo[j][SUBJECT])
+        }
+        else {
+          subjectTest = true; 
+        }
+        
+        if (bogusStuff[row][1]) {
+          let emailRegex = new RegExp(bogusStuff[row][1]);
+          emailTest = emailRegex.test(inviteInfo[j][ATTENDEE_STR])
+        }
+        else {
+          emailTest = true; 
+        }
+        
+        if (subjectTest && emailTest) {
+          foundBogusMeeting = true;
+          break;
+        }
+      }
+    }
+    if (foundBogusMeeting) {
+      continue;
+    }
+    
+    //
+    // Look for "special" known meetings we want to track
     // 
     
-    if (inviteInfo[j][SUBJECT].toLowerCase().indexOf("virtual office hours") != -1) {
-      if (inviteInfo[j][ASSIGNEE_STATUS] != "NO") {
-        let pi = lookForProducts_(inviteInfo[j][SUBJECT] + " " + inviteInfo[j][DESCRIPTION]);
-        createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, "Virtual SE Office Hours");
+    let isSpecialActive = false;
+    if (inviteInfo[j][ASSIGNEE_STATUS] != "NO") {
+      for (let row in specials) {
+        if (specials[row][0]) {      
+        
+         Logger.log("I'm checking " + specials[row][0] + " with " + specials[row][1]);
+          
+          let meetingType = specials[row][0];
+          let subjectTest = false;
+          let emailTest = false;
+          
+          if (!specials[row][1] && !specials[row][2]) {
+            continue;
+          }
+          
+          if (specials[row][1]) {
+            let subjectRegex = new RegExp(specials[row][1]);
+            subjectTest = subjectRegex.test(inviteInfo[j][SUBJECT])
+          }
+          else {
+            subjectTest = true; 
+          }
+          
+          if (specials[row][2]) {
+            let emailRegex = new RegExp(specials[row][2]);
+            emailTest = emailRegex.test(inviteInfo[j][ATTENDEE_STR])
+          }
+          else {
+            emailTest = true; 
+          }
+          
+          if (subjectTest && emailTest) {
+            
+            let pi = lookForProducts_(inviteInfo[j][SUBJECT] + " " + inviteInfo[j][DESCRIPTION]);
+            createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, meetingType);
+            isSpecialActive = true;
+            break;
+          }
+        }
       }
+    }
+    if (isSpecialActive) {
       continue;
     }
     
@@ -466,11 +572,7 @@ function build_se_events() {
      
     let isOverrideActive = false;
     
-    let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
-    let overrideRange = parms.getRange(4,8,16,3); // Hardcoded to format in RUN_PARMS
-    let overrides = overrideRange.getValues();
-    
-    for (var row in overrides) {
+    for (let row in overrides) {
       if (overrides[row][0]) {      
         
         let account = overrides[row][0];
@@ -514,6 +616,16 @@ function build_se_events() {
           var opId = 0;
           if (opByCustomerAndProduct[key]) {
             opId = opByCustomerAndProduct[key];
+          }
+          
+          if (!opId && productInventory.count() > 1) { 
+            // Couldn't find an opportunity to match the 2 or more products in the invite, i.e "-<product-code-1><product-code-2>[<product-code-n>]"
+            // So, fall back to single product opportunities. See if we can find one.
+            let singleKeys = makeSingleProductKeys_(productInventory);
+            for (let j = 0; j < singleKeys.length; j++) {
+              opId = opByCustomerAndProduct[account + singleKeys[j]];
+              if (opId) break;
+            }
           }
           
           if (opId) {
@@ -576,6 +688,16 @@ function build_se_events() {
       if (opByCustomerAndProduct[key]) {
         opId = opByCustomerAndProduct[key];
       }
+      if (!opId && productInventory.count() > 1) { 
+        // Couldn't find an opportunity to match the 2 or more products in the invite, i.e "-<product-code-1><product-code-2>[<product-code-n>]"
+        // So, fall back to single product opportunities. See if we can find one.
+        
+        let singleKeys = makeSingleProductKeys_(productInventory);
+        for (let j = 0; j < singleKeys.length; j++) {
+          opId = opByCustomerAndProduct[customerId + singleKeys[j]];
+          if (opId) break;
+        }
+      }
       if (!opId) {
         if (numberOfOpsByCustomer[customerId] > 1) {
           isDefaultOp = true; // We were unable to deteremine the product in the invite, so selecting the default (primary) op
@@ -624,7 +746,7 @@ function build_se_events() {
           secondaryCnt = attendeeInfo.customers[account];
         }
       }
-      // Find an opportunity for the primary. If non, secondary.
+      // Find an opportunity for the primary. If none, secondary.
       var productInventory = lookForProducts_(inviteInfo[j][SUBJECT] + " " + inviteInfo[j][DESCRIPTION]);
       var productKey = makeProductKey_(productInventory, 0);
    
@@ -639,6 +761,25 @@ function build_se_events() {
       }
       else if (secondaryId && opByCustomerAndProduct[secondaryId + productKey]) {
         opId = opByCustomerAndProduct[secondaryId + productKey];
+      }
+      
+      if (!opId && productInventory.count() > 1) { 
+        // Couldn't find an opportunity to match the 2 or more products in the invite, i.e "-<product-code-1><product-code-2>[<product-code-n>]"
+        // So, fall back to single product opportunities. See if we can find one.
+        let singleKeys = makeSingleProductKeys_(productInventory);
+        for (let j = 0; j < singleKeys.length; j++) {
+          opId = opByCustomerAndProduct[primaryId + singleKeys[j]];
+          if (opId) break;
+        }
+      }
+      if (!opId && productInventory.count() > 1) { 
+        // Couldn't find an opportunity to match the 2 or more products in the invite, i.e "-<product-code-1><product-code-2>[<product-code-n>]"
+        // So, fall back to single product opportunities. See if we can find one.
+        let singleKeys = makeSingleProductKeys_(productInventory);
+        for (let j = 0; j < singleKeys.length; j++) {
+          opId = opByCustomerAndProduct[secondaryId + singleKeys[j]];
+          if (opId) break;
+        }
       }
       
       if (!opId) {
@@ -849,7 +990,7 @@ function expand_se_events() {
 }
 
 function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory, meetingType) {
-  // No account for these special events
+  // There is no account for these special events
   
   // Logger.log("DEBUG: Entered createSpecialEvents_ for: " + inviteInfo[SUBJECT]);
   
