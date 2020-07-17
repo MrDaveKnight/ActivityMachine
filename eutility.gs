@@ -217,12 +217,15 @@ function testregex() {
 
 function clearTab_(tab_name, header) {
   
-  if (!tab_name || !header) return;
+  if (!tab_name) return;
   
   let sheet = SpreadsheetApp.getActive().getSheetByName(tab_name);
   sheet.clearContents();  
-  let range = sheet.getRange(1,1,1,header[0].length);
-  range.setValues(header);
+  
+  if (header) {
+    let range = sheet.getRange(1,1,1,header[0].length);
+    range.setValues(header);
+  }
 }
 
 
@@ -262,7 +265,9 @@ function stage_events_to_upload_tab() {
     uploadRange.offset(rowOffset, EVENT_PRODUCT).setValue(eventInfo[j][EVENT_PRODUCT]);
     uploadRange.offset(rowOffset, EVENT_DESC).setValue(eventInfo[j][EVENT_DESC]);
     uploadRange.offset(rowOffset, EVENT_LOGISTICS).setValue(eventInfo[j][EVENT_LOGISTICS]);
-    uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);
+    uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);  
+    uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);  
+    
     
     rowOffset++;
   }
@@ -306,11 +311,19 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
       if (domain.indexOf("www.") == 0) {
         domain = domain.substring(4);
       }
+      //DAK
       if (accountLog[domain]) {
-        Logger.log("WARNING: Found account with a duplicate email domain - " + accountInfo[j][accountName] + ":" + domain);
+        //Logger.log("WARNING: Found account with a duplicate email domain - " + accountInfo[j][accountName] + ":" + domain);
+        
+        AM_LOG.offset(AM_LOG_ROW, 0).setValue("Multiple accounts for email domain:");
+        AM_LOG.offset(AM_LOG_ROW, 1).setValue(domain);
+        AM_LOG.offset(AM_LOG_ROW, 2).setValue("Rejected: " + accountInfo[j][accountName]);
+        AM_LOG.offset(AM_LOG_ROW, 3).setValue("Selected: " + accountLog[domain]);
+        AM_LOG_ROW++;    
+        
         continue; // Take the first
       }
-      accountLog[domain] = true;
+      accountLog[domain] = accountInfo[j][accountName];
       let id = accountInfo[j][accountId].trim();
       emailToAccountMap[domain] = id;
       accountType[id] = accountType;

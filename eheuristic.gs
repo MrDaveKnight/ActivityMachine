@@ -272,7 +272,7 @@ function lookForMeetingType_(stage, text) {
 
 function filterAndAnalyzeDescription_(text) {
 
-  let rv = {hasTeleconference : false, filteredText : text, prepTime : 0}
+  let rv = {hasTeleconference : false, filteredText : text, prepTime : 0, quality : ""}
 
   if (!text) return rv;
   
@@ -297,7 +297,16 @@ function filterAndAnalyzeDescription_(text) {
       }
     }
   }
-    
+  
+  // Process Quality tag
+  regex = /[Qq][Uu][Au][Ll][Ii][Tt][Yy] *: *[0-9]/; 
+  let qualArray = text.match(regex);
+  if (qualArray && qualArray[0]) {
+    let kv = qualArray[0].split(':');
+    rv.quality = parseInt(kv[1]);
+    if (rv.quality < 1) rv.quality = 1;
+    else if (rv.quality > 5) rv.quality = 5;
+  }
   
   if (text.indexOf("\─\─\─\─\─\─\─\─\─\─[\s\S]*Join Zoom Meeting") != -1) {
     regex = /\─\─\─\─\─\─\─\─\─\─[\s\S]*Join Zoom Meeting[\s\S]*\─\─\─\─\─\─\─\─\─\─/;

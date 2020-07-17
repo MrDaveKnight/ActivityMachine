@@ -15,23 +15,23 @@ function build_se_events() {
   //
   // Determine the CUSTOMERS associated with all of the attendees. Determine which, if any,
   // customer has the majority of attendees. Assume this is the customer the invite is "targeted" for. Others
-  // are partners or contractors. If no clear majority, assume the invite is a type of workshop
-  // or other multi-customer event. 
+  // are partners or contractors.
   //
-  // Determine what PRODUCTS are being discussed. Look first for any tags of the
-  // form 'Product:<product>'(spaces around colon are optional).
-  // If no tags, look for <product> tokens in the subject. If none, look for <product> tokens in the 
-  // description. The result will be one or more products. 
+  // Determine what PRODUCTS are being discussed. Look for <product> keywords in the subject and 
+  // description. Reference the lookForProducts_() function. The result will be zero, one or more products. 
   //
-  // For a targeted customer invite, search for OPPORTUNITIES that match the targeted customer and products. For each
-  // customer/product opportunity, create an SE activity for that opportunity. If no opportunities are located, 
-  // create an SE activity for that targeted customer.   
-  //
-  // For a workshop invite, look for opportunities for each customer/product pair. When found, create an SE activity
-  // for that opportunity. If an opportunity is not found for any customer, create an SE activity for that customer. 
+  // For a targeted customer invite, search for an OPPORTUNITY that matches the targeted customer and products. If
+  // multiple products are in the invite, and no corresponding opportunity is found for the same set of products, look for 
+  // an opportunity with one of the products. If a matching opportunity is found, create an SE activity for that 
+  // opportunity. If no opportunities are found, create an SE activity for the customer's default/primary opportunity 
+  // If there are no opportunities for the targeted customers, create an SE activity for
+  // the account directly.
   //
   // When searching for opportunities, if two or more are found that match the customer and product, 
   // select the one with close date in closest proximity to the invite date.
+  //
+  // When selecting the default/primary OPPORTUNITY, chose the one that is active, with the most recent updates 
+  // in Salesforce
   // 
   // When creating an SE activity for an opportunity, determine in what phase of the opporunity the calendar invite
   // started: Discovery, Alignment (Technical & Business Validation till pre-close), Closed/Won or 
@@ -125,7 +125,15 @@ function build_se_events() {
   //  Closed/Lost
   //    There are no allowed meeting types. Post any activity against the ACCOUNT with Discovery & Qualification stage
   
-
+  
+  //
+  // Initialize global log
+  //
+  
+  let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
+  var logLastRow = logSheet.getLastRow();
+  AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
+  AM_LOG_ROW = 0;
   
   // Information for accounts, staff, opportunities and calendar invites
   // is loaded from tabs in the spreadsheet into two-dimentional arrays with
@@ -256,7 +264,7 @@ function build_se_events() {
       }
       */
       
-      // Make default an active op if available
+      // Select an active op if available
       if (opInfo[j][OP_STAGE].indexOf("Closed") == -1 && opStageIndexedByCustomerAndProduct[key].indexOf("Closed") != -1) {
         opByCustomerAndProduct[key] = opInfo[j][OP_ID];
         opTypeIndexedByCustomerAndProduct[key] = opInfo[j][OP_TYPE];
@@ -509,8 +517,6 @@ function build_se_events() {
     if (inviteInfo[j][ASSIGNEE_STATUS] != "NO") {
       for (let row in specials) {
         if (specials[row][0]) {      
-        
-         Logger.log("I'm checking " + specials[row][0] + " with " + specials[row][1]);
           
           let meetingType = specials[row][0];
           let subjectTest = false;
@@ -538,7 +544,11 @@ function build_se_events() {
           
           if (subjectTest && emailTest) {
             
-            let pi = lookForProducts_(inviteInfo[j][SUBJECT] + " " + inviteInfo[j][DESCRIPTION]);
+            // Give priority to subject
+            let pi = lookForProducts_(inviteInfo[j][SUBJECT]);
+            if (pi.count == 0) {
+              pi = lookForProducts_(inviteInfo[j][DESCRIPTION]);
+            }
             createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, meetingType);
             isSpecialActive = true;
             break;
@@ -564,7 +574,10 @@ function build_se_events() {
     // attendeeInfo.stats.other - Number of unidentified attendees
     
     var assignedTo = staffEmailToIdMap[inviteInfo[j][ASSIGNED_TO]];
-    var productInventory = lookForProducts_(inviteInfo[j][SUBJECT] + " " + inviteInfo[j][DESCRIPTION]);
+    var productInventory = lookForProducts_(inviteInfo[j][SUBJECT]); // Give priority to subject
+    if (productInventory.count == 0) {
+      productInventory = lookForProducts_(inviteInfo[j][DESCRIPTION]);
+    }
     
     //
     // Manual Overrides
@@ -747,7 +760,10 @@ function build_se_events() {
         }
       }
       // Find an opportunity for the primary. If none, secondary.
-      var productInventory = lookForProducts_(inviteInfo[j][SUBJECT] + " " + inviteInfo[j][DESCRIPTION]);
+      var productInventory = lookForProducts_(inviteInfo[j][SUBJECT]); // Give priority to subject
+      if (productInventory.count == 0) {
+        productInventory = lookForProducts_(inviteInfo[j][DESCRIPTION]);
+      }
       var productKey = makeProductKey_(productInventory, 0);
    
       var opId = 0;
@@ -984,6 +1000,7 @@ function expand_se_events() {
     outputRange.offset(rowOffset, 10).setValue(eventInfo[j][EVENT_REP_ATTENDED]);
     outputRange.offset(rowOffset, 11).setValue(eventInfo[j][EVENT_LOGISTICS]);
     outputRange.offset(rowOffset, 12).setValue(eventInfo[j][EVENT_PREP_TIME]);
+    outputRange.offset(rowOffset, 13).setValue(eventInfo[j][EVENT_QUALITY]);
     
     rowOffset++;
   }
@@ -1022,6 +1039,7 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
   outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
   
   outputTab.rowOffset++;
   
@@ -1062,6 +1080,7 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
     outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
     
     outputTab.rowOffset++;
     
@@ -1140,6 +1159,7 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, opP
   }
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics); 
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
   
   outputTab.rowOffset++;  
   

@@ -1,9 +1,10 @@
 function import_calendars() {
 
   clearTab_(CALENDAR, CALENDAR_HEADER);
+  clearTab_(LOG_TAB);
   
   let sheet = SpreadsheetApp.getActive().getSheetByName(CALENDAR);
-  let importCursor = {sheet : sheet, row : 2}; // Drop row below the header we kept during the clear
+  let importCursor = {sheet : sheet, row : 2}; // Drop to row below the header we kept during the clear
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
   
   let dateRange = parms.getRange(3,2,2,1); // Hardcoded to format in RUN_PARMS
@@ -97,7 +98,7 @@ function import_gcal_(calName, startDate, endDate, cursor){
     cursor.row++;
   }
   
-  sheet = SpreadsheetApp.getActive().getSheetByName("Log");
+  sheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
   var lastRow = sheet.getLastRow();
   var log = sheet.getRange(lastRow+1,1);
   log.offset(0, 0).setValue(calName + " import stats");

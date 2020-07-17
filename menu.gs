@@ -307,6 +307,27 @@ function menuItem11_() {
   }
 }
 
+function menuItem12_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  
+  if (needToAbortRun_(ui)) {
+    return;
+  }
+  
+  try {
+    markRunStart_();
+    clearTab_(LOG_TAB);
+  }
+  catch (e) {
+    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  
+}
+
 function onEdit(e) {
   var thisSheet = e.source.getActiveSheet();
   

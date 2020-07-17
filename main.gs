@@ -100,7 +100,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
 const EVENTS_EXPANDED = "Expanded"
-const EVENT_COLUMNS = 12;
+const EVENT_COLUMNS = 13;
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -113,7 +113,13 @@ const EVENT_PRODUCT = 8;
 const EVENT_DESC = 9;
 const EVENT_LOGISTICS = 10;
 const EVENT_PREP_TIME = 11;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep"]]
+const EVENT_QUALITY = 12;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality"]]
+
+// Global log
+const LOG_TAB = "Log";
+var AM_LOG; 
+var AM_LOG_ROW; 
 
 var emailToCustomerMap = {};
 var emailToPartnerMap = {};
@@ -161,14 +167,16 @@ function onOpen() {
       .addItem('Upload Events (& wait for zap)', 'menuItem4_')
       .addSeparator()
       .addSubMenu(ui.createMenu('Clear')
-          .addItem('Calendar Tab', 'menuItem8_')
-          .addSeparator()
-          .addItem('Event Tab', 'menuItem9_')
-          .addSeparator()
-          .addItem('Expanded Tab', 'menuItem11_')
-          .addSeparator()
-          .addItem('External/Missing Customers Tabs (Turn off Zapier!)', 'menuItem5_')
-          .addSeparator()
-          .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_'))
+                  .addItem('Log Tab', 'menuItem12_')
+                  .addSeparator()
+                  .addItem('Calendar Tab', 'menuItem8_')
+                  .addSeparator()
+                  .addItem('Event Tab', 'menuItem9_')
+                  .addSeparator()
+                  .addItem('Expanded Tab', 'menuItem11_')
+                  .addSeparator()
+                  .addItem('External/Missing Customers Tabs (Turn off Zapier!)', 'menuItem5_')
+                  .addSeparator()
+                  .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_'))
       .addToUi();
 }
