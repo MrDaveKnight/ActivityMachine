@@ -1,4 +1,9 @@
 function import_external_accounts() {    
+
+  let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
+  var logLastRow = logSheet.getLastRow();
+  AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
+  AM_LOG_ROW = 0;
   
   //
   // Load Account Info
@@ -274,6 +279,9 @@ function stage_events_to_upload_tab() {
 }
 
 function process_account_emails_(accountInfo, numberOfRows, accountType, accountName, accountId, emailFieldNumber, altEmailFieldNumber, emailToAccountMap) {
+  // Account info is an array of account records. numberOfRows is the number of accounts. All the other parameters are the "field numbers" (not sure 
+  // why I didn't name all of them as field numbers). And the last parameter, emailToAccountMap, is an object to record what email domain belongs
+  // to what account.
   
   let accountLog = {};
   
@@ -281,53 +289,66 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
   for (var j = 0 ; j < numberOfRows; j++) {
   
     let emailDomainString = accountInfo[j][emailFieldNumber];
-    if (!emailDomainString) {
+    let altDomainString = accountInfo[j][altEmailFieldNumber];  
+    
+    if (!emailDomainString && !altDomainString) {
       Logger.log("WARNING :" + accountInfo[j][accountName] + " has no email domain!");
       continue;
     }
-    if (typeof emailDomainString != "string") {
-      Logger.log("WARNING :" + accountInfo[j][accountName] + " has a non-string email domain: " + emailDomainString);
-      continue;
+    let emailDomains = [];
+    if (emailDomainString && typeof emailDomainString == "string") {
+      emailDomains = emailDomainString.split(','); // Works if there is only one (no comma)
     }
-    
-    let emailDomains = emailDomainString.split(','); // Works if there is only one (no comma)
-    
-    let altDomainString = accountInfo[j][altEmailFieldNumber];  
-    if (altDomainString) {
-       if (typeof altDomainString == "string") {     
-        let moreDomains = altDomainString.split(',');
-        if (moreDomains.length > 0) {
-          emailDomains = emailDomains.concat(moreDomains);
-        }
+    if (altDomainString & typeof altDomainString == "string") {    
+      let moreDomains = altDomainString.split(','); // 99% of the time, domains are comma separated, but not always
+      if (moreDomains.length > 0) {
+        emailDomains = emailDomains.concat(moreDomains);
       }
     }
     
-    for (var k = 0; k < emailDomains.length; k++) {
+  
+    let uniqueDomains = {};
+    
+    for (k = 0; k < emailDomains.length; k++) {
       // LATAM domains violate rules
       //let emailRegex = /[-\w]+\.[a-zA-Z]{2,3}$/;
       //let domain = emailRegex.exec(emailDomains[k].trim());
-      let domain = emailDomains[k].trim();
-      // FIXME other prefixes I don't know about? 
-      if (domain.indexOf("www.") == 0) {
-        domain = domain.substring(4);
-      }
-      //DAK
-      if (accountLog[domain]) {
-        //Logger.log("WARNING: Found account with a duplicate email domain - " + accountInfo[j][accountName] + ":" + domain);
+      let superDomain = emailDomains[k].trim(); // probably just one domain, but you never know
+      
+      // Because sometimes Reps use spaces instead of commas to separate domains in
+      // the salesforce field. Deal with it now.
+      let potentiallyMoreDomains = superDomain.split(" ");
+      for (let i = 0; i < potentiallyMoreDomains.length; i++) {
+      
+        let domain = potentiallyMoreDomains[i].trim();
         
-        AM_LOG.offset(AM_LOG_ROW, 0).setValue("Multiple accounts for email domain:");
-        AM_LOG.offset(AM_LOG_ROW, 1).setValue(domain);
-        AM_LOG.offset(AM_LOG_ROW, 2).setValue("Rejected: " + accountInfo[j][accountName]);
-        AM_LOG.offset(AM_LOG_ROW, 3).setValue("Selected: " + accountLog[domain]);
-        AM_LOG_ROW++;    
+        // FIXME other prefixes I don't know about? 
+        if (domain.indexOf("www.") == 0) {
+          domain = domain.substring(4);
+        }
         
-        continue; // Take the first
+        if (uniqueDomains[domain]) {
+          continue; // Rep put this domain in twice!
+        }
+        uniqueDomains[domain] = true;
+        
+        if (accountLog[domain]) {
+          //Logger.log("WARNING: Found account with a duplicate email domain - " + accountInfo[j][accountName] + ":" + domain);
+          
+          AM_LOG.offset(AM_LOG_ROW, 0).setValue("Multiple accounts for email domain:");
+          AM_LOG.offset(AM_LOG_ROW, 1).setValue(domain);
+          AM_LOG.offset(AM_LOG_ROW, 2).setValue("Rejected: " + accountInfo[j][accountName]);
+          AM_LOG.offset(AM_LOG_ROW, 3).setValue("Selected: " + accountLog[domain]);
+          AM_LOG_ROW++;    
+          
+          continue; // Take the first
+        }
+        accountLog[domain] = accountInfo[j][accountName];
+        let id = accountInfo[j][accountId].trim();
+        emailToAccountMap[domain] = id;
+        accountType[id] = accountType;
+        //Logger.log("DEBUG: " + domain + " -> " + emailToAccountMap[domain]);
       }
-      accountLog[domain] = accountInfo[j][accountName];
-      let id = accountInfo[j][accountId].trim();
-      emailToAccountMap[domain] = id;
-      accountType[id] = accountType;
-      //Logger.log("DEBUG: " + domain + " -> " + emailToAccountMap[domain]);
     }
   }
 }
