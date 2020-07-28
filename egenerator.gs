@@ -135,6 +135,10 @@ function build_se_events() {
   AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
   AM_LOG_ROW = 0;
   
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue("SE Event Build " + new Date().toLocaleTimeString());
+  AM_LOG.offset(AM_LOG_ROW+1, 0).setValue("------------------------------------");
+  AM_LOG_ROW+=2;   
+  
   // Information for accounts, staff, opportunities and calendar invites
   // is loaded from tabs in the spreadsheet into two-dimentional arrays with
   // this naming convention -

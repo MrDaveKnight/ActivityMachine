@@ -9,6 +9,10 @@ function import_missing_accounts() {
   AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
   AM_LOG_ROW = 0;
   
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue("Missing Account Import " + new Date().toLocaleTimeString());
+  AM_LOG.offset(AM_LOG_ROW+1, 0).setValue("------------------------------------");
+  AM_LOG_ROW+=2;   
+  
   //
   // Load Account Info
   //
@@ -369,7 +373,7 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
           
           AM_LOG.offset(AM_LOG_ROW, 0).setValue("Multiple accounts for email domain:");
           AM_LOG.offset(AM_LOG_ROW, 1).setValue(domain);
-          AM_LOG.offset(AM_LOG_ROW, 2).setValue("Rejected: " + accountInfo[j][accountName]);
+          AM_LOG.offset(AM_LOG_ROW, 2).setValue("Ignored: " + accountInfo[j][accountName]);
           AM_LOG.offset(AM_LOG_ROW, 3).setValue("Selected: " + accountLog[domain]);
           AM_LOG_ROW++;    
           
