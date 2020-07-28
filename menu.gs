@@ -140,14 +140,16 @@ function menuItem5_() {
   }
   
   let result = ui.alert('Please confirm', 
-                        'Are you sure you want to clear the External and Missing Customers Tabs? The Zapier "Import Missing Accounts" zap must be OFF!\n\nIs it off?',
+                        'Are you sure you want to clear the Missing Customers, Leads and Domains Tabs? The Zapier "Import Missing Accounts" zap must be OFF!\n\nIs it off?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) { 
     try {
       markRunStart_();
-      clearTab_(EXTERNAL_CUSTOMERS, CUSTOMER_HEADER);
-      clearTab_(MISSING_CUSTOMERS, [['Email']]); 
+      clearTab_(MISSING_CUSTOMERS, CUSTOMER_HEADER);
+      clearTab_(MISSING_LEADS, LEAD_HEADER);
+      clearTab_(MISSING_DOMAINS, [['Email']]); 
+      clearTab_(MISSING_EMAILS, [['Email']]); 
     }
     catch (e) {
       Logger.log("ERROR: clearTab_ threw an unhandled exception!");
@@ -193,10 +195,10 @@ function menuItem7_() {
   }
   
   try {
-    import_external_accounts();
+    import_missing_accounts();
   }
   catch (e) {
-    Logger.log("ERROR: import_external_accounts threw an exception!: " + e);
+    Logger.log("ERROR: import_missing_accounts threw an exception!: " + e);
   }
   finally {
     markRunEnd_();

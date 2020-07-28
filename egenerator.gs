@@ -155,6 +155,8 @@ function build_se_events() {
     return;
   }
   
+  load_lead_info_();
+  
   
   //
   // Load Staff Info - SEs and Reps
@@ -440,10 +442,10 @@ function build_se_events() {
   scanRange = sheet.getRange(2,1, lastRow-1, lastColumn);
   
   // Suck all the calendar data up into memory.
-  var inviteInfo = scanRange.getValues();
+  let inviteInfo = scanRange.getValues();
   
   // Set event output cursor
-  var sheet = SpreadsheetApp.getActive().getSheetByName("EVENTS");
+  sheet = SpreadsheetApp.getActive().getSheetByName("EVENTS");
   var elr = sheet.getLastRow();
   var outputRange = sheet.getRange(elr+1,1);
   var outputCursor = {range : outputRange, rowOffset : 0};
@@ -506,6 +508,7 @@ function build_se_events() {
       }
     }
     if (foundBogusMeeting) {
+      Logger.log(inviteInfo[j][SUBJECT] + " is a bogus meeting.");
       continue;
     }
     
@@ -551,6 +554,7 @@ function build_se_events() {
             }
             createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, meetingType);
             isSpecialActive = true;
+            Logger.log(inviteInfo[j][SUBJECT] + " is a special meeting.");
             break;
           }
         }
@@ -571,9 +575,8 @@ function build_se_events() {
     // attendeeInfo.stats.customers - Number of customers in attendence
     // attendeeInfo.stats.partners - Number of partners in attendence
     // attendeeInfo.stats.hashi - Number of hashicorp attendees
-    // attendeeInfo.stats.other - Number of unidentified attendees
+    // attendeeInfo.stats.others - Number of unidentified attendees
     
-    var assignedTo = staffEmailToIdMap[inviteInfo[j][ASSIGNED_TO]];
     var productInventory = lookForProducts_(inviteInfo[j][SUBJECT]); // Give priority to subject
     if (productInventory.count == 0) {
       productInventory = lookForProducts_(inviteInfo[j][DESCRIPTION]);
@@ -660,6 +663,7 @@ function build_se_events() {
   
     
     if (isOverrideActive) {
+      Logger.log(inviteInfo[j][SUBJECT] + " has been overrided.");
       continue;
     }
       
@@ -822,11 +826,20 @@ function build_se_events() {
         createAccountEvents_(outputCursor, attendees, attendeeInfo.customers, inviteInfo[j], productInventory);
       }
     } 
-    /*
-    else {
-      Logger.log("DEBUG: Unable to find an account for " + inviteInfo[j][SUBJECT]);
+    else if (attendeeInfo.stats.others > 0) {
+      // Could not find an account or partner. Look for a lead...
+      Logger.log(inviteInfo[j][SUBJECT] + " fell through.");
+      let lead = findLead_(attendees);
+      if (lead) {
+        createLeadEvent_(outputCursor, lead, attendees, inviteInfo[j], productInventory);
+      }
+      else {       
+        AM_LOG.offset(AM_LOG_ROW, 0).setValue("WARNING - Unable to find an customer, partner or lead for:");
+        AM_LOG.offset(AM_LOG_ROW, 1).setValue(inviteInfo[j][SUBJECT]);
+        AM_LOG.offset(AM_LOG_ROW, 2).setValue(inviteInfo[j][ATTENDEE_STR]);
+        AM_LOG_ROW++;    
+      }     
     }
-    */
   }
 }
 
@@ -923,7 +936,7 @@ function expand_se_events() {
     customerNameById[customerInfo[j][CUSTOMER_ID]] = customerInfo[j][CUSTOMER_NAME];
   }
   
-  sheet = SpreadsheetApp.getActive().getSheetByName(EXTERNAL_CUSTOMERS);
+  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
   rangeData = sheet.getDataRange();
   alc = rangeData.getLastColumn();
   alr = rangeData.getLastRow();
@@ -940,6 +953,16 @@ function expand_se_events() {
     for (j = 0 ; j < alr - 1; j++) {
       customerNameById[customerInfo[j][CUSTOMER_ID]] = customerInfo[j][CUSTOMER_NAME];
     }
+  }
+  
+  //
+  // Load Leads
+  //
+  
+  let leadNameById = {};
+  let leadInfo = load_tab_(MISSING_LEADS, 2, LEAD_COLUMNS);
+  for (j=0; j<leadInfo.length; j++) {
+    leadNameById[leadInfo[j][LEAD_ID]] = leadInfo[j][LEAD_NAME];
   }
   
   //
@@ -978,11 +1001,15 @@ function expand_se_events() {
     else if (customerNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = customerNameById[eventInfo[j][EVENT_RELATED_TO]];
       type = "Customer";
+    } 
+    else if (leadNameById[eventInfo[j][EVENT_LEAD]]) {
+      name = leadNameById[eventInfo[j][EVENT_LEAD]];
+      type = "Lead";
     }
     if (0 == rowOffset) {
       // We are copying over the header
       outputRange.offset(rowOffset, 0).setValue("Event Type");
-      outputRange.offset(rowOffset, 1).setValue("Name");
+      outputRange.offset(rowOffset, 1).setValue("Related To");
       outputRange.offset(rowOffset, 2).setValue("Assigned To");
     }
     else {
@@ -1085,6 +1112,49 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.rowOffset++;
     
   }
+}
+
+function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInventory) {
+  
+  let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
+  let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+  
+  let logistics = "Face to Face";
+  if (descriptionScan.hasTeleconference) {
+    logistics = "Remote";
+  }
+  
+  let repAttended = "No";
+  if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
+    repAttended = "Yes"; 
+  }
+  
+  let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
+  if (event.meeting != "Happy Hour" && event.meeting != "Demo") { // "Happy Hour", (short) "Demo" or "Discovery" are acceptable for leads. We better not be doing anything more 
+    event.meeting = "Discovery";
+  }
+  
+  
+  Logger.log("Debug: Running createLeadEvent_ for: " + lead);
+  
+  outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue("None"); // None accepts all meeting types
+  outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting);
+  // outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(); No accounts available to relate to - using a Lead
+  outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
+  outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
+  
+  
+  outputTab.rowOffset++;
+  
 }
 
 function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, opProduct, opMilestones) {

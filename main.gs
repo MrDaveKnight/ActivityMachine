@@ -33,11 +33,12 @@ const MEETINGS_HAVE_DEFAULT=true;
 
 const RUN_PARMS = "Run Settings"
 
-const MISSING_CUSTOMERS = "Missing Customers (Zap)";
+const MISSING_DOMAINS = "Missing Domains (Zap)";
+const MISSING_EMAILS = "Missing Emails (Zap)";
 const MISSING_EMAIL_DOMAIN = 0;
 
 const IN_REGION_CUSTOMERS = "In Region Customers"; // Our Region's Customers or Prospects - Accounts for short. They are accounts in Salesforce
-const EXTERNAL_CUSTOMERS = "External Customers (Zap)"; // Dynamic account imports for each missing customer
+const MISSING_CUSTOMERS = "Missing Customers (Zap)"; // Dynamic account imports for each missing customer
 const CUSTOMER_COLUMNS = 7;
 const CUSTOMER_ID = 1;
 const CUSTOMER_NAME = 3;
@@ -51,7 +52,14 @@ const PARTNER_ID = 1;
 const PARTNER_NAME =2;
 const PARTNER_EMAIL_DOMAIN = 3;
 const PARTNER_ALT_EMAIL_DOMAINS = 4;
-const PARTNER_HEADER = [['Account Owner', '18-Digit Account ID', 'Account Name', 'Email Domain']];			// FIXME Alt email															
+const PARTNER_HEADER = [['Account Owner', '18-Digit Account ID', 'Account Name', 'Email Domain']];			// FIXME Alt email			
+
+const MISSING_LEADS = "Missing Leads (Zap)";
+const LEAD_COLUMNS = 3;
+const LEAD_ID = 0;
+const LEAD_NAME =1;
+const LEAD_EMAIL = 2;
+const LEAD_HEADER = [['18-Digit Lead ID', 'Account Name', 'Email']];			
 
 const STAFF = "Staff"
 const STAFF_COLUMNS = 5;
@@ -100,7 +108,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
 const EVENTS_EXPANDED = "Expanded"
-const EVENT_COLUMNS = 13;
+const EVENT_COLUMNS = 14;
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -114,7 +122,8 @@ const EVENT_DESC = 9;
 const EVENT_LOGISTICS = 10;
 const EVENT_PREP_TIME = 11;
 const EVENT_QUALITY = 12;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality"]]
+const EVENT_LEAD = 13;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead"]]
 
 // Global log
 const LOG_TAB = "Log";
@@ -123,6 +132,7 @@ var AM_LOG_ROW;
 
 var emailToCustomerMap = {};
 var emailToPartnerMap = {};
+var emailToLeadMap = {};
 var staffEmailToIdMap = {};
 var staffEmailToRoleMap = {};
 var staffNameToEmailMap = {};
@@ -136,9 +146,11 @@ var accountTeamByOp = {};
 const INTERNAL_CUSTOMER_TYPE = 1;
 const EXTERNAL_CUSTOMER_TYPE = 2;
 const PARTNER_TYPE = 3;
+const LEAD_TYPE = 4;
 var accountType = {}; // Index by account ID
 
 var missingAccounts = {}; // For tracking missing account data in lookForAccounts_()
+var potentialLeadEmails = {}; // For finding Leads should a missing account not exist.
 
 // Product codes for table index keys
 const TERRAFORM = "T";
@@ -175,7 +187,7 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Expanded Tab', 'menuItem11_')
                   .addSeparator()
-                  .addItem('External/Missing Customers Tabs (Turn off Zapier!)', 'menuItem5_')
+                  .addItem('Missing Accounts Tabs (Turn off Zapier!)', 'menuItem5_')
                   .addSeparator()
                   .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_'))
       .addToUi();

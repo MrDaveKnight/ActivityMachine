@@ -1,5 +1,7 @@
 function lookForAccounts_(attendees, customerMap, partnerMap) {
 
+  // Scan email domains of attendees looking for accounts.
+
   // attendees: array of attendee emails
   // Returns the following ...
   let rv = {};
@@ -11,7 +13,7 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
   rv.stats.customer_accounts = 0; // Number of unique customer accounts represented
   rv.stats.partners = 0; // Number of partners in attendence
   rv.stats.hashi = 0; // Number of hashicorp attendees
-  rv.stats.other = 0; // Number of unidentified attendees
+  rv.stats.others = 0; // Number of unidentified attendees
 
   
   for (var j = 0; j < attendees.length; j++) {

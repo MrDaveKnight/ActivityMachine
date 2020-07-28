@@ -1,4 +1,8 @@
-function import_external_accounts() {    
+function import_missing_accounts() {   
+
+  // Looks for domains that don't have an account, presumably because
+  // the domain is from an account external to the region being processed.
+  // Also tracks emails to find leads should the missing account not exist.
 
   let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
   var logLastRow = logSheet.getLastRow();
@@ -19,54 +23,50 @@ function import_external_accounts() {
   // 
   // Load current catalog of (formerly) missing accounts
   //
-  let sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
-  let rangeData = sheet.getDataRange();
-  let lastColumn = rangeData.getLastColumn();
-  let lastRow = rangeData.getLastRow();
+  let missingAccountInfo = load_tab_(MISSING_DOMAINS, 2, 1);
+  for (var i=0; i< missingAccountInfo.length; i++) {
+    missingAccounts[missingAccountInfo[i][MISSING_EMAIL_DOMAIN]] = true;
+  }
   
-  if (lastRow > 1) {
-    let scanRange = sheet.getRange(2,1, lastRow-1, lastColumn);
-    
-    // Suck all the calendar data up into memory.
-    let missingAccountInfo = scanRange.getValues();
-    for (var i=0; i< lastRow -1; i++) {
-      missingAccounts[missingAccountInfo[i][MISSING_EMAIL_DOMAIN]] = true;
-    }
+  
+  // 
+  // Load current catalog of potential leads (based on missing accounts)
+  //
+  let potentialLeads = load_tab_(MISSING_EMAILS, 2, 1);
+  for (var i=0; i< potentialLeads.length; i++) {
+    potentialLeadEmails[potentialLeads[i][0]] = true;
   }
   
   // 
   // Process Calendar invites
   //
   
-  // The raw calendar invites are in the Calendar tab.
-  sheet = SpreadsheetApp.getActive().getSheetByName('Calendar')
-  rangeData = sheet.getDataRange();
-  lastColumn = rangeData.getLastColumn();
-  lastRow = rangeData.getLastRow();
+  // The raw calendar invites are in the Calendar tab.  
+  let inviteInfo = load_tab_(CALENDAR, 2, CALENDAR_COLUMNS);
   
-  if (lastRow == 1) return; // Empty. Only header
+  Logger.log(CALENDAR + " import. Size is " + inviteInfo.length);
   
-  if (lastColumn < CALENDAR_COLUMNS){
-    Logger.log("ERROR: Imported Calendar was only " + lastColumn + " fields wide. Not enought! Something bad happened.");
-    return;
-  }
-  scanRange = sheet.getRange(2,1, lastRow-1, lastColumn);
-  
-  // Suck all the calendar data up into memory.
-  let inviteInfo = scanRange.getValues();
+  if (inviteInfo.length == 0) return; // Empty (or error). Only header
   
   // Set missing domain output cursor
-  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
+  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_DOMAINS);
   let elr = sheet.getLastRow();
   let outputRange = sheet.getRange(elr+1,1);
-  let outputCursor = {range : outputRange, rowOffset : 0};
+  let domainOutputCursor = {range : outputRange, rowOffset : 0};
+  
+    // Set lead output cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_EMAILS);
+  elr = sheet.getLastRow();
+  let leadOutputRange = sheet.getRange(elr+1,1);
+  let leadOutputCursor = {range : leadOutputRange, rowOffset : 0};
   
   // 
-  // Convert calendar invites (Calendart tab) to SE events (Events tab)
+  // Look for email domains that don't have an In Region Customer or Partner account
   //
   
-  let detectedAccounts = {};
-  for (var j = 0 ; j < lastRow - 1; j++) {
+  let detectedAccounts = {}; // For the new stuff
+  let loggedLeads = {}; // For the new stuff
+  for (var j = 0 ; j < inviteInfo.length; j++) {
     
     if (!inviteInfo[j][ASSIGNED_TO] || !inviteInfo[j][ATTENDEE_STR] || !inviteInfo[j][START]) {
       continue;
@@ -88,17 +88,42 @@ function import_external_accounts() {
     // attendeeInfo.stats.customers - Number of customers in attendence
     // attendeeInfo.stats.partners - Number of partners in attendence
     // attendeeInfo.stats.hashi - Number of hashicorp attendees
-    // attendeeInfo.stats.other - Number of unidentified attendees
+    // attendeeInfo.stats.others - Number of unidentified attendees
     
-    for (d in attendeeInfo.others) {
-
-      if (missingAccounts[d] || detectedAccounts[d]) {
-        continue; // old news
+    
+    // If no customers or partners, track the missing domains so we can lookup up accounts later from Salesforce
+    // (We can't pull in every account in Salesforce because there are too many. So, we look up stuff that isn't
+    // "In Region".)
+    if (attendeeInfo.stats.customers == 0 && attendeeInfo.stats.partners == 0) {
+      for (d in attendeeInfo.others) {
+        
+        if (missingAccounts[d] || detectedAccounts[d]) {
+          continue; // old news
+        }
+        
+        detectedAccounts[d] = true;
+        domainOutputCursor.range.offset(domainOutputCursor.rowOffset, MISSING_EMAIL_DOMAIN).setValue(d);     
+        domainOutputCursor.rowOffset++;     
+        
+        for (let j=0; j<attendees.length; j++) {
+          
+          let attendeeEmail = attendees[j];
+          
+          // By definition, only emails for domains not yet associated with an account are in the attendee list.
+          // However, there may be some hashicorp folks. Filter them out.
+          // Record all of these non-hashi emails as potential leads (if an accociated account isn't in Salesforce yet)
+          
+          if (potentialLeadEmails[attendeeEmail] || loggedLeads[attendeeEmail]) {
+            continue;
+          }
+          if (attendeeEmail.indexOf("hashicorp") != -1) continue;
+          
+          loggedLeads[attendeeEmail] = true;
+          leadOutputCursor.range.offset(leadOutputCursor.rowOffset, 0).setValue(attendeeEmail);     
+          leadOutputCursor.rowOffset++;   
+          
+        }     
       }
-      
-      detectedAccounts[d] = true;
-      outputCursor.range.offset(outputCursor.rowOffset, MISSING_EMAIL_DOMAIN).setValue(d);     
-      outputCursor.rowOffset++;     
     }
   }
   // Salesforce OAUTH2 doesn't work, so we have to use Zapier
@@ -271,7 +296,8 @@ function stage_events_to_upload_tab() {
     uploadRange.offset(rowOffset, EVENT_DESC).setValue(eventInfo[j][EVENT_DESC]);
     uploadRange.offset(rowOffset, EVENT_LOGISTICS).setValue(eventInfo[j][EVENT_LOGISTICS]);
     uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);  
-    uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);  
+    uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]); 
+    uploadRange.offset(rowOffset, EVENT_LEAD).setValue(eventInfo[j][EVENT_LEAD]); 
     
     
     rowOffset++;
@@ -279,9 +305,12 @@ function stage_events_to_upload_tab() {
 }
 
 function process_account_emails_(accountInfo, numberOfRows, accountType, accountName, accountId, emailFieldNumber, altEmailFieldNumber, emailToAccountMap) {
-  // Account info is an array of account records. numberOfRows is the number of accounts. All the other parameters are the "field numbers" (not sure 
-  // why I didn't name all of them as field numbers). And the last parameter, emailToAccountMap, is an object to record what email domain belongs
-  // to what account.
+  // accountInfo is an array of account records. numberOfRows is the number of accounts. All the other parameters, with the exception 
+  // of the last, are the "field numbers" (not sure why I didn't name all of them as <field>FieldNumber). The last parameter, emailToAccountMap, 
+  // is an object to record what email domain belongs to what account.
+  
+  // This normally process email domains (on stuff after the @ sign). However, one of the callers will pass in a full email (<x>@<domain>). So, make
+  // sure the logic is generic enough to handle that.
   
   let accountLog = {};
   
@@ -289,8 +318,11 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
   for (var j = 0 ; j < numberOfRows; j++) {
   
     let emailDomainString = accountInfo[j][emailFieldNumber];
-    let altDomainString = accountInfo[j][altEmailFieldNumber];  
-    
+    let altDomainString = 0;
+    if (altEmailFieldNumber) {
+      altDomainString = accountInfo[j][altEmailFieldNumber];  
+    }  
+  
     if (!emailDomainString && !altDomainString) {
       Logger.log("WARNING :" + accountInfo[j][accountName] + " has no email domain!");
       continue;
@@ -299,7 +331,7 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
     if (emailDomainString && typeof emailDomainString == "string") {
       emailDomains = emailDomainString.split(','); // Works if there is only one (no comma)
     }
-    if (altDomainString & typeof altDomainString == "string") {    
+    if (altDomainString && typeof altDomainString == "string") {    
       let moreDomains = altDomainString.split(','); // 99% of the time, domains are comma separated, but not always
       if (moreDomains.length > 0) {
         emailDomains = emailDomains.concat(moreDomains);
@@ -383,7 +415,7 @@ function load_customer_info_() {
   // Load up customers outside of our region
   //
   
-  sheet = SpreadsheetApp.getActive().getSheetByName(EXTERNAL_CUSTOMERS);
+  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
   rangeData = sheet.getDataRange();
   alc = rangeData.getLastColumn();
   alr = rangeData.getLastRow();
@@ -423,9 +455,17 @@ function load_partner_info_() {
     return false;
   }
   
-  process_account_emails_(partnerInfo, plr - 1, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToPartnerMap);
+  process_account_emails_(partnerInfo, plr - 1, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, 0, emailToPartnerMap); // TODO - add PARTNER_ALT_EMAIL_DOMAINS into partner report
   
   return true;
+}
+
+function load_lead_info_() {
+ 
+  let leadInfo = load_tab_(MISSING_LEADS, 2, 1);
+  if (leadInfo.length > 0) {
+    process_account_emails_(leadInfo, leadInfo.length, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMap);
+  }
 }
 
 
@@ -434,4 +474,41 @@ function printIt_() {
   for (var i = 0; i < keys.length; i++) {
     Logger.log(keys[i] + ":" + PropertiesService.getScriptProperties().getProperty(keys[i]));
   }
+}
+
+function findLead_(attendees) {
+  
+  for (let i=0; i<attendees.length; i++) {  
+    if (emailToLeadMap[attendees[i]]) {
+      return emailToLeadMap[attendees[i]];
+    }
+  }
+  return null;
+}
+
+function load_tab_(sheetName, fromRow, minColumnCount) { 
+  
+  try {
+    let sheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
+    let rangeData = sheet.getDataRange();
+    let lastColumn = rangeData.getLastColumn();
+    let lastRow = rangeData.getLastRow();
+    
+    if (lastColumn < minColumnCount) {
+      Logger.log("ERROR: " + sheetName + " does not have " + minColumnCount + " fields.");
+      return [];
+    }
+    
+    if (lastRow >= fromRow) {
+      let rowCount = lastRow-fromRow+1
+      let scanRange = sheet.getRange(fromRow,1, rowCount, lastColumn);
+      let inputArray = scanRange.getValues();
+      return inputArray;
+    }
+  }
+  catch (e) {
+    Logger.log("load_tab_ exception: " + e);
+  }
+  
+  return [];
 }
