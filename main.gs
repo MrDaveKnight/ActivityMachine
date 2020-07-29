@@ -1,25 +1,30 @@
 // Activity Machine
 //
 // This is a tool to automatically create SE Activities (Field Events in Salesforce) from calendar invites
-// that include customers or partners. Internal meetings are not included. All customer/partner facing
-// non-recurring invites are included. All customer/partner facing recurring invites that have been "accepted" 
+// that include customers, partners or leads. Internal-only meetings are not included. All customer/partner/lead facing
+// non-recurring invites are included. All customer/partner/lead facing recurring invites that have been "accepted" 
 // (SE has indicated they will be going) are also included.
 // 
 // The tool identifies the account(s) associated with each invite, along with the opportunity if any, based on the 
-// attendiees and the products being discussed. The meeting type is derived from keywords in the invite
+// attendees and the products being discussed. The meeting type is derived from keywords in the invite
 // such as "demo" or "pov". Reference the lookForMeetingType_() method for more detail.
 //
 // This script provides logic to -
-// 1. Import google calendar invites into a google sheet
+// 1. Import google calendar invites into the google sheet
 // 2. Generate SE Activities from those invites, saving them in a "staging" tab in the google sheet
-// 3. Move the staged SE Activities into an "Upload" tab on the google sheet
+// 3. Upload SE Activities; moving staged SE Activities into the "Upload" tab for Zap upload
+// 4. Generate "expanded" SE Activities with machine IDs replaced by names for easier review
+// 5. Import "missing" customers and leads (customers that are out-of-region, and leads for attendees without an account)
+// 6. Clear various tabs and logs
 //
 // A Zapier zap is configured to watch for SE Activities that appear in the Upload tab, and push them up 
-// into Salesforce
+// into Salesforce. Two more zaps are configured to watch for "missing" domains and emails in order to import
+// out-of-region customers and potential leads
 // 
-// ** Remember to turn off the Zap before you delete records from the Upload tab. **
+// ** Remember to turn off the associated Zap(s) before you delete records from the Upload or "Missing" tabs. **
 //
-// Information from Salesforce needed by the invite to event transform logic is stored in other google sheet tabs.
+// Information from Salesforce needed by the invite-to-event transform logic is stored in other google sheet tabs,
+// and imported via "Dataconnector for Salesforce".
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
