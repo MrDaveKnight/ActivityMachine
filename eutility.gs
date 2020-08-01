@@ -101,14 +101,6 @@ function import_missing_accounts() {
     if (attendeeInfo.stats.customers == 0 && attendeeInfo.stats.partners == 0) {
       for (d in attendeeInfo.others) {
         
-        if (missingAccounts[d] || detectedAccounts[d]) {
-          continue; // old news
-        }
-        
-        detectedAccounts[d] = true;
-        domainOutputCursor.range.offset(domainOutputCursor.rowOffset, MISSING_EMAIL_DOMAIN).setValue(d);     
-        domainOutputCursor.rowOffset++;     
-        
         for (let j=0; j<attendees.length; j++) {
           
           let attendeeEmail = attendees[j];
@@ -127,6 +119,16 @@ function import_missing_accounts() {
           leadOutputCursor.rowOffset++;   
           
         }     
+        
+        if (missingAccounts[d] || detectedAccounts[d]) {
+          continue; // old news
+        }
+        
+        detectedAccounts[d] = true;
+        domainOutputCursor.range.offset(domainOutputCursor.rowOffset, MISSING_EMAIL_DOMAIN).setValue(d);     
+        domainOutputCursor.rowOffset++;     
+        
+        
       }
     }
   }

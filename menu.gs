@@ -35,22 +35,24 @@ function menuItem1_() {
     return;
   }
   
+  /*
   let result = ui.alert('Please confirm', 
-                        'Are you sure you want to import calendar invites? This will clear the current set in the Calendar tab, and replace with a fresh import.\n\nContinue?',
-                        ui.ButtonSet.YES_NO);
+  'Are you sure you want to import calendar invites? This will clear the current set in the Calendar tab, and replace with a fresh import.\n\nContinue?',
+  ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
-    try {
-      markRunStart_();
-      import_calendars();
-    }
-    catch (e) {
-      Logger.log("ERROR: import_calendar threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
+  */
+  try {
+    markRunStart_();
+    import_calendars();
   }
+  catch (e) {
+    Logger.log("ERROR: import_calendar threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  // }
 }
 
 function menuItem2_() {
@@ -61,22 +63,24 @@ function menuItem2_() {
     return;
   }
   
+  /*
   let result = ui.alert('Please confirm', 
-                        'Are you sure you want to transform invites into events? This will clear the current set of Events.\n\nContinue?',
-                        ui.ButtonSet.YES_NO);
+  'Are you sure you want to transform invites into events? This will clear the current set of Events.\n\nContinue?',
+  ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {  
-    try {
-      markRunStart_();
-      build_se_events();
-    }
-    catch (e) {
-      Logger.log("ERROR: build_se_events threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
+  */
+  try {
+    markRunStart_();
+    build_se_events();
   }
+  catch (e) {
+    Logger.log("ERROR: build_se_events threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  //}
 }
 
 function menuItem3_() {
@@ -140,7 +144,7 @@ function menuItem5_() {
   }
   
   let result = ui.alert('Please confirm', 
-                        'Are you sure you want to clear the Missing Customers, Leads and Domains Tabs? The Zapier "Import Missing Accounts" zap must be OFF!\n\nIs it off?',
+                        'Are you sure you want to clear the "Missing Tabs"? The Zapier "Import Missing Accounts" and "Import Missing Leads" zaps must be OFF!\n\nAre they off?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) { 
@@ -168,7 +172,7 @@ function menuItem6_() {
     return;
   }
   
-  let result = ui.alert('Please confirm', 
+  let result = ui.alert('Please confirm clear', 
                         'The Zapier "Upload SE Events" zap must be OFF before you continue!\n\nIs Zapier off?',
                         ui.ButtonSet.YES_NO);
   
@@ -213,22 +217,24 @@ function menuItem8_() {
     return;
   }
   
+  /*
   let result = ui.alert('Please confirm', 
-                        'You want to clear the Calendar import tab?',
-                        ui.ButtonSet.YES_NO);
+  'You want to clear the Calendar import tab?',
+  ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
-    try {
-      markRunStart_();
-      clearTab_(CALENDAR, CALENDAR_HEADER);
-    }
-    catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
+  */
+  try {
+    markRunStart_();
+    clearTab_(CALENDAR, CALENDAR_HEADER);
   }
+  catch (e) {
+    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  //}
 }
 
 function menuItem9_() {
@@ -239,22 +245,25 @@ function menuItem9_() {
     return;
   }
   
+  /*
   let result = ui.alert('Please confirm', 
-                        'You want to clear the Event staging tab?',
-                        ui.ButtonSet.YES_NO);
+  'You want to clear the Event staging tab?',
+  ui.ButtonSet.YES_NO);
+  
   
   if (result == ui.Button.YES) {
-    try {
-      markRunStart_();
-      clearTab_(EVENTS, EVENT_HEADER);
-    }
-    catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
+  */
+  try {
+    markRunStart_();
+    clearTab_(EVENTS, EVENT_HEADER);
   }
+  catch (e) {
+    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  // }
 }
 
 function menuItem10_() {
@@ -265,22 +274,24 @@ function menuItem10_() {
     return;
   }
   
+  /*
   let result = ui.alert('Please confirm event field "expansion"', 
-                        'You want to transform the account, partner, opportunity and user ids in Events into names and save in the Expanded tab?',
-                        ui.ButtonSet.YES_NO);
+  'You want to transform the account, partner, opportunity and user ids in Events into names and save in the Expanded tab?',
+  ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {  
-    try {
-      markRunStart_();
-      expand_se_events();
-    }
-    catch (e) {
-      Logger.log("ERROR: expand_se_events threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
+  */
+  try {
+    markRunStart_();
+    expand_se_events();
   }
+  catch (e) {
+    Logger.log("ERROR: expand_se_events threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  // }
 }
 
 function menuItem11_() {
@@ -291,22 +302,24 @@ function menuItem11_() {
     return;
   }
   
+  /*
   let result = ui.alert('Please confirm', 
-                        'You want to clear the Expanded event tab?',
-                        ui.ButtonSet.YES_NO);
+  'You want to clear the Expanded event tab?',
+  ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
-    try {
-      markRunStart_();
-      clearTab_(EVENTS_EXPANDED, EVENT_HEADER);
-    }
-    catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
+  */
+  try {
+    markRunStart_();
+    clearTab_(EVENTS_EXPANDED, EVENT_HEADER);
   }
+  catch (e) {
+    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+  }
+  finally {
+    markRunEnd_();
+  }
+  //}
 }
 
 function menuItem12_() {
@@ -328,6 +341,55 @@ function menuItem12_() {
     markRunEnd_();
   }
   
+}
+
+function menuItem20_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Import Calendars\n\nThis will import invites from the Google Calendar app into the 'Calendar' tab of this sheet for each user specified in the 'Calendars' block of the 'Run Settings' tab. " + 
+  "It will clear whatever is currently in the 'Calendar' tab before importing a fresh set of invites. Basic stats will be output to the 'Log' tab.");
+
+}
+
+function menuItem21_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Import Missing Accounts\n\nThis is a dynamic configuration update method. It will identify domains not represented in the current 'In Region Customers' tab along with the email addresses of potential leads for those missing domains, " +
+  "appending that information into the 'Missing Domains' and 'Missing Emails' tabs. From there, two zaps will search for those recently added 'missing' customers and leads, appending what it finds, " +
+  "if anything, into the 'Missing Customers' and 'Missing Leads' tabs. This should be run after a fresh Calendar Import.");
+
+}
+
+function menuItem22_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Generate Events\n\nThis will generate records in the 'Events' tab for each invite in the 'Calendar' tab that includes a customer, partner or lead. " + 
+  "It will clear whatever is currently in the 'Events' tab before processing invites. Run information will be output to the 'Log' tab, including which 'externally facing' invites could not be matched with a customer, partner or lead.");
+
+}
+
+function menuItem23_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Expand Events\n\nThis takes each record in the 'Events' tab, replacing Salesforce IDs with corresponding names, and writes those 'expanded' records into the 'Expanded' tab. " +
+  "It will clear whatever is currently in the 'Expanded' tab before performing the ID to name expansion. These expanded records are easier to manually review prior to upload.");
+
+}
+
+function menuItem24_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Import Calendars & Generate Events\n\nThis is a convenience method to execute Import Calendars then Generate Events in sequence. " +
+  "Note that Import Missing Accounts will not be executed, so only execute this if you know there are no missing accounts for the current calendar (you have likely searched for missing accounts recently.)");
+
+}
+
+function menuItem25_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Upload Events\n\nThis takes each record in the 'Events' tab and appends it into the 'Uploads' tab. " +
+  "From there a zap will upload the freshly appended records to Salesforce. Ensure that you review the events for correctness before uploading to Salesforce!");
+
 }
 
 function onEdit(e) {

@@ -122,15 +122,10 @@ function lookForMeetingType_(stage, text) {
     // troubleshoot, support and issue.
     // Look for Discovery stuff first if we are in discovery stage
       {meeting : "Pilot", regex : /pilot/, stage : "Success Planning"},
-      {meeting : "Health Check", regex : /health check/, stage : "Technical & Business Validation"},
-      {meeting : "Standard Workshop", regex : /workshop/, stage : "Technical & Business Validation"},
-      {meeting : "Product Deep Dive", regex : /deep dive/, stage : "Technical & Business Validation"},
       {meeting : "Controlled POV", regex : /implementation/, stage : "Technical & Business Validation"},
       {meeting : "Controlled POV", regex : /troubleshoot/, stage : "Technical & Business Validation"},
       {meeting : "Controlled POV", regex : /support/, stage : "Technical & Business Validation"},
       {meeting : "Controlled POV", regex : /issue/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /pov/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /poc/, stage : "Technical & Business Validation"},
       {meeting : "Shadow", regex : /shadow/, stage : "Discovery & Qualification"},
       {meeting : "Happy Hour", regex : /happy hour/, stage : "Discovery & Qualification"},
       {meeting : "Happy Hour", regex : /lunch/, stage : "Discovery & Qualification"},
@@ -140,13 +135,6 @@ function lookForMeetingType_(stage, text) {
       {meeting : "Technical Office Hours", regex : /training/, stage : "Discovery & Qualification"},
       {meeting : "Technical Office Hours", regex : /setup/, stage : "Discovery & Qualification"},
       {meeting : "Technical Office Hours", regex : /setup/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /presentation/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /pitch/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /briefing/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /architecture/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /overview/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /whiteboard/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /roadmap/, stage : "Discovery & Qualification"},
       {meeting : "Discovery", regex : /planning/, stage : "Discovery & Qualification"},
       {meeting : "Discovery", regex : /discovery/, stage : "Discovery & Qualification"},
       {meeting : "Discovery", regex : /discussion/, stage : "Discovery & Qualification"},
@@ -154,6 +142,18 @@ function lookForMeetingType_(stage, text) {
       {meeting : "Discovery", regex : /introduction/, stage : "Discovery & Qualification"},
       {meeting : "Discovery", regex : /sync/, stage : "Discovery & Qualification"},
       {meeting : "Discovery", regex : /review/, stage : "Discovery & Qualification"},
+      {meeting : "Product Overview", regex : /presentation/, stage : "Discovery & Qualification"},
+      {meeting : "Product Overview", regex : /pitch/, stage : "Discovery & Qualification"},
+      {meeting : "Product Overview", regex : /briefing/, stage : "Discovery & Qualification"},
+      {meeting : "Product Overview", regex : /architecture/, stage : "Discovery & Qualification"},
+      {meeting : "Product Overview", regex : /overview/, stage : "Discovery & Qualification"},
+      {meeting : "Product Overview", regex : /whiteboard/, stage : "Discovery & Qualification"},
+      {meeting : "Controlled POV", regex : /pov/, stage : "Technical & Business Validation"},
+      {meeting : "Controlled POV", regex : /poc/, stage : "Technical & Business Validation"},
+      {meeting : "Product Overview", regex : /roadmap/, stage : "Discovery & Qualification"},
+      {meeting : "Health Check", regex : /health check/, stage : "Technical & Business Validation"},
+      {meeting : "Standard Workshop", regex : /workshop/, stage : "Technical & Business Validation"},
+      {meeting : "Product Deep Dive", regex : /deep dive/, stage : "Technical & Business Validation"},
       {meeting : "Demo", regex : /demo/, stage : "Discovery & Qualification"}]; // want demo to take priority over POV
     
   }
@@ -194,13 +194,13 @@ function lookForMeetingType_(stage, text) {
       {meeting : "Technical Office Hours", regex : /troubleshoot/, stage : "Technical & Business Validation"},
       {meeting : "Technical Office Hours", regex : /issue/, stage : "Technical & Business Validation"},
       {meeting : "Health Check", regex : /health check/, stage : "Technical & Business Validation"},
-      {meeting : "Demo", regex : /demo/, stage : "Discovery & Qualification"},
       {meeting : "Standard Workshop", regex : /workshop/, stage : "Technical & Business Validation"},
       {meeting : "Product Deep Dive", regex : /deep dive/, stage : "Technical & Business Validation"},
       {meeting : "Product Deep Dive", regex : /architecture/, stage : "Technical & Business Validation"},
       {meeting : "Controlled POV", regex : /implementation/, stage : "Technical & Business Validation"},
       {meeting : "Controlled POV", regex : /pov/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /poc/, stage : "Technical & Business Validation"}]; 
+      {meeting : "Controlled POV", regex : /poc/, stage : "Technical & Business Validation"},
+      {meeting : "Demo", regex : /demo/, stage : "Discovery & Qualification"}]; 
   }
   else if (stage == "Closed/Won") {
     
