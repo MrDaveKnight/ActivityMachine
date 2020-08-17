@@ -1,5 +1,7 @@
 function import_calendars() {
 
+  logStamp("Calendar Import");
+
   clearTab_(CALENDAR, CALENDAR_HEADER);
   clearTab_(LOG_TAB);
   

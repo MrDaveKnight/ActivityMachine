@@ -258,7 +258,7 @@ function menuItem9_() {
     clearTab_(EVENTS, EVENT_HEADER);
   }
   catch (e) {
-    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+    Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);
   }
   finally {
     markRunEnd_();
@@ -274,24 +274,24 @@ function menuItem10_() {
     return;
   }
   
-  /*
+  
   let result = ui.alert('Please confirm event field "expansion"', 
-  'You want to transform the account, partner, opportunity and user ids in Events into names and save in the Expanded tab?',
-  ui.ButtonSet.YES_NO);
+                        'This will overwrite what is currently in the Review tab with events that have had ids replaced with names for accounts, partners, opportunities and users. You will loose any updates currently in the Review tab! You want to continue anyway?',
+                        ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {  
-  */
-  try {
-    markRunStart_();
-    expand_se_events();
+    
+    try {
+      markRunStart_();
+      expand_se_events();
+    }
+    catch (e) {
+      Logger.log("ERROR: expand_se_events threw an unhandled exception: " + e);
+    }
+    finally {
+      markRunEnd_();
+    }
   }
-  catch (e) {
-    Logger.log("ERROR: expand_se_events threw an unhandled exception!");
-  }
-  finally {
-    markRunEnd_();
-  }
-  // }
 }
 
 function menuItem11_() {
@@ -302,24 +302,28 @@ function menuItem11_() {
     return;
   }
   
-  /*
+  
   let result = ui.alert('Please confirm', 
-  'You want to clear the Expanded event tab?',
-  ui.ButtonSet.YES_NO);
+                        'You want to clear the Review tab? All updates to reviewed events will be lost!',
+                        ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
-  */
-  try {
-    markRunStart_();
-    clearTab_(EVENTS_EXPANDED, EVENT_HEADER);
+    
+    try {
+      markRunStart_();
+      clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
+      
+      let spreadsheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_EXPANDED);
+      spreadsheet.getRange('2:1000').activate();
+      spreadsheet.getActiveRangeList().setBackground('#ffffff');
+    }
+    catch (e) {
+      Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);
+    }
+    finally {
+      markRunEnd_();
+    }
   }
-  catch (e) {
-    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
-  }
-  finally {
-    markRunEnd_();
-  }
-  //}
 }
 
 function menuItem12_() {
@@ -335,12 +339,40 @@ function menuItem12_() {
     clearTab_(LOG_TAB);
   }
   catch (e) {
-    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+    Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);
   }
   finally {
     markRunEnd_();
   }
   
+}
+
+function menuItem13_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  
+  if (needToAbortRun_(ui)) {
+    return;
+  }
+  
+  
+  let result = ui.alert('Please confirm', 
+                        'You want to reconcile the Review tab with the Events tab? Records in the Events tab will be updated to match corresponding records in the Review tab that have been modified.\nContinue?',
+                        ui.ButtonSet.YES_NO);
+  
+  if (result == ui.Button.YES) {
+    
+    try {
+      markRunStart_();
+      reconcile_se_events();
+    }
+    catch (e) {
+      Logger.log("ERROR: reconcile_se_events threw an unhandled exception: " + e);
+    }
+    finally {
+      markRunEnd_();
+    }
+  }
 }
 
 function menuItem20_() {
@@ -364,62 +396,233 @@ function menuItem22_() {
   
   let ui = SpreadsheetApp.getUi();
   ui.alert("Generate Events\n\nThis will generate records in the 'Events' tab for each invite in the 'Calendar' tab that includes a customer, partner or lead. " + 
-  "It will clear whatever is currently in the 'Events' tab before processing invites. Run information will be output to the 'Log' tab, including which 'externally facing' invites could not be matched with a customer, partner or lead.");
-
+           "It will clear whatever is currently in the 'Events' tab before processing invites. Run information will be output to the 'Log' tab, including which 'externally facing' invites could not be matched with a customer, partner or lead.");
+  
 }
 
 function menuItem23_() {
   
   let ui = SpreadsheetApp.getUi();
-  ui.alert("Expand Events\n\nThis takes each record in the 'Events' tab, replacing Salesforce IDs with corresponding names, and writes those 'expanded' records into the 'Expanded' tab. " +
-  "It will clear whatever is currently in the 'Expanded' tab before performing the ID to name expansion. These expanded records are easier to manually review prior to upload.");
-
+  ui.alert("Expand Events\n\nThis takes each record in the 'Events' tab, replacing Salesforce IDs with corresponding names, and writes those 'expanded' records into the 'Review' tab. " +
+           "It will clear whatever is currently in the 'Review' tab before performing the ID to name expansion. These expanded records are easier to manually review prior to upload.");
+  
 }
 
 function menuItem24_() {
   
   let ui = SpreadsheetApp.getUi();
   ui.alert("Import Calendars & Generate Events\n\nThis is a convenience method to execute Import Calendars then Generate Events in sequence. " +
-  "Note that Import Missing Accounts will not be executed, so only execute this if you know there are no missing accounts for the current calendar (you have likely searched for missing accounts recently.)");
-
+           "Note that Import Missing Accounts will not be executed, so only execute this if you know there are no missing accounts for the current calendar (you have likely searched for missing accounts recently.)");
+  
 }
 
 function menuItem25_() {
   
   let ui = SpreadsheetApp.getUi();
   ui.alert("Upload Events\n\nThis takes each record in the 'Events' tab and appends it into the 'Uploads' tab. " +
-  "From there a zap will upload the freshly appended records to Salesforce. Ensure that you review the events for correctness before uploading to Salesforce!");
-
+           "From there a zap will upload the freshly appended records to Salesforce. Ensure that you review the events for correctness before uploading to Salesforce!");
+  
 }
 
 function onEdit(e) {
-  var thisSheet = e.source.getActiveSheet();
-  
-  
-  if (thisSheet.getName() != RUN_PARMS) {
+   
+  // Only do this is a single cell is changed
+  if (e.range.rowStart != e.range.rowEnd || e.range.columnStart != e.range.columnEnd) {
     return;
   }
+  
+  let thisSheet = e.source.getActiveSheet();
+  if (thisSheet.getName() == RUN_PARMS) {
+    handleRunParmsMenuEdit_(e.range, e.value);
+  }
+  else if (thisSheet.getName() == EVENTS_EXPANDED) {
+    handleReviewMenuEdit_(e.range, e.value);
+  }
+}
 
-  // Hardcoded to Account Overrides name entries
-  var watchColumns = [7];
-  if (watchColumns.indexOf(e.range.columnStart) == -1) return;
+/*
+The event e ...
+{ 
+    String user, 
+    SpreadSheet source, 
+    Range range,
+    Object value 
+}
+*/
+
+function handleRunParmsMenuEdit_(cell, value) {
+  
+  // Columns an Rows hardcoded to Account Overrides name entries
+  if (cell.columnStart != 7) return;
   var watchRows = [4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19]; 
-  if (watchRows.indexOf(e.range.rowStart) == -1) return;
-
-  if (!e.value) {
-    e.range.offset(0, 1).setValue("");
+  if (watchRows.indexOf(cell.rowStart) == -1) return;
+  
+  if (!value) {
+    cell.offset(0, 1).setValue("");
     return;
   }
-
+  
   var tab = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(IN_REGION_CUSTOMERS);
   var range = tab.getRange(2, 2, 500, 2); // 500 accounts max. First account name is on row 2, column 4. Id is at column 2.
   //SpreadsheetApp.getUi().alert("here we go");
   for (var i = 0; i < 500; i++) {
-    if (range.offset(i, 2).getValue() == e.value) {
+    if (range.offset(i, 2).getValue() == value) {
       let v = range.offset(i,0).getValue();
-      e.range.offset(0, 1).setValue(v.substring(0, v.length - 3)); // Creating "short" id (cutting off 3 character post fix)
+      cell.offset(0, 1).setValue(v.substring(0, v.length - 3)); // Creating "short" id (cutting off 3 character post fix)
       break;
     }
+  }
+}
+
+function handleReviewMenuEdit_(cell, value) {
+
+  if (cell.rowStart > MAX_ROWS) {
+    SpreadsheetApp.getUi().alert("We have exceeded " + MAX_ROWS + " events! Please reduce the number of calendars or the length of time being analyzed, or talk to Dave about bumping this limit up. Thank you.\n--The Activity Machine");
+    return; 
+  }  
+  if (!value) {
+    Logger.log("ERROR: data validation failing on Review tab's Event Type field!");
+    return;
+  }
+  switch (cell.columnStart) {
+    case REVIEW_EVENT_TYPE + 1:
+      handleEventTypeChange_(cell, value);
+      break;
+    case REVIEW_RELATED_TO + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_RELATED_TO - REVIEW_RELATED_TO);
+      break;
+    case REVIEW_OP_STAGE + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_OP_STAGE - REVIEW_OP_STAGE);
+      break;
+    case REVIEW_PRODUCT + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_PRODUCT - REVIEW_PRODUCT);
+      break;
+    case REVIEW_DESC + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_DESC - REVIEW_DESC);
+      break;
+    case REVIEW_MEETING_TYPE + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_MEETING_TYPE - REVIEW_MEETING_TYPE);
+      break;
+    case REVIEW_REP_ATTENDED + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_REP_ATTENDED - REVIEW_REP_ATTENDED);
+      break;
+    case REVIEW_LOGISTICS + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_LOGISTICS - REVIEW_LOGISTICS);
+      break;
+    case REVIEW_PREP_TIME + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_PREP_TIME - REVIEW_PREP_TIME);
+      break;
+    case REVIEW_QUALITY + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_QUALITY - REVIEW_QUALITY);
+      break;
+    case REVIEW_LEAD + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_LEAD - REVIEW_LEAD);
+      break;
+    default:
+  }
+}
+
+
+function handleEventTypeChange_(cell, value) {
+ 
+  let validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICES);
+  let validationRange = validationSheet.getRange(4, 4, 2); // Null choices for "Unknown"
+  let validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+  let clearedValidationRule = validationRule;
+  let validationOffset = REVIEW_RELATED_TO - REVIEW_EVENT_TYPE;
+  let clearingOffset = REVIEW_LEAD - REVIEW_EVENT_TYPE;
+  let originalValueOffset = REVIEW_ORIG_LEAD - REVIEW_LEAD;
+  
+  
+  switch (value) {
+      
+    case "Unknown":
+      break;
+    case "Opportunity":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OPPORTUNITIES);
+      validationRange = validationSheet.getRange(2, OP_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    case "Partner":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PARTNERS);
+      validationRange = validationSheet.getRange(2, PARTNER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    case "Customer":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(IN_REGION_CUSTOMERS);
+      validationRange = validationSheet.getRange(2, CUSTOMER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    case "Lead":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MISSING_LEADS);
+      validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      validationOffset = REVIEW_LEAD - REVIEW_EVENT_TYPE;
+      clearingOffset = REVIEW_RELATED_TO - REVIEW_EVENT_TYPE;
+      originalValueOffset = REVIEW_ORIG_RELATED_TO - REVIEW_RELATED_TO;
+      break;
+    default:
+      Logger.log("ERROR: bogus value in Review tab's Event Type field: " + value);
+  }
+  
+  
+  cell.offset(0, clearingOffset).setValue("");
+  cell.offset(0, clearingOffset).clearDataValidations(); 
+  handleValueSelection_(cell.offset(0, clearingOffset), "", originalValueOffset);
+  cell.offset(0, validationOffset).setDataValidation(validationRule);
+  handleValueSelection_(cell, value, REVIEW_ORIG_EVENT_TYPE - REVIEW_EVENT_TYPE);
+  
+}
+
+function initValidation_(cell, type) {
+  
+  let validationSheet = null;
+  let validationRange = null;
+  let validationRule = null;
+  
+  switch (type) {
+      
+    case "Unknown":
+      return;
+      break;
+    case "Opportunity":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OPPORTUNITIES);
+      validationRange = validationSheet.getRange(2, OP_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    case "Partner":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PARTNERS);
+      validationRange = validationSheet.getRange(2, PARTNER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    case "Customer":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(IN_REGION_CUSTOMERS);
+      validationRange = validationSheet.getRange(2, CUSTOMER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    case "Lead":
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MISSING_LEADS);
+      validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
+      break;
+    default:
+      Logger.log("ERROR: bogus value in Review tab's Event Type field: " + value);
+      return;
+  }
+  
+  cell.setDataValidation(validationRule);
+}
+
+function handleValueSelection_(cell, value, originalValueOffset) {
+  let originalValue = cell.offset(0, originalValueOffset).getValue();
+  if (value != originalValue) {
+    let reviewRowWasTouchedArray = PropertiesService.getScriptProperties().getProperty("reviewTouches");
+    reviewRowWasTouchedArray[cell.rowStart] = true;   
+    PropertiesService.getScriptProperties().setProperty("reviewTouches", reviewRowWasTouchedArray); 
+    cell.setBackground("tomato");
+  }
+  else {
+    cell.setBackground(null);
   }
 }
 

@@ -37,6 +37,7 @@ const MEETINGS_HAVE_DEFAULT=true;
 // The indexes below identify the column locations of the imported data.
 
 const RUN_PARMS = "Run Settings"
+const CHOICES = "Choices"
 
 const MISSING_DOMAINS = "Missing Domains (Zap)";
 const MISSING_EMAILS = "Missing Emails (Zap)";
@@ -67,12 +68,13 @@ const LEAD_EMAIL = 2;
 const LEAD_HEADER = [['18-Digit Lead ID', 'Account Name', 'Email']];			
 
 const STAFF = "Staff"
-const STAFF_COLUMNS = 5;
-const STAFF_ID =3;
+const STAFF_COLUMNS = 6;
+const STAFF_ID = 3;
 const STAFF_NAME = 0;
 const STAFF_EMAIL = 1;
 const STAFF_ROLE = 4;
-const STAFF_ROLE_REP = "EAM 1"
+const STAFF_LONG_ID = 5;
+const STAFF_ROLE_REP = "E1"
 
 const OPPORTUNITIES = "Opportunities";
 const OP_COLUMNS = 12;
@@ -112,7 +114,6 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
-const EVENTS_EXPANDED = "Expanded"
 const EVENT_COLUMNS = 14;
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
@@ -129,6 +130,42 @@ const EVENT_PREP_TIME = 11;
 const EVENT_QUALITY = 12;
 const EVENT_LEAD = 13;
 const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead"]]
+
+const EVENTS_EXPANDED = "Review"
+const REVIEW_COLUMNS = 15;
+const REVIEW_ASSIGNED_TO = 0;
+const REVIEW_EVENT_TYPE = 1; // Must be before REVIEW_RELATED_TO and REVIEW_LEAD or you will break the menu
+const REVIEW_RELATED_TO = 2; // Opportunity ID or Account ID
+const REVIEW_OP_STAGE = 3;
+const REVIEW_START = 4;
+const REVIEW_END = 5;
+const REVIEW_SUBJECT = 6;
+const REVIEW_PRODUCT = 7;
+const REVIEW_DESC = 8;
+const REVIEW_MEETING_TYPE = 9;
+const REVIEW_REP_ATTENDED = 10;
+const REVIEW_LOGISTICS = 11;
+const REVIEW_PREP_TIME = 12;
+const REVIEW_QUALITY = 13;
+const REVIEW_LEAD = 14;
+const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead"]]
+
+// Record original values for highlighting changes by the reviewers
+// No header. Not meant to be seen by a user
+const REVIEW_ORIG_EVENT_TYPE = 31;
+const REVIEW_ORIG_RELATED_TO = 32; // Opportunity ID or Account ID
+const REVIEW_ORIG_OP_STAGE = 33;
+const REVIEW_ORIG_PRODUCT = 34;
+const REVIEW_ORIG_DESC = 35;
+const REVIEW_ORIG_MEETING_TYPE = 36;
+const REVIEW_ORIG_REP_ATTENDED = 37;
+const REVIEW_ORIG_LOGISTICS = 38;
+const REVIEW_ORIG_PREP_TIME = 39;
+const REVIEW_ORIG_QUALITY = 40;
+const REVIEW_ORIG_LEAD = 41;
+
+const MAX_ROWS = 2000; // Use for warnings and data validation limits
+
 
 // Global log
 const LOG_TAB = "Log";
@@ -179,8 +216,10 @@ function onOpen() {
       .addSeparator()
       .addItem('Expand Events', 'menuItem10_')
       .addSeparator()
-      .addItem('Import Calendars & Generate Events', 'menuItem3_')
+      .addItem('Reconcile Events', 'menuItem13_')
       .addSeparator()
+      //.addItem('Import Calendars & Generate Events', 'menuItem3_')
+      //.addSeparator()
       .addItem('Upload Events (& wait for zap)', 'menuItem4_')
       .addSeparator()
       .addSubMenu(ui.createMenu('Clear')
@@ -190,9 +229,9 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Event Tab', 'menuItem9_')
                   .addSeparator()
-                  .addItem('Expanded Tab', 'menuItem11_')
+                  .addItem('Review Tab', 'menuItem11_')
                   .addSeparator()
-                  .addItem('All "Missing X" Tabs (Turn off Zapier!)', 'menuItem5_')
+                  .addItem('All Missing ... Tabs (Turn off Zapier!)', 'menuItem5_')
                   .addSeparator()
                   .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_'))
       .addSubMenu(ui.createMenu('Help')

@@ -130,14 +130,8 @@ function build_se_events() {
   // Initialize global log
   //
   
-  let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
-  var logLastRow = logSheet.getLastRow();
-  AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
-  AM_LOG_ROW = 0;
+  logStamp("SE Event Build");
   
-  AM_LOG.offset(AM_LOG_ROW, 0).setValue("SE Event Build " + new Date().toLocaleTimeString());
-  AM_LOG.offset(AM_LOG_ROW+1, 0).setValue("------------------------------------");
-  AM_LOG_ROW+=2;   
   
   // Information for accounts, staff, opportunities and calendar invites
   // is loaded from tabs in the spreadsheet into two-dimentional arrays with
@@ -173,10 +167,14 @@ function build_se_events() {
   var scanRange = sheet.getRange(2,1, slr-1, slc);
   var staffInfo = scanRange.getValues();
   
-  if (slc < STAFF_COLUMNS) {
+  if (slc < STAFF_COLUMNS - 1) {
     Logger.log("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
     return;
   }
+  
+  // In case we need to generate long ids
+  //DAK
+  let longIdCells = sheet.getRange(2, 1); // To initialize if we have to
   
   // Build the email to user id mapping  
   for (var j = 0 ; j < slr - 1; j++) {
@@ -185,7 +183,16 @@ function build_se_events() {
       continue;
     }
     staffNameToEmailMap[staffInfo[j][STAFF_NAME].trim()] = staffInfo[j][STAFF_EMAIL].trim();
-    staffEmailToIdMap[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_ID].trim();
+    
+    if (!staffInfo[j][STAFF_LONG_ID]) {
+      let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
+      longIdCells.offset(j, STAFF_LONG_ID).setValue(longId);
+      staffEmailToIdMap[staffInfo[j][STAFF_EMAIL].trim()] = longId.trim();
+    }
+    else {
+      staffEmailToIdMap[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_LONG_ID].trim();
+    }
+    
     staffEmailToRoleMap[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_ROLE].trim();
     //Logger.log("DEBUG: " + staffInfo[j][STAFF_EMAIL] + " -> " + staffInfo[j][STAFF_ID]);
     
@@ -838,10 +845,7 @@ function build_se_events() {
         createLeadEvent_(outputCursor, lead, attendees, inviteInfo[j], productInventory);
       }
       else {       
-        AM_LOG.offset(AM_LOG_ROW, 0).setValue("WARNING - Unable to find an customer, partner or lead for:");
-        AM_LOG.offset(AM_LOG_ROW, 1).setValue(inviteInfo[j][SUBJECT]);
-        AM_LOG.offset(AM_LOG_ROW, 2).setValue(inviteInfo[j][ATTENDEE_STR]);
-        AM_LOG_ROW++;    
+        logThreeCol("WARNING - Unable to find an customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
       }     
     }
   }
@@ -849,7 +853,7 @@ function build_se_events() {
 
 
 function expand_se_events() {
-  //Copy events over to Expanded tab replacing account or opportunity ids with names
+  //Copy events over to Review tab replacing account or opportunity ids with names 
 
   //
   // Load Opportunity Info
@@ -886,14 +890,26 @@ function expand_se_events() {
   scanRange = sheet.getRange(2,1, slr-1, slc);
   staffInfo = scanRange.getValues();
   
-  if (slc < STAFF_COLUMNS) {
+  if (slc < STAFF_COLUMNS - 1) {
     Logger.log("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
     return;
   }
   
+  let longIdCells = sheet.getRange(2,1); // To initialize if we have to
+  
   // Build the user id to name mapping  
   for (var j = 0 ; j < slr - 1; j++) {
-    staffNameById[staffInfo[j][STAFF_ID].trim()] = staffInfo[j][STAFF_NAME].trim();
+  
+    //DAK
+    if (!staffInfo[j][STAFF_LONG_ID]) {
+      let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
+      longIdCells.offset(j,STAFF_LONG_ID).setValue(longId);
+      staffNameById[longId.trim()] = staffInfo[j][STAFF_NAME].trim();
+    }
+    else {
+      staffNameById[staffInfo[j][STAFF_LONG_ID].trim()] = staffInfo[j][STAFF_NAME].trim();
+    }
+    
   }
   
   //
@@ -970,28 +986,35 @@ function expand_se_events() {
   }
   
   //
-  // Copy events over, replacing account or opportunity ids with names
+  // Copy events over, replacing account or opportunity ids with names, or lead ids with names
   //
 
   sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
   rangeData = sheet.getDataRange();
   let elc = rangeData.getLastColumn();
   let elr = rangeData.getLastRow();
-  scanRange = sheet.getRange(1,1, elr, elc);
+  scanRange = sheet.getRange(2,1, elr-1, elc);
   let eventInfo = scanRange.getValues();
   
   if (elc < EVENT_COLUMNS) {
-    Logger.log("ERROR: Imported Customers was only " + elc + " fields wide. Not enough! Something is wrong.");
+    Logger.log("ERROR: Imported Events was only " + elc + " fields wide. Not enough! Something is wrong.");
     return;
   }
   
-  // Set event output cursor
+  clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
+  
+  // Clear any left over update color and set event output cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_EXPANDED);
-  sheet.clearContents();  
-  let outputRange = sheet.getRange(1,1);
-  let rowOffset = 0;
+  sheet.getRange('2:1000').activate();
+  sheet.getActiveRangeList().setBackground('#ffffff');
+  let outputRange = sheet.getRange(2,1); // skip over the header
+  let rowOffset = 0; 
+  
+  let reviewRowWasTouchedArray = new Array(elr).fill(false);
+  PropertiesService.getScriptProperties().setProperty("reviewTouches", reviewRowWasTouchedArray);
  
-  for (j = 0 ; j < elr; j++) {
+  for (j = 0 ; j < elr-1; j++) {
+    // Note that these types are in the Data Validation for the associated field on the Review tab
     let name = "Unknown";
     let type = "Unknown";
     if (opNameById[eventInfo[j][EVENT_RELATED_TO]]) {
@@ -1010,32 +1033,254 @@ function expand_se_events() {
       name = leadNameById[eventInfo[j][EVENT_LEAD]];
       type = "Lead";
     }
-    if (0 == rowOffset) {
-      // We are copying over the header
-      outputRange.offset(rowOffset, 0).setValue("Event Type");
-      outputRange.offset(rowOffset, 1).setValue("Related To");
-      outputRange.offset(rowOffset, 2).setValue("Assigned To");
+   
+    outputRange.offset(rowOffset, REVIEW_ASSIGNED_TO).setValue(staffNameById[eventInfo[j][EVENT_ASSIGNED_TO]]);
+    outputRange.offset(rowOffset, REVIEW_EVENT_TYPE).setValue(type);
+    outputRange.offset(rowOffset, REVIEW_ORIG_EVENT_TYPE).setValue(type);
+    if (type == "Opportunity" || type == "Customer" || type == "Partner") {
+      outputRange.offset(rowOffset, REVIEW_RELATED_TO).setValue(name); 
+      outputRange.offset(rowOffset, REVIEW_ORIG_RELATED_TO).setValue(name); 
+      initValidation_(outputRange.offset(rowOffset, REVIEW_RELATED_TO), type);
+    }
+    else if (type == "Lead") {
+      outputRange.offset(rowOffset, REVIEW_LEAD).setValue(name);
+      outputRange.offset(rowOffset, REVIEW_ORIG_LEAD).setValue(name);
+      initValidation_(outputRange.offset(rowOffset, REVIEW_LEAD), type);
+    }     
+    outputRange.offset(rowOffset, REVIEW_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
+    outputRange.offset(rowOffset, REVIEW_START).setValue(eventInfo[j][EVENT_START]);
+    outputRange.offset(rowOffset, REVIEW_END).setValue(eventInfo[j][EVENT_END]);
+    outputRange.offset(rowOffset, REVIEW_SUBJECT).setValue(eventInfo[j][EVENT_SUBJECT]);
+    outputRange.offset(rowOffset, REVIEW_PRODUCT).setValue(eventInfo[j][EVENT_PRODUCT]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_PRODUCT).setValue(eventInfo[j][EVENT_PRODUCT]);
+    outputRange.offset(rowOffset, REVIEW_DESC).setValue(eventInfo[j][EVENT_DESC]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_DESC).setValue(eventInfo[j][EVENT_DESC]);
+    outputRange.offset(rowOffset, REVIEW_MEETING_TYPE).setValue(eventInfo[j][EVENT_MEETING_TYPE]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_MEETING_TYPE).setValue(eventInfo[j][EVENT_MEETING_TYPE]);
+    outputRange.offset(rowOffset, REVIEW_REP_ATTENDED).setValue(eventInfo[j][EVENT_REP_ATTENDED]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_REP_ATTENDED).setValue(eventInfo[j][EVENT_REP_ATTENDED]);
+    outputRange.offset(rowOffset, REVIEW_LOGISTICS).setValue(eventInfo[j][EVENT_LOGISTICS]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_LOGISTICS).setValue(eventInfo[j][EVENT_LOGISTICS]);
+    outputRange.offset(rowOffset, REVIEW_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);
+    if (eventInfo[j][EVENT_QUALITY] == "") {
+      outputRange.offset(rowOffset, REVIEW_QUALITY).setValue("Undefined");
+      outputRange.offset(rowOffset, REVIEW_ORIG_QUALITY).setValue("Undefined");
     }
     else {
-      outputRange.offset(rowOffset, 0).setValue(type);
-      outputRange.offset(rowOffset, 1).setValue(name);  
-      outputRange.offset(rowOffset, 2).setValue(staffNameById[eventInfo[j][EVENT_ASSIGNED_TO]]);
+      outputRange.offset(rowOffset, REVIEW_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
+      outputRange.offset(rowOffset, REVIEW_ORIG_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
     }
-    outputRange.offset(rowOffset, 3).setValue(eventInfo[j][EVENT_MEETING_TYPE]);
-    outputRange.offset(rowOffset, 4).setValue(eventInfo[j][EVENT_SUBJECT]);
-    outputRange.offset(rowOffset, 5).setValue(eventInfo[j][EVENT_OP_STAGE]);
-    outputRange.offset(rowOffset, 6).setValue(eventInfo[j][EVENT_START]);
-    outputRange.offset(rowOffset, 7).setValue(eventInfo[j][EVENT_END]);
-    outputRange.offset(rowOffset, 8).setValue(eventInfo[j][EVENT_PRODUCT]);
-    outputRange.offset(rowOffset, 9).setValue(eventInfo[j][EVENT_DESC]);
-    outputRange.offset(rowOffset, 10).setValue(eventInfo[j][EVENT_REP_ATTENDED]);
-    outputRange.offset(rowOffset, 11).setValue(eventInfo[j][EVENT_LOGISTICS]);
-    outputRange.offset(rowOffset, 12).setValue(eventInfo[j][EVENT_PREP_TIME]);
-    outputRange.offset(rowOffset, 13).setValue(eventInfo[j][EVENT_QUALITY]);
     
     rowOffset++;
   }
 }
+
+function reconcile_se_events() {
+  
+  logStamp("Event Reconciliation");
+
+  //
+  // Load Opportunity Info
+  //
+  
+  let opInfo = load_tab_(OPPORTUNITIES, 2, OP_COLUMNS);
+  let opIdByName = {}; 
+  for (var j = 0 ; j < opInfo.length; j++) {    
+    opIdByName[opInfo[j][OP_NAME]] = opInfo[j][OP_ID];  
+  }
+  
+    
+  //
+  // Load Partner Info
+  //
+  
+  let partnerInfo = load_tab_(PARTNERS, 2, PARTNER_COLUMNS);
+  let partnerIdByName = {};
+  for (j = 0 ; j < partnerInfo.length; j++) {
+    partnerIdByName[partnerInfo[j][PARTNER_NAME]]  = partnerInfo[j][PARTNER_ID];
+  }
+  
+  //
+  // Load All Customer Info - in region first, external stuff second
+  //
+  
+  let customerInfo = load_tab_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS);
+  let customerIdByName = {};
+  for (j = 0 ; j < customerInfo.length; j++) {
+    customerIdByName[customerInfo[j][CUSTOMER_NAME]] = customerInfo[j][CUSTOMER_ID];
+  }
+  
+  let externalCustomerInfo = load_tab_(MISSING_CUSTOMERS, 2, CUSTOMER_COLUMNS);
+  for (j = 0 ; j < externalCustomerInfo.length ; j++) {
+    customerIdByName[customerInfo[j][CUSTOMER_NAME]] = customerInfo[j][CUSTOMER_ID];
+  }
+  
+  
+  //
+  // Load Leads
+  //
+  
+  let leadIdByName = {};
+  let leadInfo = load_tab_(MISSING_LEADS, 2, LEAD_COLUMNS);
+  for (j=0; j<leadInfo.length; j++) {
+    leadIdByName[leadInfo[j][LEAD_NAME]] = leadInfo[j][LEAD_ID];
+  }
+  
+  //
+  // Scan expanded events in the Review tab, updating fields in the corresponding Event tab record when necessary
+  //
+    
+  let reviewInfo = load_tab_(EVENTS_EXPANDED, 2, REVIEW_COLUMNS);
+  let eventInfo = load_tab_(EVENTS, 2, EVENT_COLUMNS);
+  let reviewRowWasTouchedArray = PropertiesService.getScriptProperties().getProperty("reviewTouches");
+  
+  // Clear any left over update color and set event output cursor
+  let sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
+  let outputRange = sheet.getRange(2,1); // skip over the header
+  let rowOffset = 0; 
+ 
+  for (j = 0 ; j < reviewInfo.length; j++) {
+    
+    if (!reviewRowWasTouchedArray[j+2]) continue; // Array is indexed on table row number
+    
+    let relatedTo = null;
+    let lead = null;
+    let updatedFields = null;
+    switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
+      case "Opportunity":
+        relatedTo = opIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        break;
+      case "Partner":
+        relatedTo = partnerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        break;
+      case "Customer":
+        relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        break;
+      case "Lead":
+        lead = leadIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        break;
+      default:
+    }
+    if (relatedTo) {
+      if (eventInfo[j][EVENT_RELATED_TO] != relatedTo) {
+        if (updatedFields) {
+          updatedFields += ", Related To";
+        }
+        else {
+          updatedFields = "Related To";
+        }
+        outputRange.offset(rowOffset, EVENT_RELATED_TO).setValue(relatedTo);
+        
+        if (eventInfo[j][EVENT_LEAD] != "") {        
+          updatedFields += ", Lead";
+          outputRange.offset(rowOffset, EVENT_LEAD).setValue("");
+        }
+      }
+    }
+    else if (lead) {
+      if (eventInfo[j][EVENT_LEAD] != lead) {
+        if (updatedFields) {
+          updatedFields += ", Lead";
+        }
+        else {
+          updatedFields = "Lead";
+        }
+        outputRange.offset(rowOffset, EVENT_LEAD).setValue(lead);
+        if (eventInfo[j][EVENT_RELATED_TO] != "") {   
+          updatedFields += ", Related To";       
+          outputRange.offset(rowOffset, EVENT_RELATED_TO).setValue("");
+        }
+      }
+    } 
+    if (eventInfo[j][EVENT_OP_STAGE] != reviewInfo[j][REVIEW_OP_STAGE]) {
+      if (updatedFields) {
+        updatedFields += ", Opportunity Stage";
+      }
+      else {
+        updatedFields = "Opportunity Stage";
+      }
+      outputRange.offset(rowOffset, EVENT_OP_STAGE).setValue(reviewInfo[j][REVIEW_OP_STAGE]);
+    }
+    if (eventInfo[j][EVENT_PRODUCT] != reviewInfo[j][REVIEW_PRODUCT]) {
+      if (updatedFields) {
+        updatedFields += ", Primary Product";
+      }
+      else {
+        updatedFields = "Primary Product";
+      }
+      outputRange.offset(rowOffset, EVENT_PRODUCT).setValue(reviewInfo[j][REVIEW_PRODUCT]);
+    }
+    if (eventInfo[j][EVENT_DESC] != reviewInfo[j][REVIEW_DESC]) {
+      if (updatedFields) {
+        updatedFields += ", Description";
+      }
+      else {
+        updatedFields = "Description";
+      }
+      outputRange.offset(rowOffset, EVENT_DESC).setValue(reviewInfo[j][REVIEW_DESC]);
+    }
+    if (eventInfo[j][EVENT_MEETING_TYPE] != reviewInfo[j][REVIEW_MEETING_TYPE]) {
+      if (updatedFields) {
+        updatedFields += ", Meeting Type";
+      }
+      else {
+        updatedFields = "Meeting Type";
+      }
+      outputRange.offset(rowOffset, EVENT_MEETING_TYPE).setValue(reviewInfo[j][REVIEW_MEETING_TYPE]);
+    }
+    if (eventInfo[j][EVENT_REP_ATTENDED] != reviewInfo[j][REVIEW_REP_ATTENDED]) {
+      if (updatedFields) {
+        updatedFields += ", Rep Attended";
+      }
+      else {
+        updatedFields = "Rep Attended";
+      }
+      outputRange.offset(rowOffset, EVENT_REP_ATTENDED).setValue(reviewInfo[j][REVIEW_REP_ATTENDED]);
+    }    
+    if (eventInfo[j][EVENT_LOGISTICS] != reviewInfo[j][REVIEW_LOGISTICS]) {
+      if (updatedFields) {
+        updatedFields += ", Logistics";
+      }
+      else {
+        updatedFields = "Logistics";
+      }
+      outputRange.offset(rowOffset, EVENT_LOGISTICS).setValue(reviewInfo[j][REVIEW_LOGISTICS]);
+    }
+    if (eventInfo[j][EVENT_PREP_TIME] != reviewInfo[j][REVIEW_PREP_TIME]) {
+      if (updatedFields) {
+        updatedFields += ", Prep";
+      }
+      else {
+        updatedFields = "Prep";
+      }
+      outputRange.offset(rowOffset, EVENT_PREP_TIME).setValue(reviewInfo[j][REVIEW_PREP_TIME]);
+    }
+    
+    let quality = reviewInfo[j][REVIEW_QUALITY];
+    if (quality == "Undefined") {
+      quality = "";
+    }
+    if (eventInfo[j][EVENT_QUALITY] != quality) {
+      if (updatedFields) {
+        updatedFields += ", Quality";
+      }
+      else {
+        updatedFields = "Quality";
+      }
+      outputRange.offset(rowOffset, EVENT_QUALITY).setValue(quality);
+    }
+    
+    if (updatedFields) {
+      let date = Utilities.formatDate(new Date(eventInfo[j][EVENT_START]), "GMT-5", "MMM dd, yyyy");
+      logThreeCol("Record Update", eventInfo[j][EVENT_SUBJECT] + " / " + date, updatedFields);
+    }
+
+    rowOffset++;
+  }
+}
+
 
 function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory, meetingType) {
   // There is no account for these special events

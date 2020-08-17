@@ -3,15 +3,9 @@ function import_missing_accounts() {
   // Looks for domains that don't have an account, presumably because
   // the domain is from an account external to the region being processed.
   // Also tracks emails to find leads should the missing account not exist.
-
-  let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
-  var logLastRow = logSheet.getLastRow();
-  AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
-  AM_LOG_ROW = 0;
   
-  AM_LOG.offset(AM_LOG_ROW, 0).setValue("Missing Account Import " + new Date().toLocaleTimeString());
-  AM_LOG.offset(AM_LOG_ROW+1, 0).setValue("------------------------------------");
-  AM_LOG_ROW+=2;   
+  logStamp("Missing Account Import");
+
   
   //
   // Load Account Info
@@ -373,12 +367,7 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
         if (accountLog[domain]) {
           //Logger.log("WARNING: Found account with a duplicate email domain - " + accountInfo[j][accountName] + ":" + domain);
           
-          AM_LOG.offset(AM_LOG_ROW, 0).setValue("Multiple accounts for email domain:");
-          AM_LOG.offset(AM_LOG_ROW, 1).setValue(domain);
-          AM_LOG.offset(AM_LOG_ROW, 2).setValue("Ignored: " + accountInfo[j][accountName]);
-          AM_LOG.offset(AM_LOG_ROW, 3).setValue("Selected: " + accountLog[domain]);
-          AM_LOG_ROW++;    
-          
+          logFourCol("Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountName], "Selected: " + accountLog[domain]);         
           continue; // Take the first
         }
         accountLog[domain] = accountInfo[j][accountName];
@@ -517,4 +506,68 @@ function load_tab_(sheetName, fromRow, minColumnCount) {
   }
   
   return [];
+}
+
+function generateLongId_(id) {
+
+  // Transform a 15 character case sensitive Salesforce ID into the 
+  // "long version", an 18 character case insensitive id.
+  // This is Salesforce's algorithm.
+  
+  let retVal = id;
+  
+  if(id.length == 15){
+    
+    let addon="";
+    for(let block=0;block<3; block++)
+    {
+      let loop=0;
+      for(let position=0;position<5;position++){
+        let current=id.charAt(block*5+position);
+        if(current>="A" && current<="Z")
+          loop+=1<<position;
+      }
+      addon+="ABCDEFGHIJKLMNOPQRSTUVWXYZ012345".charAt(loop);
+    }
+    retVal=(id+addon);
+  }
+  return retVal;
+}
+
+function logStamp(title) {
+  
+  let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
+  var logLastRow = logSheet.getLastRow();
+  AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
+  AM_LOG_ROW = 0;
+  
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue(title + " " + new Date().toLocaleTimeString());
+  AM_LOG.offset(AM_LOG_ROW+1, 0).setValue("---------------------------------------------------------------");
+  AM_LOG_ROW+=2; 
+}
+
+function logOneCol(message) {
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
+  AM_LOG_ROW++;   
+}
+
+function logTwoCol(one, two) {
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
+  AM_LOG.offset(AM_LOG_ROW, 1).setValue(two);
+  AM_LOG_ROW++;   
+}
+
+function logThreeCol(one, two, three) {
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
+  AM_LOG.offset(AM_LOG_ROW, 1).setValue(two);
+  AM_LOG.offset(AM_LOG_ROW, 2).setValue(three);
+  AM_LOG_ROW++;   
+}
+
+function logFourCol(one, two, three, four) {
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
+  AM_LOG.offset(AM_LOG_ROW, 1).setValue(two);
+  AM_LOG.offset(AM_LOG_ROW, 2).setValue(three);
+  AM_LOG.offset(AM_LOG_ROW, 3).setValue(four);
+  AM_LOG_ROW++;    
 }
