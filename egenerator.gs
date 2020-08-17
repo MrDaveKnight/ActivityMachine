@@ -1159,7 +1159,7 @@ function reconcile_se_events() {
         relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
       case "Lead":
-        lead = leadIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        lead = leadIdByName[reviewInfo[j][REVIEW_LEAD]];
         break;
       default:
     }
