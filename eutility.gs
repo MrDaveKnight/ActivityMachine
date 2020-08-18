@@ -547,7 +547,7 @@ function logStamp(title) {
 }
 
 function logOneCol(message) {
-  AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
+  AM_LOG.offset(AM_LOG_ROW, 0).setValue(message);
   AM_LOG_ROW++;   
 }
 

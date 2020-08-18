@@ -1,10 +1,10 @@
 function import_calendars() {
 
-  logStamp("Calendar Import");
-
   clearTab_(CALENDAR, CALENDAR_HEADER);
   clearTab_(LOG_TAB);
   
+  logStamp("Calendar Import");
+
   let sheet = SpreadsheetApp.getActive().getSheetByName(CALENDAR);
   let importCursor = {sheet : sheet, row : 2}; // Drop to row below the header we kept during the clear
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
@@ -15,11 +15,13 @@ function import_calendars() {
   let calendarRange = parms.getRange(3,5,25,1); // Hardcoded to format in RUN_PARMS
   let calendars = calendarRange.getValues();
   
+  let inviteCount = 0;
   for (var row in calendars) {
     if (calendars[row][0]) {      
-      importRow = import_gcal_(calendars[row][0], dates[0][0], dates[1][0], importCursor);
+      inviteCount += import_gcal_(calendars[row][0], dates[0][0], dates[1][0], importCursor);
     }
   }
+  logOneCol("Imported a total of " + inviteCount + " invites.");
 }
 
 function import_gcal_(calName, startDate, endDate, cursor){
@@ -27,8 +29,9 @@ function import_gcal_(calName, startDate, endDate, cursor){
   //
   // Export Google Calendar Events to a Google Spreadsheet
   //
-  // This code retrieves events between 2 dates for the specified calendar.
-  // It logs the results in the Calendar tab of the current spreadsheet starting at cell A2 ]
+  // This function retrieves events between 2 dates for the specified calendar.
+  // It saves the eveents in the Calendar tab of the current spreadsheet starting at the second row (after the header).
+  // Returns the number of invites imported.
   //
   
   var cal = CalendarApp.getCalendarById(calName);
@@ -54,9 +57,6 @@ function import_gcal_(calName, startDate, endDate, cursor){
   //var events = cal.getEvents(new Date(startDate + " 00:00:00 CST"), new Date(endDate + " 23:59:59 CST"), {search: '-Hangs'});
   var events = cal.getEvents(new Date(startDate), new Date(endDate), {search: '-Hangs'});
   
-  var cc = 0;  // Customer count (individuals)
-  var cns = {}; // Customer names for a subsequent count (company count)
-  
   // Loop through all calendar events found and write them out to the Calendar tab
   for (var i=0;i<events.length;i++) {
   
@@ -66,19 +66,9 @@ function import_gcal_(calName, startDate, endDate, cursor){
     var attendeeList = "";
     if (attendees.length > 0) {
       attendeeList = attendees[0].getEmail();
-      if (attendeeList.indexOf("@hashicorp.com") == -1) {
-        isCustEvent = true;
-        cns[attendees[0].getEmail().substring(attendees[0].getEmail().indexOf("@"))] = true;
-        cc++;
-      }
     }
     for (var j=1; j < attendees.length; j++) {
       attendeeList = attendeeList + "," + attendees[j].getEmail();
-      if (!isCustEvent && attendees[j].getEmail().indexOf("@hashicorp.com") == -1) {
-        isCustEvent = true;
-        cns[attendees[j].getEmail().substring(attendees[j].getEmail().indexOf("@"))] = true;
-        cc++;
-      }
     }
     
     /*
@@ -93,29 +83,16 @@ function import_gcal_(calName, startDate, endDate, cursor){
     }
     */
     
-    // Matching the "header=" entry above, this is the detailed row entry "details=", and must match the number of entries of the GetRange entry below
+    // The details below must match the header defined in main.gs
     let details=[[calName, events[i].getTitle(), events[i].getLocation(), events[i].getStartTime(), events[i].getEndTime(), events[i].getMyStatus(), events[i].getCreators(), events[i].isAllDayEvent(), events[i].isRecurringEvent(), attendeeList, events[i].getDescription()]];
-    let range=cursor.sheet.getRange(cursor.row,1,1,11); // 11 must match detaills
+    let range=cursor.sheet.getRange(cursor.row,1,1,11); // 11 must match details length
     range.setValues(details);
     cursor.row++;
   }
   
-  sheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
-  var lastRow = sheet.getLastRow();
-  var log = sheet.getRange(lastRow+1,1);
-  log.offset(0, 0).setValue(calName + " import stats");
-  log.offset(1, 0).setValue("Customer/Partner Meetings:");
-  log.offset(1, 1).setValue(cc);
+  logOneCol("Imported " + calName + ", " + events.length + " invites.");
   
-  var size = 0, key;
-  for (key in cns) {
-    if (cns.hasOwnProperty(key)) {
-      size++;
-    }
-  }
-  
-  log.offset(2, 0).setValue("Companies Present:");
-  log.offset(2, 1).setValue(size);
+  return events.length;
 }
 
 

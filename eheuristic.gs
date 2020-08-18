@@ -1,3 +1,205 @@
+
+const STAGE_D = "Discovery & Qualification";
+const STAGE_V = "Technical & Business Validation";
+const STAGE_SP = "Success Planning";
+const STAGE_C = "Closed/Won";
+const STAGE_N = "None";
+
+// Tests to make sure the Salesforce API doesn't reject our Meeting-Type:Op-Stage selections
+var validStagesByMeeting = {};
+validStagesByMeeting["Demo" + STAGE_D] = true;
+validStagesByMeeting["Product Deep Dive" + STAGE_V] = true;
+validStagesByMeeting["Standard Workshop" + STAGE_V] = true;
+validStagesByMeeting["Health Check" + STAGE_V] = true;
+validStagesByMeeting["Product Overview" + STAGE_D] = true;
+validStagesByMeeting["Product Overview" + STAGE_V] = true;
+validStagesByMeeting["Controlled POV" + STAGE_V] = true;
+validStagesByMeeting["Discovery" + STAGE_D] = true;
+validStagesByMeeting["Technical Office Hours" + STAGE_D] = true;
+validStagesByMeeting["Technical Office Hours" + STAGE_V] = true;
+validStagesByMeeting["Happy Hour" + STAGE_D] = true;
+validStagesByMeeting["Happy Hour" + STAGE_V] = true;
+validStagesByMeeting["Shadow" + STAGE_D] = true;
+validStagesByMeeting["Shadow" + STAGE_V] = true;
+validStagesByMeeting["Shadow" + STAGE_C] = true;
+validStagesByMeeting["Pilot" + STAGE_SP] = true;
+validStagesByMeeting["Product Roadmap" + STAGE_V] = true;
+validStagesByMeeting["Product Roadmap" + STAGE_C] = true;
+validStagesByMeeting["Customer Business Review" + STAGE_C] = true;
+validStagesByMeeting["Training" + STAGE_C] = true;
+
+validStagesByMeeting["Demo" + STAGE_N] = true;
+validStagesByMeeting["Product Deep Dive" + STAGE_N] = true;
+validStagesByMeeting["Standard Workshop" + STAGE_N] = true;
+validStagesByMeeting["Health Check" + STAGE_N] = true;
+validStagesByMeeting["Product Overview" + STAGE_N] = true;
+validStagesByMeeting["Controlled POV" + STAGE_N] = true;
+validStagesByMeeting["Discovery" + STAGE_N] = true;
+validStagesByMeeting["Technical Office Hours" + STAGE_N] = true;
+validStagesByMeeting["Happy Hour" + STAGE_N] = true;
+validStagesByMeeting["Shadow" + STAGE_N] = true;
+validStagesByMeeting["Pilot" + STAGE_N] = true;
+validStagesByMeeting["Product Roadmap" + STAGE_N] = true;
+validStagesByMeeting["Training" + STAGE_N] = true;
+
+// Overrides to make sure the Salesforce API doesn't reject our Meeting-Type:Op-Stage selections
+var defaultStageForMeeting = {
+  Demo : STAGE_D,
+  "Product Deep Dive" : STAGE_V,
+  "Standard Workshop" : STAGE_V,
+  "Health Check" : STAGE_V,
+  "Product Overview" : STAGE_D,
+  "Controlled POV" : STAGE_V,
+  Discovery : STAGE_D,
+  "Technical Office Hours" : STAGE_D,
+  "Happy Hour" : STAGE_V,
+  Shadow : STAGE_D,
+  Pilot : STAGE_SP,
+  "Product Roadmap" : STAGE_V,
+  "Customer Business Review" : STAGE_C,
+  Training : STAGE_C};
+
+/* Don't think I need to use this for UI data validation choices, at least not yet.
+var stageValidation = {
+  Demo : STAGE_D,
+  "Product Deep Dive" : STAGE_V,
+  "Standard Workshop" : STAGE_V,
+  "Health Check" : STAGE_V,
+  "Product Overview" : STAGE_D + "," + STAGE_V,
+  "Controlled POV" : STAGE_V,
+  Discovery : STAGE_D + "," + "None",
+  "Technical Office Hours" : STAGE_D + "," + STAGE_V,
+  "Happy Hour" : STAGE_D + "," + STAGE_V,
+  Shadow : STAGE_D + "," + STAGE_V + "," + STAGE_C,
+  Pilot : STAGE_SP,
+  "Product Roadmap" : STAGE_V + "," + STAGE_C,
+  "Customer Business Review" : STAGE_C,
+  Training : STAGE_C};
+  */
+
+
+
+ 
+
+var discoveryMap = [
+  // Although Salesforce says it will accept "Support" with Discovery & Qual stage,
+  // not so much in practice as of May 2020. Moved the following from Support to PoV:
+  // troubleshoot, support and issue.
+  // Look for Discovery stuff first if we are in discovery stage
+  {meeting : "Pilot", regex : /pilot/, stage : STAGE_SP},
+  {meeting : "Controlled POV", regex : /implementation/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /troubleshoot/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /support/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /issue/, stage : STAGE_V},
+  {meeting : "Shadow", regex : /shadow/, stage : STAGE_D},
+  {meeting : "Happy Hour", regex : /happy hour/, stage : STAGE_D},
+  {meeting : "Happy Hour", regex : /lunch/, stage : STAGE_D},
+  {meeting : "Happy Hour", regex : /coffee/, stage : STAGE_D},
+  {meeting : "Happy Hour", regex : /dinner/, stage : STAGE_D},
+  {meeting : "Happy Hour", regex : /drinks/, stage : STAGE_D},
+  {meeting : "Technical Office Hours", regex : /training/, stage : STAGE_D},
+  {meeting : "Technical Office Hours", regex : /setup/, stage : STAGE_D},
+  {meeting : "Technical Office Hours", regex : /setup/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /planning/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /discovery/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /discussion/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /touchpoint/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /introduction/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /sync/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /review/, stage : STAGE_D},
+  {meeting : "Product Overview", regex : /presentation/, stage : STAGE_D},
+  {meeting : "Product Overview", regex : /pitch/, stage : STAGE_D},
+  {meeting : "Product Overview", regex : /briefing/, stage : STAGE_D},
+  {meeting : "Product Overview", regex : /architecture/, stage : STAGE_D},
+  {meeting : "Product Overview", regex : /overview/, stage : STAGE_D},
+  {meeting : "Product Overview", regex : /whiteboard/, stage : STAGE_D},
+  {meeting : "Controlled POV", regex : /pov/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /poc/, stage : STAGE_V},
+  {meeting : "Product Overview", regex : /roadmap/, stage : STAGE_D},
+  {meeting : "Health Check", regex : /health check/, stage : STAGE_V},
+  {meeting : "Standard Workshop", regex : /workshop/, stage : STAGE_V},
+  {meeting : "Product Deep Dive", regex : /deep dive/, stage : STAGE_V},
+  {meeting : "Demo", regex : /demo/, stage : STAGE_D}]; // want demo to take priority over POV
+
+var validationMap = [
+  {meeting : "Pilot", regex : /pilot/, stage : STAGE_SP},
+  {meeting : "Shadow", regex : /shadow/, stage : STAGE_V},
+  {meeting : "Happy Hour", regex : /happy hour/, stage : STAGE_V},
+  {meeting : "Happy Hour", regex : /lunch/, stage : STAGE_V},
+  {meeting : "Happy Hour", regex : /coffee/, stage : STAGE_V},
+  {meeting : "Happy Hour", regex : /dinner/, stage : STAGE_V},
+  {meeting : "Happy Hour", regex : /drinks/, stage : STAGE_V},
+  {meeting : "Product Overview", regex : /presentation/, stage : STAGE_V},
+  {meeting : "Product Overview", regex : /pitch/, stage : STAGE_V},
+  {meeting : "Product Overview", regex : /briefing/, stage : STAGE_V},
+  {meeting : "Product Overview", regex : /overview/, stage : STAGE_V},
+  {meeting : "Product Overview", regex : /whiteboard/, stage : STAGE_V},
+  {meeting : "Discovery", regex : /discovery/, stage : STAGE_D},
+  {meeting : "Discovery", regex : /introduction/, stage : STAGE_D},
+  {meeting : "Product Roadmap", regex : /roadmap/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /training/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /sync/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /setup/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /discussion/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /touchpoint/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /review/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /support/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /troubleshoot/, stage : STAGE_V},
+  {meeting : "Technical Office Hours", regex : /issue/, stage : STAGE_V},
+  {meeting : "Health Check", regex : /health check/, stage : STAGE_V},
+  {meeting : "Standard Workshop", regex : /workshop/, stage : STAGE_V},
+  {meeting : "Product Deep Dive", regex : /deep dive/, stage : STAGE_V},
+  {meeting : "Product Deep Dive", regex : /architecture/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /implementation/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /pov/, stage : STAGE_V},
+  {meeting : "Controlled POV", regex : /poc/, stage : STAGE_V},
+  {meeting : "Demo", regex : /demo/, stage : STAGE_D}]; 
+
+var  closedMap = [
+  {meeting : "Shadow", regex : /shadow/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /happy hour/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /presentation/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /pitch/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /briefing/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /overview/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /kick/, stage : STAGE_C},  // kick-offs Cadence  
+  {meeting : "Customer Business Review", regex : /cadence/, stage : STAGE_C}, 
+  {meeting : "Customer Business Review", regex : /touchpoint/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /coffee/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /discussion/, stage : STAGE_C},
+  {meeting : "Discovery", regex : /discovery/, stage : "None"}, // Have to push stage to None for Discovery
+  {meeting : "Product Roadmap", regex : /roadmap/, stage : STAGE_C},
+  {meeting : "Training", regex : /training/, stage : STAGE_C},
+  {meeting : "Training", regex : /sync/, stage : STAGE_C},
+  {meeting : "Training", regex : /setup/, stage : STAGE_C},
+  {meeting : "Training", regex : /workshop/, stage : STAGE_C},
+  {meeting : "Training", regex : /deep dive/, stage : STAGE_C},
+  {meeting : "Training", regex : /pov/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /health check/, stage : STAGE_C},
+  {meeting : "Customer Business Review", regex : /demo/, stage : STAGE_C},
+  {meeting : "", regex : /support/, stage : STAGE_C},
+  {meeting : "", regex : /implementation/, stage : STAGE_C},
+  {meeting : "", regex : /troubleshoot/, stage : STAGE_C},
+  {meeting : "", regex : /help/, stage : STAGE_C},
+  {meeting : "", regex : /issue/, stage : STAGE_C},
+  {meeting : "", regex : /pilot/, stage : STAGE_C}];
+// This is suppossed to work, but doesn't as of May 2020
+/*
+{meeting : "Implementation", regex : /support/, stage : STAGE_C},
+{meeting : "Implementation", regex : /implementation/, stage : STAGE_C},
+{meeting : "Implementation", regex : /troubleshoot/, stage : STAGE_C},
+{meeting : "Implementation", regex : /help/, stage : STAGE_C},
+{meeting : "Implementation", regex : /issue/, stage : STAGE_C},
+{meeting : "Implementation", regex : /pilot/, stage : STAGE_C}];
+*/
+
+
+/*      
+var validStagesForMeetings = {
+ 
+}
+*/
+
 function lookForAccounts_(attendees, customerMap, partnerMap) {
 
   // Scan email domains of attendees looking for accounts.
@@ -104,154 +306,50 @@ function lookForMeetingType_(stage, text) {
   let map = [];
   let rv = {};
   
-  if (stage == "Discovery & Qualification") {
+  if (stage == STAGE_D) {
     
     
      
     // To detect default meeting type sections, set meeting: to "" (empty string is --None-- in SF)
     if (MEETINGS_HAVE_DEFAULT) {
-      rv = { stage : "Discovery & Qualification", meeting : "Discovery"}; 
+      rv = { stage : STAGE_D, meeting : "Discovery"}; 
     }
     else {
-      rv = { stage : "Discovery & Qualification", meeting : ""};
+      rv = { stage : STAGE_D, meeting : ""};
     }
     
-    map = [
-    // Although Salesforce says it will accept "Support" with Discovery & Qual stage,
-    // not so much in practice as of May 2020. Moved the following from Support to PoV:
-    // troubleshoot, support and issue.
-    // Look for Discovery stuff first if we are in discovery stage
-      {meeting : "Pilot", regex : /pilot/, stage : "Success Planning"},
-      {meeting : "Controlled POV", regex : /implementation/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /troubleshoot/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /support/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /issue/, stage : "Technical & Business Validation"},
-      {meeting : "Shadow", regex : /shadow/, stage : "Discovery & Qualification"},
-      {meeting : "Happy Hour", regex : /happy hour/, stage : "Discovery & Qualification"},
-      {meeting : "Happy Hour", regex : /lunch/, stage : "Discovery & Qualification"},
-      {meeting : "Happy Hour", regex : /coffee/, stage : "Discovery & Qualification"},
-      {meeting : "Happy Hour", regex : /dinner/, stage : "Discovery & Qualification"},
-      {meeting : "Happy Hour", regex : /drinks/, stage : "Discovery & Qualification"},
-      {meeting : "Technical Office Hours", regex : /training/, stage : "Discovery & Qualification"},
-      {meeting : "Technical Office Hours", regex : /setup/, stage : "Discovery & Qualification"},
-      {meeting : "Technical Office Hours", regex : /setup/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /planning/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /discovery/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /discussion/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /touchpoint/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /introduction/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /sync/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /review/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /presentation/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /pitch/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /briefing/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /architecture/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /overview/, stage : "Discovery & Qualification"},
-      {meeting : "Product Overview", regex : /whiteboard/, stage : "Discovery & Qualification"},
-      {meeting : "Controlled POV", regex : /pov/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /poc/, stage : "Technical & Business Validation"},
-      {meeting : "Product Overview", regex : /roadmap/, stage : "Discovery & Qualification"},
-      {meeting : "Health Check", regex : /health check/, stage : "Technical & Business Validation"},
-      {meeting : "Standard Workshop", regex : /workshop/, stage : "Technical & Business Validation"},
-      {meeting : "Product Deep Dive", regex : /deep dive/, stage : "Technical & Business Validation"},
-      {meeting : "Demo", regex : /demo/, stage : "Discovery & Qualification"}]; // want demo to take priority over POV
-    
+    map = discoveryMap;
+
   }
-  else if (stage == "Technical & Business Validation") {
+  else if (stage == STAGE_V) {
     
       
     // To detect default meeting type sections, set meeting: to "" (empty string is --None-- in SF)
     if (MEETINGS_HAVE_DEFAULT) {
-      rv = { stage : "Technical & Business Validation", meeting : "Technical Office Hours"}; 
+      rv = { stage : STAGE_V, meeting : "Technical Office Hours"}; 
     }
     else {
-      rv = { stage : "Technical & Business Validation", meeting : ""};
+      rv = { stage : STAGE_V, meeting : ""};
     }
     
-    map = [
-      {meeting : "Pilot", regex : /pilot/, stage : "Success Planning"},
-      {meeting : "Shadow", regex : /shadow/, stage : "Technical & Business Validation"},
-      {meeting : "Happy Hour", regex : /happy hour/, stage : "Technical & Business Validation"},
-      {meeting : "Happy Hour", regex : /lunch/, stage : "Technical & Business Validation"},
-      {meeting : "Happy Hour", regex : /coffee/, stage : "Technical & Business Validation"},
-      {meeting : "Happy Hour", regex : /dinner/, stage : "Technical & Business Validation"},
-      {meeting : "Happy Hour", regex : /drinks/, stage : "Technical & Business Validation"},
-      {meeting : "Product Overview", regex : /presentation/, stage : "Technical & Business Validation"},
-      {meeting : "Product Overview", regex : /pitch/, stage : "Technical & Business Validation"},
-      {meeting : "Product Overview", regex : /briefing/, stage : "Technical & Business Validation"},
-      {meeting : "Product Overview", regex : /overview/, stage : "Technical & Business Validation"},
-      {meeting : "Product Overview", regex : /whiteboard/, stage : "Technical & Business Validation"},
-      {meeting : "Discovery", regex : /discovery/, stage : "Discovery & Qualification"},
-      {meeting : "Discovery", regex : /introduction/, stage : "Discovery & Qualification"},
-      {meeting : "Product Roadmap", regex : /roadmap/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /training/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /sync/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /setup/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /discussion/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /touchpoint/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /review/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /support/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /troubleshoot/, stage : "Technical & Business Validation"},
-      {meeting : "Technical Office Hours", regex : /issue/, stage : "Technical & Business Validation"},
-      {meeting : "Health Check", regex : /health check/, stage : "Technical & Business Validation"},
-      {meeting : "Standard Workshop", regex : /workshop/, stage : "Technical & Business Validation"},
-      {meeting : "Product Deep Dive", regex : /deep dive/, stage : "Technical & Business Validation"},
-      {meeting : "Product Deep Dive", regex : /architecture/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /implementation/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /pov/, stage : "Technical & Business Validation"},
-      {meeting : "Controlled POV", regex : /poc/, stage : "Technical & Business Validation"},
-      {meeting : "Demo", regex : /demo/, stage : "Discovery & Qualification"}]; 
+    map = validationMap;
+   
   }
-  else if (stage == "Closed/Won") {
+  else if (stage == STAGE_C) {
     
     // Salesforce will not accept Implementation or Support in Closed/Won stage. 
     // For now we will use "--None--" to indicate Post-Sales activity!
     if (MEETINGS_HAVE_DEFAULT) {
-      rv = { stage : "Closed/Won", meeting : ""}; // For now this means post-sales
+      rv = { stage : STAGE_C, meeting : ""}; // For now this means post-sales
     }
     else {
-      rv = { stage : "Closed/Won", meeting : ""};
+      rv = { stage : STAGE_C, meeting : ""};
     }
     
     // Salesforce will not accept Implementation or Support in Closed/Won stage. 
     // For now we will use "--None--" to indicate Post-Sales activity!
-    map = [
-      {meeting : "Shadow", regex : /shadow/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /happy hour/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /presentation/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /pitch/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /briefing/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /overview/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /kick/, stage : "Closed/Won"},  // kick-offs Cadence  
-      {meeting : "Customer Business Review", regex : /cadence/, stage : "Closed/Won"}, 
-      {meeting : "Customer Business Review", regex : /touchpoint/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /coffee/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /discussion/, stage : "Closed/Won"},
-      {meeting : "Discovery", regex : /discovery/, stage : "None"}, // Have to push stage to None for Discovery
-      {meeting : "Product Roadmap", regex : /roadmap/, stage : "Closed/Won"},
-      {meeting : "Training", regex : /training/, stage : "Closed/Won"},
-      {meeting : "Training", regex : /sync/, stage : "Closed/Won"},
-      {meeting : "Training", regex : /setup/, stage : "Closed/Won"},
-      {meeting : "Training", regex : /workshop/, stage : "Closed/Won"},
-      {meeting : "Training", regex : /deep dive/, stage : "Closed/Won"},
-      {meeting : "Training", regex : /pov/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /health check/, stage : "Closed/Won"},
-      {meeting : "Customer Business Review", regex : /demo/, stage : "Closed/Won"},
-      {meeting : "", regex : /support/, stage : "Closed/Won"},
-      {meeting : "", regex : /implementation/, stage : "Closed/Won"},
-      {meeting : "", regex : /troubleshoot/, stage : "Closed/Won"},
-      {meeting : "", regex : /help/, stage : "Closed/Won"},
-      {meeting : "", regex : /issue/, stage : "Closed/Won"},
-      {meeting : "", regex : /pilot/, stage : "Closed/Won"}];
-      // This is suppossed to work, but doesn't as of May 2020
-      /*
-      {meeting : "Implementation", regex : /support/, stage : "Closed/Won"},
-      {meeting : "Implementation", regex : /implementation/, stage : "Closed/Won"},
-      {meeting : "Implementation", regex : /troubleshoot/, stage : "Closed/Won"},
-      {meeting : "Implementation", regex : /help/, stage : "Closed/Won"},
-      {meeting : "Implementation", regex : /issue/, stage : "Closed/Won"},
-      {meeting : "Implementation", regex : /pilot/, stage : "Closed/Won"}];
-      */
+    map = closedMap;
+    
   }
   else {
     rv = { stage : "Closed/Lost", meeting : ""};

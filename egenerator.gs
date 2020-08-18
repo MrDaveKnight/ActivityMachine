@@ -132,6 +132,8 @@ function build_se_events() {
   
   logStamp("SE Event Build");
   
+  clearTab_(EVENTS, EVENT_HEADER);
+  clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
   
   // Information for accounts, staff, opportunities and calendar invites
   // is loaded from tabs in the spreadsheet into two-dimentional arrays with
@@ -139,8 +141,6 @@ function build_se_events() {
   //
   //      <info-type>Info 
   //
-  
-  clearTab_(EVENTS, EVENT_HEADER);
   
   //
   // Load Account Info
@@ -173,7 +173,6 @@ function build_se_events() {
   }
   
   // In case we need to generate long ids
-  //DAK
   let longIdCells = sheet.getRange(2, 1); // To initialize if we have to
   
   // Build the email to user id mapping  
@@ -466,6 +465,8 @@ function build_se_events() {
   // Convert calendar invites (Calendar tab) to SE events (Events tab)
   //
   
+  let eventCount = 0;
+  
   for (j = 0 ; j < lastRow - 1; j++) {
     
     if (!inviteInfo[j][ASSIGNED_TO] || !inviteInfo[j][ATTENDEE_STR] || !inviteInfo[j][START]) {
@@ -564,6 +565,7 @@ function build_se_events() {
               pi = lookForProducts_(inviteInfo[j][DESCRIPTION]);
             }
             createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, meetingType);
+            eventCount++;
             isSpecialActive = true;
             Logger.log(inviteInfo[j][SUBJECT] + " is a special meeting.");
             break;
@@ -633,7 +635,7 @@ function build_se_events() {
           if (overrides[row][3] == "Yes") {
             customer = {};
             customer[account] = 1;
-            createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);      
+            eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);      
             break;
           }
           
@@ -661,11 +663,12 @@ function build_se_events() {
               milestones = stageMilestonesByOp[opId];
             }
             createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], false, productByOp[opId], milestones);
+            eventCount++;
           }
           else {
             customer = {};
             customer[account] = 1;
-            createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        
+            eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        
           }
           break;
         }
@@ -684,7 +687,7 @@ function build_se_events() {
     //
     
     if (attendeeInfo.stats.customers == 0 && attendeeInfo.stats.partners > 0) {
-      createAccountEvents_(outputCursor, attendees, attendeeInfo.partners, inviteInfo[j], productInventory);
+      eventCount += createAccountEvents_(outputCursor, attendees, attendeeInfo.partners, inviteInfo[j], productInventory);
     }
     else if (attendeeInfo.stats.customer_accounts == 1) {
       
@@ -739,9 +742,10 @@ function build_se_events() {
           milestones = stageMilestonesByOp[opId];
         }
         createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, productByOp[opId], milestones);
+        eventCount++;
       }
       else {
-        createAccountEvents_(outputCursor, attendees, attendeeInfo.customers, inviteInfo[j], productInventory);        
+        eventCount += createAccountEvents_(outputCursor, attendees, attendeeInfo.customers, inviteInfo[j], productInventory);        
       }
     }
     else if (attendeeInfo.stats.customer_accounts > 1) {
@@ -832,9 +836,10 @@ function build_se_events() {
           milestones = stageMilestonesByOp[opId];
         }
         createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, productByOp[opId], milestones);
+        eventCount++;
       }
       else {
-        createAccountEvents_(outputCursor, attendees, attendeeInfo.customers, inviteInfo[j], productInventory);
+        eventCount += createAccountEvents_(outputCursor, attendees, attendeeInfo.customers, inviteInfo[j], productInventory);
       }
     } 
     else if (attendeeInfo.stats.others > 0) {
@@ -843,17 +848,22 @@ function build_se_events() {
       let lead = findLead_(attendees);
       if (lead) {
         createLeadEvent_(outputCursor, lead, attendees, inviteInfo[j], productInventory);
+        eventCount++;
       }
       else {       
         logThreeCol("WARNING - Unable to find an customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
       }     
     }
   }
+  
+  logOneCol("Generated a total of " + eventCount + " events.");
 }
 
 
 function expand_se_events() {
   //Copy events over to Review tab replacing account or opportunity ids with names 
+  
+  logStamp("Expanding Events");
 
   //
   // Load Opportunity Info
@@ -900,7 +910,6 @@ function expand_se_events() {
   // Build the user id to name mapping  
   for (var j = 0 ; j < slr - 1; j++) {
   
-    //DAK
     if (!staffInfo[j][STAFF_LONG_ID]) {
       let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
       longIdCells.offset(j,STAFF_LONG_ID).setValue(longId);
@@ -1010,30 +1019,42 @@ function expand_se_events() {
   let outputRange = sheet.getRange(2,1); // skip over the header
   let rowOffset = 0; 
   
+  let cO = 0; // Count Opportunities
+  let cP = 0;
+  let cC = 0;
+  let cL = 0;
+  let cG = 0;
+  
   let reviewRowWasTouchedArray = new Array(elr).fill(false);
   PropertiesService.getScriptProperties().setProperty("reviewTouches", reviewRowWasTouchedArray);
  
   for (j = 0 ; j < elr-1; j++) {
     // Note that these types are in the Data Validation for the associated field on the Review tab
-    let name = "Unknown";
-    let type = "Unknown";
+    let name = "General";
+    let type = "General";
     if (opNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = opNameById[eventInfo[j][EVENT_RELATED_TO]];
       type = "Opportunity";
+      cO++;
     }
     else if (partnerNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = partnerNameById[eventInfo[j][EVENT_RELATED_TO]];
       type = "Partner";
+      cP++;
     }
     else if (customerNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = customerNameById[eventInfo[j][EVENT_RELATED_TO]];
       type = "Customer";
+      cC++;
     } 
     else if (leadNameById[eventInfo[j][EVENT_LEAD]]) {
       name = leadNameById[eventInfo[j][EVENT_LEAD]];
       type = "Lead";
+      cL++;
     }
-   
+    else {
+      cG++;
+    }
     outputRange.offset(rowOffset, REVIEW_ASSIGNED_TO).setValue(staffNameById[eventInfo[j][EVENT_ASSIGNED_TO]]);
     outputRange.offset(rowOffset, REVIEW_EVENT_TYPE).setValue(type);
     outputRange.offset(rowOffset, REVIEW_ORIG_EVENT_TYPE).setValue(type);
@@ -1075,6 +1096,13 @@ function expand_se_events() {
     
     rowOffset++;
   }
+  
+  logOneCol("Expanded " + cO + " Opportunity events.");
+  logOneCol("Expanded " + cP + " Partner events.");
+  logOneCol("Expanded " + cC + " Customer events.");
+  logOneCol("Expanded " + cL + " Lead events.");
+  logOneCol("Expanded " + cG + " General/Multi-customer events.");
+  logOneCol("Expanded at total of " + rowOffset + " events.");
 }
 
 function reconcile_se_events() {
@@ -1201,7 +1229,16 @@ function reconcile_se_events() {
       else {
         updatedFields = "Opportunity Stage";
       }
-      outputRange.offset(rowOffset, EVENT_OP_STAGE).setValue(reviewInfo[j][REVIEW_OP_STAGE]);
+      // Given the selected meeting type, we need to make sure the stage selected is allowed 
+      // by Salesforce's field validation logic. We are just going to override it (no need 
+      // to flag it on the UI, at least not yet.)
+      let mt = reviewInfo[j][REVIEW_MEETING_TYPE];
+      let s = reviewInfo[j][REVIEW_OP_STAGE];
+      if (!validStagesByMeeting[mt + s]) {
+        s = defaultStageForMeeting[mt]; // DAK
+        logFourCol("Overriding stage selection for API validation", "On: " +  eventInfo[j][EVENT_SUBJECT], "From: " +  reviewInfo[j][REVIEW_OP_STAGE] + ", To: " + s, "Meeting Type: " + mt);
+      }
+      outputRange.offset(rowOffset, EVENT_OP_STAGE).setValue(s);
     }
     if (eventInfo[j][EVENT_PRODUCT] != reviewInfo[j][REVIEW_PRODUCT]) {
       if (updatedFields) {
@@ -1338,6 +1375,8 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     repAttended = "Yes"; 
   }
   
+  let eventCount = 0;
+  
   let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
   
   for (account in attendeeInfo) {
@@ -1359,8 +1398,10 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
     
     outputTab.rowOffset++;
+    eventCount++;
     
   }
+  return eventCount;
 }
 
 function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInventory) {

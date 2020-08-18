@@ -63,24 +63,23 @@ function menuItem2_() {
     return;
   }
   
-  /*
+  
   let result = ui.alert('Please confirm', 
-  'Are you sure you want to transform invites into events? This will clear the current set of Events.\n\nContinue?',
-  ui.ButtonSet.YES_NO);
+                        'Are you sure you want to transform invites into events? This will clear the current set of Events and Expaned/Reviewed events.\n\nContinue?',
+                        ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {  
-  */
-  try {
-    markRunStart_();
-    build_se_events();
+    try {
+      markRunStart_();
+      build_se_events();
+    }
+    catch (e) {
+      Logger.log("ERROR: build_se_events threw an unhandled exception!");
+    }
+    finally {
+      markRunEnd_();
+    }
   }
-  catch (e) {
-    Logger.log("ERROR: build_se_events threw an unhandled exception!");
-  }
-  finally {
-    markRunEnd_();
-  }
-  //}
 }
 
 function menuItem3_() {
