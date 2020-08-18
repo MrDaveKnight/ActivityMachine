@@ -423,6 +423,14 @@ function menuItem25_() {
   
 }
 
+function menuItem26_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Reconcile Events\n\nThis takes each record in the 'Review' tab that has been modified during the review process and updates the corresponding record back in the 'Events' tab. " +
+           "Note that the stage field may be overridden if Salesforce API validation would fail for the selected meeting type (review the Log for any overrides.)");
+  
+}
+
 function onEdit(e) {
    
   // Only do this is a single cell is changed

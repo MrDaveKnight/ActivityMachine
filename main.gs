@@ -243,7 +243,7 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Expand Events', 'menuItem23_')
                   .addSeparator()
-                  .addItem('Import Calendars & Generate Events', 'menuItem24_')
+                  .addItem('Reconcile Events', 'menuItem26_')
                   .addSeparator()
                   .addItem('Upload Events', 'menuItem25_'))
       .addToUi();
