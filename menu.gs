@@ -313,8 +313,7 @@ function menuItem11_() {
       clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
       
       let spreadsheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_EXPANDED);
-      spreadsheet.getRange('2:1000').activate();
-      spreadsheet.getActiveRangeList().setBackground('#ffffff');
+      spreadsheet.getRange('2:1000').setBackground('#ffffff'); 
     }
     catch (e) {
       Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);

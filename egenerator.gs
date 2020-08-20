@@ -1014,8 +1014,8 @@ function expand_se_events() {
   
   // Clear any left over update color and set event output cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_EXPANDED);
-  sheet.getRange('2:1000').activate();
-  sheet.getActiveRangeList().setBackground('#ffffff');
+  sheet.getRange('2:1000').setBackground('#ffffff');
+  
   let outputRange = sheet.getRange(2,1); // skip over the header
   let rowOffset = 0; 
   
@@ -1097,12 +1097,27 @@ function expand_se_events() {
     rowOffset++;
   }
   
+  var protection = sheet.protect().setDescription('Review data protection');
+  var unprotected1 = sheet.getRange(2, 2, rowOffset, 3); 
+  var unprotected2 = sheet.getRange(2, 8, rowOffset, REVIEW_COLUMNS - 7); 
+  protection.setUnprotectedRanges([unprotected1, unprotected2]);
+  // Ensure the current user is an editor before removing others. Otherwise, if the user's edit
+  // permission comes from a group, the script will throw an exception upon removing the group.
+  var me = Session.getEffectiveUser();
+  protection.addEditor(me);
+  protection.removeEditors(protection.getEditors());
+  if (protection.canDomainEdit()) {
+    protection.setDomainEdit(false);
+  }
+  
   logOneCol("Expanded " + cO + " Opportunity events.");
   logOneCol("Expanded " + cP + " Partner events.");
   logOneCol("Expanded " + cC + " Customer events.");
   logOneCol("Expanded " + cL + " Lead events.");
   logOneCol("Expanded " + cG + " General/Multi-customer events.");
   logOneCol("Expanded at total of " + rowOffset + " events.");
+  
+  sheet.activate();
 }
 
 function reconcile_se_events() {
@@ -1175,6 +1190,7 @@ function reconcile_se_events() {
     
     let relatedTo = null;
     let lead = null;
+    let wasDeleted = false;
     let updatedFields = null;
     switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
       case "Opportunity":
@@ -1189,8 +1205,12 @@ function reconcile_se_events() {
       case "Lead":
         lead = leadIdByName[reviewInfo[j][REVIEW_LEAD]];
         break;
+      case "General":
+        break;
       default:
+        wasDeleted = true; // Empty cell means they deleted this row (or the field is jacked), so skip
     }
+    
     if (relatedTo) {
       if (eventInfo[j][EVENT_RELATED_TO] != relatedTo) {
         if (updatedFields) {
@@ -1313,7 +1333,7 @@ function reconcile_se_events() {
       let date = Utilities.formatDate(new Date(eventInfo[j][EVENT_START]), "GMT-5", "MMM dd, yyyy");
       logThreeCol("Record Update", eventInfo[j][EVENT_SUBJECT] + " / " + date, updatedFields);
     }
-
+    
     rowOffset++;
   }
 }
