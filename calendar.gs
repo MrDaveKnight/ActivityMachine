@@ -62,7 +62,7 @@ function import_gcal_(calName, startDate, endDate, cursor){
   
     // Collect some quick stats
     var isCustEvent = false;
-    var attendees=events[i].getGuestList();
+    var attendees=events[i].getGuestList(true);
     var attendeeList = "";
     if (attendees.length > 0) {
       attendeeList = attendees[0].getEmail();
@@ -70,9 +70,9 @@ function import_gcal_(calName, startDate, endDate, cursor){
     for (var j=1; j < attendees.length; j++) {
       attendeeList = attendeeList + "," + attendees[j].getEmail();
     }
-    
+      
+    // No tags show up for Notes
     /*
-    No tags show up for Notes
     let tags = events[i].getAllTagKeys();
     let tagNames = "";
     if (tags && tags.length > 0) {
@@ -80,8 +80,10 @@ function import_gcal_(calName, startDate, endDate, cursor){
       for (let x = 1; x < tags.length; x++) {
         tagNames += ", " + tags[x];
       }
+       Logger.log("Tag:" + tagNames);
     }
     */
+    
     
     // The details below must match the header defined in main.gs
     let details=[[calName, events[i].getTitle(), events[i].getLocation(), events[i].getStartTime(), events[i].getEndTime(), events[i].getMyStatus(), events[i].getCreators(), events[i].isAllDayEvent(), events[i].isRecurringEvent(), attendeeList, events[i].getDescription()]];

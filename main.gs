@@ -13,7 +13,7 @@
 // 1. Import google calendar invites into the google sheet
 // 2. Generate SE Activities from those invites, saving them in a "staging" tab in the google sheet
 // 3. Upload SE Activities; moving staged SE Activities into the "Upload" tab for Zap upload
-// 4. Generate "expanded" SE Activities with machine IDs replaced by names for easier review
+// 4. Generate "unveiled" SE Activities with machine IDs replaced by names for easier review
 // 5. Import "missing" customers and leads (customers that are out-of-region, and leads for attendees without an account)
 // 6. Clear various tabs and logs
 //
@@ -114,7 +114,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
-const EVENT_COLUMNS = 14;
+const EVENT_COLUMNS = 15;
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -129,10 +129,12 @@ const EVENT_LOGISTICS = 10;
 const EVENT_PREP_TIME = 11;
 const EVENT_QUALITY = 12;
 const EVENT_LEAD = 13;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead"]]
+const EVENT_PROCESS = 14;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Process"]]
+const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead"]]
 
-const EVENTS_EXPANDED = "Review"
-const REVIEW_COLUMNS = 15;
+const EVENTS_UNVEILED = "Review"
+const REVIEW_COLUMNS = 16;
 const REVIEW_ASSIGNED_TO = 0;
 const REVIEW_EVENT_TYPE = 1; // Must be before REVIEW_RELATED_TO and REVIEW_LEAD or you will break the menu
 const REVIEW_RELATED_TO = 2; // Opportunity ID or Account ID
@@ -148,7 +150,8 @@ const REVIEW_LOGISTICS = 11;
 const REVIEW_PREP_TIME = 12;
 const REVIEW_QUALITY = 13;
 const REVIEW_LEAD = 14;
-const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead"]]
+const REVIEW_PROCESS = 15;
+const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Process"]]
 
 // Record original values for highlighting changes by the reviewers
 // No header. Not meant to be seen by a user
@@ -200,6 +203,9 @@ const VAULT = "V";
 const CONSUL = "C";
 const NOMAD = "N";
 
+const PROCESS_UPLOAD = "Upload";
+const PROCESS_SKIP = "Skip";
+
 // Debug tracing
 const IS_TRACE_ACCOUNT_ON = false;
 const TRACE_ACCOUNT_ID = "0011C00001rtkI3"
@@ -214,7 +220,7 @@ function onOpen() {
       .addSeparator()
       .addItem('Generate Events', 'menuItem2_')
       .addSeparator()
-      .addItem('Expand Events', 'menuItem10_')
+      .addItem('Unveil Events', 'menuItem10_')
       .addSeparator()
       .addItem('Reconcile Events', 'menuItem13_')
       .addSeparator()
@@ -241,7 +247,7 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Generate Events', 'menuItem22_')
                   .addSeparator()
-                  .addItem('Expand Events', 'menuItem23_')
+                  .addItem('Unveil Events', 'menuItem23_')
                   .addSeparator()
                   .addItem('Reconcile Events', 'menuItem26_')
                   .addSeparator()

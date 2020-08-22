@@ -178,7 +178,7 @@ function menuItem6_() {
   if (result == ui.Button.YES) {
     try {
       markRunStart_();
-      clearTab_(UPLOAD_STAGE, EVENT_HEADER);
+      clearTab_(UPLOAD_STAGE, UPLOAD_STAGE_HEADER);
     }
     catch (e) {
       Logger.log("ERROR: clearTab_ threw an unhandled exception!");
@@ -274,18 +274,18 @@ function menuItem10_() {
   }
   
   
-  let result = ui.alert('Please confirm event field "expansion"', 
-                        'This will overwrite what is currently in the Review tab with events that have had ids replaced with names for accounts, partners, opportunities and users. You will loose any updates currently in the Review tab! You want to continue anyway?',
+  let result = ui.alert('Please confirm the event "unveiling"', 
+                        'This will overwrite what is currently in the Review tab with events that have their reference-id fields replaced with names for accounts, partners, opportunities and users. You will loose any updates currently in the Review tab!\n\nYou want to continue anyway?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {  
     
     try {
       markRunStart_();
-      expand_se_events();
+      unveil_se_events();
     }
     catch (e) {
-      Logger.log("ERROR: expand_se_events threw an unhandled exception: " + e);
+      Logger.log("ERROR: unveil_se_events threw an unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -310,9 +310,9 @@ function menuItem11_() {
     
     try {
       markRunStart_();
-      clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
+      clearTab_(EVENTS_UNVEILED, REVIEW_HEADER);
       
-      let spreadsheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_EXPANDED);
+      let spreadsheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_UNVEILED);
       spreadsheet.getRange('2:1000').setBackground('#ffffff'); 
     }
     catch (e) {
@@ -355,7 +355,7 @@ function menuItem13_() {
   
   
   let result = ui.alert('Please confirm', 
-                        'You want to reconcile the Review tab with the Events tab? Records in the Events tab will be updated to match corresponding records in the Review tab that have been modified.\nContinue?',
+                        'You want to reconcile the Review tab with the Events tab? Records in the Events tab will be updated to match corresponding records in the Review tab that have been modified.\n\nContinue?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
@@ -401,8 +401,8 @@ function menuItem22_() {
 function menuItem23_() {
   
   let ui = SpreadsheetApp.getUi();
-  ui.alert("Expand Events\n\nThis takes each record in the 'Events' tab, replacing Salesforce IDs with corresponding names, and writes those 'expanded' records into the 'Review' tab. " +
-           "It will clear whatever is currently in the 'Review' tab before performing the ID to name expansion. These expanded records are easier to manually review prior to upload.");
+  ui.alert("Unveil Events\n\nThis takes each record in the 'Events' tab, replacing the Salesforce IDs in user, customer, partner, lead and opportunity reference fields with the corresponding names that people can understand, and writes those 'unveiled' records into the 'Review' tab. " +
+           "It will clear whatever is currently in the 'Review' tab before performing the ID to name expansion. These unveiled records are easier to manually review prior to upload.");
   
 }
 
@@ -441,7 +441,7 @@ function onEdit(e) {
   if (thisSheet.getName() == RUN_PARMS) {
     handleRunParmsMenuEdit_(e.range, e.value);
   }
-  else if (thisSheet.getName() == EVENTS_EXPANDED) {
+  else if (thisSheet.getName() == EVENTS_UNVEILED) {
     handleReviewMenuEdit_(e.range, e.value);
   }
 }

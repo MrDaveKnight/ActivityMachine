@@ -260,6 +260,8 @@ function clearTab_(tab_name, header) {
 
 
 function stage_events_to_upload_tab() {
+
+  logStamp("Staging Upload");
   
   // Do NOT clear out old records! Zappier needs to be off before doing that!
   
@@ -281,9 +283,17 @@ function stage_events_to_upload_tab() {
   let ulr = sheet2.getLastRow();
   let uploadRange = sheet2.getRange(ulr+1,1);
   let rowOffset = 0;
+  let uc = 0;
   
   
   for (j = 0 ; j < elr - 1; j++) {
+  
+    if (eventInfo[j][EVENT_PROCESS] == PROCESS_SKIP)  {
+      let date = Utilities.formatDate(new Date(eventInfo[j][EVENT_START]), "GMT-5", "MMM dd, yyyy");
+      logOneCol("Skipped " + eventInfo[j][EVENT_SUBJECT] + " / " + date);
+      continue;
+    }
+    
     uploadRange.offset(rowOffset, EVENT_ASSIGNED_TO).setValue(eventInfo[j][EVENT_ASSIGNED_TO]);
     uploadRange.offset(rowOffset, EVENT_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
     uploadRange.offset(rowOffset, EVENT_MEETING_TYPE).setValue(eventInfo[j][EVENT_MEETING_TYPE]);
@@ -298,10 +308,11 @@ function stage_events_to_upload_tab() {
     uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);  
     uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]); 
     uploadRange.offset(rowOffset, EVENT_LEAD).setValue(eventInfo[j][EVENT_LEAD]); 
-    
-    
+    uc++;
     rowOffset++;
   }
+  logOneCol("Uploaded " + uc + " events.");
+  
 }
 
 function process_account_emails_(accountInfo, numberOfRows, accountType, accountName, accountId, emailFieldNumber, altEmailFieldNumber, emailToAccountMap) {

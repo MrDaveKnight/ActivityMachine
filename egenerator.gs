@@ -133,7 +133,7 @@ function build_se_events() {
   logStamp("SE Event Build");
   
   clearTab_(EVENTS, EVENT_HEADER);
-  clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
+  clearTab_(EVENTS_UNVEILED, REVIEW_HEADER);
   
   // Information for accounts, staff, opportunities and calendar invites
   // is loaded from tabs in the spreadsheet into two-dimentional arrays with
@@ -860,10 +860,10 @@ function build_se_events() {
 }
 
 
-function expand_se_events() {
+function unveil_se_events() {
   //Copy events over to Review tab replacing account or opportunity ids with names 
   
-  logStamp("Expanding Events");
+  logStamp("Unveiling Events");
 
   //
   // Load Opportunity Info
@@ -987,7 +987,7 @@ function expand_se_events() {
   //
   // Load Leads
   //
-  
+  EVENTS_UNVEILED
   let leadNameById = {};
   let leadInfo = load_tab_(MISSING_LEADS, 2, LEAD_COLUMNS);
   for (j=0; j<leadInfo.length; j++) {
@@ -1010,10 +1010,10 @@ function expand_se_events() {
     return;
   }
   
-  clearTab_(EVENTS_EXPANDED, REVIEW_HEADER);
+  clearTab_(EVENTS_UNVEILED, REVIEW_HEADER);
   
   // Clear any left over update color and set event output cursor
-  sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_EXPANDED);
+  sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS_UNVEILED);
   sheet.getRange('2:1000').setBackground('#ffffff');
   
   let outputRange = sheet.getRange(2,1); // skip over the header
@@ -1093,6 +1093,7 @@ function expand_se_events() {
       outputRange.offset(rowOffset, REVIEW_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
       outputRange.offset(rowOffset, REVIEW_ORIG_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
     }
+    outputRange.offset(rowOffset, REVIEW_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
     
     rowOffset++;
   }
@@ -1110,12 +1111,12 @@ function expand_se_events() {
     protection.setDomainEdit(false);
   }
   
-  logOneCol("Expanded " + cO + " Opportunity events.");
-  logOneCol("Expanded " + cP + " Partner events.");
-  logOneCol("Expanded " + cC + " Customer events.");
-  logOneCol("Expanded " + cL + " Lead events.");
-  logOneCol("Expanded " + cG + " General/Multi-customer events.");
-  logOneCol("Expanded at total of " + rowOffset + " events.");
+  logOneCol("Unveiled " + cO + " Opportunity events.");
+  logOneCol("Unveiled " + cP + " Partner events.");
+  logOneCol("Unveiled " + cC + " Customer events.");
+  logOneCol("Unveiled " + cL + " Lead events.");
+  logOneCol("Unveiled " + cG + " General/Multi-customer events.");
+  logOneCol("Unveiled at total of " + rowOffset + " events.");
   
   sheet.activate();
 }
@@ -1172,10 +1173,10 @@ function reconcile_se_events() {
   }
   
   //
-  // Scan expanded events in the Review tab, updating fields in the corresponding Event tab record when necessary
+  // Scan unveiled events in the Review tab, updating fields in the corresponding Event tab record when necessary
   //
     
-  let reviewInfo = load_tab_(EVENTS_EXPANDED, 2, REVIEW_COLUMNS);
+  let reviewInfo = load_tab_(EVENTS_UNVEILED, 2, REVIEW_COLUMNS);
   let eventInfo = load_tab_(EVENTS, 2, EVENT_COLUMNS);
   let reviewRowWasTouchedArray = PropertiesService.getScriptProperties().getProperty("reviewTouches");
   
@@ -1255,7 +1256,7 @@ function reconcile_se_events() {
       let mt = reviewInfo[j][REVIEW_MEETING_TYPE];
       let s = reviewInfo[j][REVIEW_OP_STAGE];
       if (!validStagesByMeeting[mt + s]) {
-        s = defaultStageForMeeting[mt]; // DAK
+        s = defaultStageForMeeting[mt]; 
         logFourCol("Overriding stage selection for API validation", "On: " +  eventInfo[j][EVENT_SUBJECT], "From: " +  reviewInfo[j][REVIEW_OP_STAGE] + ", To: " + s, "Meeting Type: " + mt);
       }
       outputRange.offset(rowOffset, EVENT_OP_STAGE).setValue(s);
@@ -1328,6 +1329,15 @@ function reconcile_se_events() {
       }
       outputRange.offset(rowOffset, EVENT_QUALITY).setValue(quality);
     }
+    if (eventInfo[j][EVENT_PROCESS] != reviewInfo[j][REVIEW_PROCESS]) {
+      if (updatedFields) {
+        updatedFields += ", Process";
+      }
+      else {
+        updatedFields = "Process";
+      }
+      outputRange.offset(rowOffset, EVENT_PROCESS).setValue(reviewInfo[j][REVIEW_PROCESS]);
+    }    
     
     if (updatedFields) {
       let date = Utilities.formatDate(new Date(eventInfo[j][EVENT_START]), "GMT-5", "MMM dd, yyyy");
@@ -1373,6 +1383,7 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
   
   outputTab.rowOffset++;
   
@@ -1416,6 +1427,7 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
     outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
     
     outputTab.rowOffset++;
     eventCount++;
@@ -1461,6 +1473,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
   outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
   
   
   outputTab.rowOffset++;
@@ -1540,6 +1553,7 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, opP
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics); 
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
   
   outputTab.rowOffset++;  
   
