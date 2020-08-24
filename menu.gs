@@ -430,6 +430,37 @@ function menuItem26_() {
   
 }
 
+function menuItem30_() {
+  
+  let ui = SpreadsheetApp.getUi();
+   
+  let sheet = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
+  let gasRange = sheet.getRange(1,1,1,1); // Cell A1
+  let gasValues = gasRange.getValues();
+  let gasVersion = gasValues[0][0];
+  if ("v" + GAS_VERSION == gasVersion) {
+    ui.alert("Sheet version matches the GAS (Google App Script). You are good to go.");
+    return;
+  }  
+  
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICES);
+  let schemaRange = sheet.getRange(4,6,1,1); // Cell F4
+  let schemaValues = schemaRange.getValues();
+  let schemaVersion = schemaValues[0][0];
+  let majorMinorArray = schemaVersion.toString().split(".");
+  
+  if (parseInt(majorMinorArray[0]) != MIN_SCHEMA_VERSION) {
+    ui.alert("The schema of your sheet is too old! The GAS (Google App Script) you have pulled from Github won't work with it. " +
+             "You need to start fresh.\n\nI'm sorry. Sometimes progress requires adding or changing some tabs or cells. Github only manages the code.\n\n" +
+             "Please copy \"Activity Machine " + GAS_VERSION + "\" to you local Google drive, update your Zaps to use it, and reload your config.");
+  }
+  else if ("v" + GAS_VERSION != gasVersion) {
+    ui.alert("Sheet schema is compatible with the GAS (Google App Script). Updating the sheet version to " + "v" + GAS_VERSION + ".");
+    gasRange.setValue("v" + GAS_VERSION);
+  }
+}
+
+
 function onEdit(e) {
    
   // Only do this is a single cell is changed
