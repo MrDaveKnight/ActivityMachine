@@ -653,9 +653,9 @@ function initValidation_(cell, type) {
 function handleValueSelection_(cell, value, originalValueOffset) {
   let originalValue = cell.offset(0, originalValueOffset).getValue();
   if (value != originalValue) {
-    let reviewRowWasTouchedArray = PropertiesService.getScriptProperties().getProperty("reviewTouches");
+    let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
     reviewRowWasTouchedArray[cell.rowStart] = true;   
-    PropertiesService.getScriptProperties().setProperty("reviewTouches", reviewRowWasTouchedArray); 
+    PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 
     cell.setBackground("tomato");
   }
   else {

@@ -1026,7 +1026,7 @@ function unveil_se_events() {
   let cG = 0;
   
   let reviewRowWasTouchedArray = new Array(elr).fill(false);
-  PropertiesService.getScriptProperties().setProperty("reviewTouches", reviewRowWasTouchedArray);
+  PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray));
  
   for (j = 0 ; j < elr-1; j++) {
     // Note that these types are in the Data Validation for the associated field on the Review tab
@@ -1178,12 +1178,11 @@ function reconcile_se_events() {
     
   let reviewInfo = load_tab_(EVENTS_UNVEILED, 2, REVIEW_COLUMNS);
   let eventInfo = load_tab_(EVENTS, 2, EVENT_COLUMNS);
-  let reviewRowWasTouchedArray = PropertiesService.getScriptProperties().getProperty("reviewTouches");
+  let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
   
   // Clear any left over update color and set event output cursor
   let sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
   let outputRange = sheet.getRange(2,1); // skip over the header
-  let rowOffset = 0; 
  
   for (j = 0 ; j < reviewInfo.length; j++) {
     
@@ -1220,11 +1219,11 @@ function reconcile_se_events() {
         else {
           updatedFields = "Related To";
         }
-        outputRange.offset(rowOffset, EVENT_RELATED_TO).setValue(relatedTo);
+        outputRange.offset(j, EVENT_RELATED_TO).setValue(relatedTo);
         
         if (eventInfo[j][EVENT_LEAD] != "") {        
           updatedFields += ", Lead";
-          outputRange.offset(rowOffset, EVENT_LEAD).setValue("");
+          outputRange.offset(j, EVENT_LEAD).setValue("");
         }
       }
     }
@@ -1236,10 +1235,10 @@ function reconcile_se_events() {
         else {
           updatedFields = "Lead";
         }
-        outputRange.offset(rowOffset, EVENT_LEAD).setValue(lead);
+        outputRange.offset(j, EVENT_LEAD).setValue(lead);
         if (eventInfo[j][EVENT_RELATED_TO] != "") {   
           updatedFields += ", Related To";       
-          outputRange.offset(rowOffset, EVENT_RELATED_TO).setValue("");
+          outputRange.offset(j, EVENT_RELATED_TO).setValue("");
         }
       }
     } 
@@ -1259,7 +1258,7 @@ function reconcile_se_events() {
         s = defaultStageForMeeting[mt]; 
         logFourCol("Overriding stage selection for API validation", "On: " +  eventInfo[j][EVENT_SUBJECT], "From: " +  reviewInfo[j][REVIEW_OP_STAGE] + ", To: " + s, "Meeting Type: " + mt);
       }
-      outputRange.offset(rowOffset, EVENT_OP_STAGE).setValue(s);
+      outputRange.offset(j, EVENT_OP_STAGE).setValue(s);
     }
     if (eventInfo[j][EVENT_PRODUCT] != reviewInfo[j][REVIEW_PRODUCT]) {
       if (updatedFields) {
@@ -1268,7 +1267,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Primary Product";
       }
-      outputRange.offset(rowOffset, EVENT_PRODUCT).setValue(reviewInfo[j][REVIEW_PRODUCT]);
+      outputRange.offset(j, EVENT_PRODUCT).setValue(reviewInfo[j][REVIEW_PRODUCT]);
     }
     if (eventInfo[j][EVENT_DESC] != reviewInfo[j][REVIEW_DESC]) {
       if (updatedFields) {
@@ -1277,7 +1276,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Description";
       }
-      outputRange.offset(rowOffset, EVENT_DESC).setValue(reviewInfo[j][REVIEW_DESC]);
+      outputRange.offset(j, EVENT_DESC).setValue(reviewInfo[j][REVIEW_DESC]);
     }
     if (eventInfo[j][EVENT_MEETING_TYPE] != reviewInfo[j][REVIEW_MEETING_TYPE]) {
       if (updatedFields) {
@@ -1286,7 +1285,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Meeting Type";
       }
-      outputRange.offset(rowOffset, EVENT_MEETING_TYPE).setValue(reviewInfo[j][REVIEW_MEETING_TYPE]);
+      outputRange.offset(j, EVENT_MEETING_TYPE).setValue(reviewInfo[j][REVIEW_MEETING_TYPE]);
     }
     if (eventInfo[j][EVENT_REP_ATTENDED] != reviewInfo[j][REVIEW_REP_ATTENDED]) {
       if (updatedFields) {
@@ -1295,7 +1294,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Rep Attended";
       }
-      outputRange.offset(rowOffset, EVENT_REP_ATTENDED).setValue(reviewInfo[j][REVIEW_REP_ATTENDED]);
+      outputRange.offset(j, EVENT_REP_ATTENDED).setValue(reviewInfo[j][REVIEW_REP_ATTENDED]);
     }    
     if (eventInfo[j][EVENT_LOGISTICS] != reviewInfo[j][REVIEW_LOGISTICS]) {
       if (updatedFields) {
@@ -1304,7 +1303,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Logistics";
       }
-      outputRange.offset(rowOffset, EVENT_LOGISTICS).setValue(reviewInfo[j][REVIEW_LOGISTICS]);
+      outputRange.offset(j, EVENT_LOGISTICS).setValue(reviewInfo[j][REVIEW_LOGISTICS]);
     }
     if (eventInfo[j][EVENT_PREP_TIME] != reviewInfo[j][REVIEW_PREP_TIME]) {
       if (updatedFields) {
@@ -1313,7 +1312,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Prep";
       }
-      outputRange.offset(rowOffset, EVENT_PREP_TIME).setValue(reviewInfo[j][REVIEW_PREP_TIME]);
+      outputRange.offset(j, EVENT_PREP_TIME).setValue(reviewInfo[j][REVIEW_PREP_TIME]);
     }
     
     let quality = reviewInfo[j][REVIEW_QUALITY];
@@ -1327,7 +1326,7 @@ function reconcile_se_events() {
       else {
         updatedFields = "Quality";
       }
-      outputRange.offset(rowOffset, EVENT_QUALITY).setValue(quality);
+      outputRange.offset(j, EVENT_QUALITY).setValue(quality);
     }
     if (eventInfo[j][EVENT_PROCESS] != reviewInfo[j][REVIEW_PROCESS]) {
       if (updatedFields) {
@@ -1336,15 +1335,13 @@ function reconcile_se_events() {
       else {
         updatedFields = "Process";
       }
-      outputRange.offset(rowOffset, EVENT_PROCESS).setValue(reviewInfo[j][REVIEW_PROCESS]);
+      outputRange.offset(j, EVENT_PROCESS).setValue(reviewInfo[j][REVIEW_PROCESS]);
     }    
     
     if (updatedFields) {
       let date = Utilities.formatDate(new Date(eventInfo[j][EVENT_START]), "GMT-5", "MMM dd, yyyy");
       logThreeCol("Record Update", eventInfo[j][EVENT_SUBJECT] + " / " + date, updatedFields);
     }
-    
-    rowOffset++;
   }
 }
 
