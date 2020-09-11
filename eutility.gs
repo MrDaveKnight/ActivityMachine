@@ -461,7 +461,7 @@ function load_partner_info_() {
     return false;
   }
   
-  process_account_emails_(partnerInfo, plr - 1, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, 0, emailToPartnerMap); // TODO - add PARTNER_ALT_EMAIL_DOMAINS into partner report
+  process_account_emails_(partnerInfo, plr - 1, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToPartnerMap); // TODO - add PARTNER_ALT_EMAIL_DOMAINS into partner report
   
   return true;
 }
