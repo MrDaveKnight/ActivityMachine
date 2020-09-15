@@ -28,7 +28,7 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION = "0.1.6"; 
+const GAS_VERSION = "0.1.7"; 
 const MIN_SCHEMA_VERSION = "1"; // v0.1.x
 
 // Clear meeting type default
@@ -242,7 +242,9 @@ function onOpen() {
                   .addSeparator()
                   .addItem('All Missing ... Tabs (Turn off Zapier!)', 'menuItem5_')
                   .addSeparator()
-                  .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_'))
+                  .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_')
+                  .addSeparator()
+                  .addItem('Everything (Turn off Zapier!)', 'menuItem14_'))
       .addSubMenu(ui.createMenu('Help')
                   .addItem('Import Calendars', 'menuItem20_')
                   .addSeparator()
@@ -254,7 +256,9 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Reconcile Events', 'menuItem26_')
                   .addSeparator()
-                  .addItem('Upload Events', 'menuItem25_'))
+                  .addItem('Upload Events', 'menuItem25_')
+                  .addSeparator()
+                  .addItem('Check Version', 'menuItem27_'))
       .addSeparator()
       .addItem('Check Version', 'menuItem30_')
       .addToUi();

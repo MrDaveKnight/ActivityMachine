@@ -373,6 +373,40 @@ function menuItem13_() {
   }
 }
 
+function menuItem14_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  
+  if (needToAbortRun_(ui)) {
+    return;
+  }
+  
+  let result = ui.alert('Please confirm that you want to clear out EVERYTHING!', 
+                        '\n\nAll Zapier zaps must be OFF before you continue!\n\nIs Zapier off?',
+                        ui.ButtonSet.YES_NO);
+  
+  if (result == ui.Button.YES) {
+    try {
+      markRunStart_();
+      clearTab_(MISSING_CUSTOMERS, CUSTOMER_HEADER);
+      clearTab_(MISSING_LEADS, LEAD_HEADER);
+      clearTab_(MISSING_DOMAINS, [['Email']]); 
+      clearTab_(MISSING_EMAILS, [['Email']]); 
+      clearTab_(UPLOAD_STAGE, UPLOAD_STAGE_HEADER);
+      clearTab_(CALENDAR, CALENDAR_HEADER);
+      clearTab_(EVENTS, EVENT_HEADER);
+      clearTab_(EVENTS_UNVEILED, REVIEW_HEADER);
+      clearTab_(LOG_TAB);
+    }
+    catch (e) {
+      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+    }
+    finally {
+      markRunEnd_();
+    }
+  }
+}
+
 function menuItem20_() {
   
   let ui = SpreadsheetApp.getUi();
@@ -428,6 +462,13 @@ function menuItem26_() {
   ui.alert("Reconcile Events\n\nThis takes each record in the 'Review' tab that has been modified during the review process and updates the corresponding record back in the 'Events' tab. " +
            "Note that the stage field may be overridden if Salesforce API validation would fail for the selected meeting type (review the Log for any overrides.)");
   
+}
+
+function menuItem27_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  ui.alert("Check Version\n\nUse this after pulling new code from Github. It will let you know if you are good to go, and update the version of the sheet to match the code. " +
+           "If you are not good, it will tell you what you need to do, i.e. go get the latest copy of the spreadsheet and reconfigure from there."); 
 }
 
 function menuItem30_() {
