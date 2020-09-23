@@ -146,14 +146,14 @@ function build_se_events() {
   // Load Account Info
   //
   
-  if (!load_customer_info_()) {
+  if (!load_customer_info_(true)) {
     return;
   }
-  if (!load_partner_info_()) {
+  if (!load_partner_info_(true)) {
     return;
   }
   
-  load_lead_info_();
+  load_lead_info_(true);
   
   
   //
@@ -168,7 +168,7 @@ function build_se_events() {
   var staffInfo = scanRange.getValues();
   
   if (slc < STAFF_COLUMNS - 1) {
-    Logger.log("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
+    logOneCol("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
     return;
   }
   
@@ -178,7 +178,7 @@ function build_se_events() {
   // Build the email to user id mapping  
   for (var j = 0 ; j < slr - 1; j++) {
     if (!staffInfo[j][STAFF_EMAIL]) {
-      Logger.log("WARNING:" + staffInfo[j][STAFF_NAME] + " has no email!");
+      logOneCol("WARNING:" + staffInfo[j][STAFF_NAME] + " has no email!");
       continue;
     }
     staffNameToEmailMap[staffInfo[j][STAFF_NAME].trim()] = staffInfo[j][STAFF_EMAIL].trim();
@@ -209,7 +209,7 @@ function build_se_events() {
   var opInfo = scanRange.getValues();
   
   if (olc < OP_COLUMNS) {
-    Logger.log("ERROR: Imported opportunity info was only " + olc + " fields wide. Not enough! Something needs to be fixed.");
+    logOneCol("ERROR: Imported opportunity info was only " + olc + " fields wide. Not enough! Something needs to be fixed.");
     return;
   }
   
@@ -229,7 +229,7 @@ function build_se_events() {
     let scanResults = lookForProducts_(opInfo[j][OP_NAME]);
     let productKey = makeProductKey_(scanResults, opInfo[j][OP_PRIMARY_PRODUCT]);
     if (productKey == "-") {
-      Logger.log("WARNING: " + opInfo[j][OP_NAME] + " has no product!");
+      logOneCol("WARNING: " + opInfo[j][OP_NAME] + " has no product!");
     }
     
     let latestActivityDate = Date.parse(opInfo[j][OP_ACTIVITY_DATE]);
@@ -384,7 +384,7 @@ function build_se_events() {
   var historyInfo = scanRange.getValues();
   
   if (hlc < HISTORY_COLUMNS) {
-    Logger.log("ERROR: Imported opportunity history was only " + hlc + " fields wide. Not enough! Qu'est-ce que c'est?");
+    logOneCol("ERROR: Imported opportunity history was only " + hlc + " fields wide. Not enough! Qu'est-ce que c'est?");
     return;
   }
   
@@ -446,7 +446,7 @@ function build_se_events() {
   if (lastRow == 1) return; // Empty. Only header
   
   if (lastColumn < CALENDAR_COLUMNS){
-    Logger.log("ERROR: Imported Calendar was only " + lastColumn + " fields wide. Not enought! Something bad happened.");
+    logOneCol("ERROR: Imported Calendar was only " + lastColumn + " fields wide. Not enought! Something bad happened.");
     return;
   }
   scanRange = sheet.getRange(2,1, lastRow-1, lastColumn);
@@ -520,7 +520,7 @@ function build_se_events() {
       }
     }
     if (foundBogusMeeting) {
-      Logger.log(inviteInfo[j][SUBJECT] + " is a bogus meeting.");
+      logOneCol(inviteInfo[j][SUBJECT] + " is a bogus meeting.");
       continue;
     }
     
@@ -567,7 +567,7 @@ function build_se_events() {
             createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, meetingType);
             eventCount++;
             isSpecialActive = true;
-            Logger.log(inviteInfo[j][SUBJECT] + " is a special meeting.");
+            logOneCol(inviteInfo[j][SUBJECT] + " is a special meeting.");
             break;
           }
         }
@@ -677,7 +677,7 @@ function build_se_events() {
   
     
     if (isOverrideActive) {
-      Logger.log(inviteInfo[j][SUBJECT] + " has been overrided.");
+      logOneCol(inviteInfo[j][SUBJECT] + " has been overrided.");
       continue;
     }
       
@@ -707,7 +707,7 @@ function build_se_events() {
       }
       
       if (!customerId) {
-        Logger.log("ERROR: Lost customer ID in invite: " + inviteInfo[j][SUBJECT]);
+        logOneCol("ERROR: Lost customer ID in invite: " + inviteInfo[j][SUBJECT]);
         continue;
       }
       
@@ -879,7 +879,7 @@ function unveil_se_events() {
   let opInfo = scanRange.getValues();
   
   if (olc < OP_COLUMNS) {
-    Logger.log("ERROR: Imported opportunity info was only " + olc + " fields wide. Not enough! Something needs to be fixed.");
+    logOneCol("ERROR: Imported opportunity info was only " + olc + " fields wide. Not enough! Something needs to be fixed.");
     return;
   }
   
@@ -901,7 +901,7 @@ function unveil_se_events() {
   staffInfo = scanRange.getValues();
   
   if (slc < STAFF_COLUMNS - 1) {
-    Logger.log("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
+    logOneCol("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
     return;
   }
   
@@ -925,44 +925,46 @@ function unveil_se_events() {
   // Load Partner Info
   //
   
+  let partnerNameById = {};
   sheet = SpreadsheetApp.getActive().getSheetByName(PARTNERS);
   rangeData = sheet.getDataRange();
   var plc = rangeData.getLastColumn();
   var plr = rangeData.getLastRow();
-  scanRange = sheet.getRange(2,1, plr-1, plc);
-  var partnerInfo = scanRange.getValues();
-  
-  if (plc < PARTNER_COLUMNS) {
-    Logger.log("ERROR: Imported Partners was only " + plc + " fields wide. Not enough! Something is awry.");
-    return;
-  }
-  
-  let partnerNameById = {};
-  
-  for (j = 0 ; j < plr - 1; j++) {
-    partnerNameById[partnerInfo[j][PARTNER_ID]]  = partnerInfo[j][PARTNER_NAME];
+  if (plr > 1) {
+    scanRange = sheet.getRange(2,1, plr-1, plc);
+    let partnerInfo = scanRange.getValues();
+    
+    if (plc < PARTNER_COLUMNS) {
+      logOneCol("ERROR: Imported Partners was only " + plc + " fields wide. Not enough! Something is awry.");
+      return;
+    }
+    
+    for (j = 0 ; j < plr - 1; j++) {
+      partnerNameById[partnerInfo[j][PARTNER_ID]]  = partnerInfo[j][PARTNER_NAME];
+    }
   }
   
   //
   // Load All Customer Info - in region first, external stuff second
   //
   
+  let customerNameById = {};
   sheet = SpreadsheetApp.getActive().getSheetByName(IN_REGION_CUSTOMERS);
   rangeData = sheet.getDataRange();
   let alc = rangeData.getLastColumn();
   let alr = rangeData.getLastRow();
-  scanRange = sheet.getRange(2,1, alr-1, alc);
-  let customerInfo = scanRange.getValues();
-  
-  if (alc < CUSTOMER_COLUMNS) {
-    Logger.log("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
-    return;
-  }
-  
-  let customerNameById = {};
- 
-  for (j = 0 ; j < alr - 1; j++) {
-    customerNameById[customerInfo[j][CUSTOMER_ID]] = customerInfo[j][CUSTOMER_NAME];
+  if (alr > 1) {
+    scanRange = sheet.getRange(2,1, alr-1, alc);
+    let customerInfo = scanRange.getValues();
+    
+    if (alc < CUSTOMER_COLUMNS) {
+      Logger.log("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
+      return;
+    }
+    
+    for (j = 0 ; j < alr - 1; j++) {
+      customerNameById[customerInfo[j][CUSTOMER_ID]] = customerInfo[j][CUSTOMER_NAME];
+    }
   }
   
   sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
@@ -975,7 +977,7 @@ function unveil_se_events() {
     customerInfo = scanRange.getValues();
     
     if (alc < CUSTOMER_COLUMNS) {
-      Logger.log("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
+      logOneCol("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
       return; 
     }
     
@@ -1006,7 +1008,7 @@ function unveil_se_events() {
   let eventInfo = scanRange.getValues();
   
   if (elc < EVENT_COLUMNS) {
-    Logger.log("ERROR: Imported Events was only " + elc + " fields wide. Not enough! Something is wrong.");
+    logOneCol("ERROR: Imported Events was only " + elc + " fields wide. Not enough! Something is wrong.");
     return;
   }
   
@@ -1093,6 +1095,8 @@ function unveil_se_events() {
       outputRange.offset(rowOffset, REVIEW_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
       outputRange.offset(rowOffset, REVIEW_ORIG_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
     }
+    outputRange.offset(rowOffset, REVIEW_NOTES).setValue(eventInfo[j][EVENT_NOTES]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_NOTES).setValue(eventInfo[j][EVENT_NOTES]);
     outputRange.offset(rowOffset, REVIEW_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
     
     rowOffset++;
@@ -1158,7 +1162,7 @@ function reconcile_se_events() {
   
   let externalCustomerInfo = load_tab_(MISSING_CUSTOMERS, 2, CUSTOMER_COLUMNS);
   for (j = 0 ; j < externalCustomerInfo.length ; j++) {
-    customerIdByName[customerInfo[j][CUSTOMER_NAME]] = customerInfo[j][CUSTOMER_ID];
+    customerIdByName[externalCustomerInfo[j][CUSTOMER_NAME]] = externalCustomerInfo[j][CUSTOMER_ID];
   }
   
   
@@ -1313,8 +1317,7 @@ function reconcile_se_events() {
         updatedFields = "Prep";
       }
       outputRange.offset(j, EVENT_PREP_TIME).setValue(reviewInfo[j][REVIEW_PREP_TIME]);
-    }
-    
+    }    
     let quality = reviewInfo[j][REVIEW_QUALITY];
     if (quality == "Undefined") {
       quality = "";
@@ -1327,6 +1330,15 @@ function reconcile_se_events() {
         updatedFields = "Quality";
       }
       outputRange.offset(j, EVENT_QUALITY).setValue(quality);
+    }
+    if (eventInfo[j][EVENT_NOTES] != reviewInfo[j][REVIEW_NOTES]) {
+      if (updatedFields) {
+        updatedFields += ", Notes";
+      }
+      else {
+        updatedFields = "Notes";
+      }
+      outputRange.offset(j, EVENT_NOTES).setValue(reviewInfo[j][REVIEW_NOTES]);
     }
     if (eventInfo[j][EVENT_PROCESS] != reviewInfo[j][REVIEW_PROCESS]) {
       if (updatedFields) {
@@ -1380,6 +1392,7 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
   
   outputTab.rowOffset++;
@@ -1424,6 +1437,7 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
     outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
     
     outputTab.rowOffset++;
@@ -1469,6 +1483,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
   outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
   
@@ -1550,6 +1565,7 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, opP
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics); 
   outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
   
   outputTab.rowOffset++;  

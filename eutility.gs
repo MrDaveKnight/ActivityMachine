@@ -11,10 +11,10 @@ function import_missing_accounts() {
   // Load Account Info
   //
   
-  if (!load_customer_info_()) {
+  if (!load_customer_info_(false)) {
     return;
   }
-  if (!load_partner_info_()) {
+  if (!load_partner_info_(false)) {
     return;
   }
   
@@ -307,6 +307,7 @@ function stage_events_to_upload_tab() {
     uploadRange.offset(rowOffset, EVENT_LOGISTICS).setValue(eventInfo[j][EVENT_LOGISTICS]);
     uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);  
     uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]); 
+    uploadRange.offset(rowOffset, EVENT_NOTES).setValue(eventInfo[j][EVENT_NOTES]); 
     uploadRange.offset(rowOffset, EVENT_LEAD).setValue(eventInfo[j][EVENT_LEAD]); 
     uc++;
     rowOffset++;
@@ -315,7 +316,7 @@ function stage_events_to_upload_tab() {
   
 }
 
-function process_account_emails_(accountInfo, numberOfRows, accountType, accountName, accountId, emailFieldNumber, altEmailFieldNumber, emailToAccountMap) {
+function process_account_emails_(accountInfo, numberOfRows, accountType, accountName, accountId, emailFieldNumber, altEmailFieldNumber, emailToAccountMap, loggingEnabled) {
   // accountInfo is an array of account records. numberOfRows is the number of accounts. All the other parameters, with the exception 
   // of the last, are the "field numbers" (not sure why I didn't name all of them as <field>FieldNumber). The last parameter, emailToAccountMap, 
   // is an object to record what email domain belongs to what account.
@@ -335,7 +336,7 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
     }  
   
     if (!emailDomainString && !altDomainString) {
-      Logger.log("WARNING :" + accountInfo[j][accountName] + " has no email domain!");
+      if (loggingEnabled) logOneCol("WARNING :" + accountInfo[j][accountName] + " has no email domain!");
       continue;
     }
     let emailDomains = [];
@@ -378,7 +379,7 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
         if (accountLog[domain]) {
           //Logger.log("WARNING: Found account with a duplicate email domain - " + accountInfo[j][accountName] + ":" + domain);
           
-          logFourCol("Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountName], "Selected: " + accountLog[domain]);         
+          if (loggingEnabled) logFourCol("Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountName], "Selected: " + accountLog[domain]);         
           continue; // Take the first
         }
         accountLog[domain] = accountInfo[j][accountName];
@@ -391,31 +392,34 @@ function process_account_emails_(accountInfo, numberOfRows, accountType, account
   }
 }
 
-function load_customer_info_() {
+function load_customer_info_(loggingEnabled) {
+  // Returns false on error
   
   //
   // Load up our region's customers
   //
 
   let sheet = SpreadsheetApp.getActive().getSheetByName(IN_REGION_CUSTOMERS);
-  
+  let customerInfo = null;
   let rangeData = sheet.getDataRange();
   let alc = rangeData.getLastColumn();
   let alr = rangeData.getLastRow();
   if (alr < 2) {
-    // No partners (that's odd)
-    Logger.log("ERROR: No Customers found! Perhaps you should refresh the In Region Customer tab.");
-    return false;
+    // No in region customers (that's odd)
+    logOneCol("WARNING: No in-region customers found! Perhaps you should refresh the In Region Customer tab.");
   }
-  let scanRange = sheet.getRange(2,1, alr-1, alc);
-  let customerInfo = scanRange.getValues();
-  
-  if (alc < CUSTOMER_COLUMNS) {
-    Logger.log("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
-    return false;
+  else {
+    
+    let scanRange = sheet.getRange(2,1, alr-1, alc);
+    customerInfo = scanRange.getValues();
+    
+    if (alc < CUSTOMER_COLUMNS) {
+      logOneCol("ERROR: Imported In Region Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
+      return false;
+    }
+    
+    process_account_emails_(customerInfo, alr - 1, INTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToCustomerMap, loggingEnabled);
   }
-  
-  process_account_emails_(customerInfo, alr - 1, INTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToCustomerMap);
   
   //
   // Load up customers outside of our region
@@ -427,22 +431,23 @@ function load_customer_info_() {
   alr = rangeData.getLastRow();
   if (alr < 2) {
     // No external customers logged
+    logOneCol("INFO: No out-region customers found! Perhaps you should refresh the In Region Customer tab.");
     return true;
   }
   scanRange = sheet.getRange(2,1, alr-1, alc);
   customerInfo = scanRange.getValues();
   
   if (alc < CUSTOMER_COLUMNS) {
-    Logger.log("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
-    return true; // run with the internal customers
+    logOneCol("ERROR: Imported Missing Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
+    return false; 
   }
   
-  process_account_emails_(customerInfo, alr - 1, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToCustomerMap);
+  process_account_emails_(customerInfo, alr - 1, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToCustomerMap, loggingEnabled);
    
   return true;
 }
 
-function load_partner_info_() {
+function load_partner_info_(loggingEnabled) {
   
   let sheet = SpreadsheetApp.getActive().getSheetByName(PARTNERS);
   let rangeData = sheet.getDataRange();
@@ -450,27 +455,27 @@ function load_partner_info_() {
   let plr = rangeData.getLastRow();
   if (plr < 2) {
     // No partners (that's odd)
-    Logger.log("ERROR: No Partners found! Perhaps you should refresh the partner tab.");
-    return false;
+    logOneCol("WARNING: No Partners found! Perhaps you should refresh the partner tab.");
   }
-  let scanRange = sheet.getRange(2,1, plr-1, plc);
-  let partnerInfo = scanRange.getValues();
-  
-  if (plc < PARTNER_COLUMNS) {
-    Logger.log("ERROR: Imported Partners was only " + plc + " fields wide. Not enough! Something is awry.");
-    return false;
+  else {
+    let scanRange = sheet.getRange(2,1, plr-1, plc);
+    let partnerInfo = scanRange.getValues();
+    
+    if (plc < PARTNER_COLUMNS) {
+      logOneCol("ERROR: Imported Partners was only " + plc + " fields wide. Not enough! Something is awry.");
+      return false;
+    }
+    
+    process_account_emails_(partnerInfo, plr - 1, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToPartnerMap, loggingEnabled); // TODO - add PARTNER_ALT_EMAIL_DOMAINS into partner report
   }
-  
-  process_account_emails_(partnerInfo, plr - 1, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToPartnerMap); // TODO - add PARTNER_ALT_EMAIL_DOMAINS into partner report
-  
   return true;
 }
 
-function load_lead_info_() {
+function load_lead_info_(loggingEnabled) {
  
   let leadInfo = load_tab_(MISSING_LEADS, 2, 1);
   if (leadInfo.length > 0) {
-    process_account_emails_(leadInfo, leadInfo.length, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMap);
+    process_account_emails_(leadInfo, leadInfo.length, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMap, loggingEnabled);
   }
 }
 

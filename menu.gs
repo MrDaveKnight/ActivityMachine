@@ -480,7 +480,13 @@ function menuItem30_() {
   let gasValues = gasRange.getValues();
   let gasVersion = gasValues[0][0];
   if ("v" + GAS_VERSION == gasVersion) {
-    ui.alert("Sheet version matches the GAS (Google App Script). You are good to go.");
+    let theMessage = "Sheet version matches the GAS (Google App Script). You are good to go.";
+    if (GAS_VERSION == "0.1.8") {
+      theMessage += "\n\nPlease note however that v0.1.8 required UPDATES to BOTH the \"Upload SE Events\"  and the \"Import Missing Leads\" Zaps! " + 
+               "See the manual, Addendums A and B in the Setup section. This enables a meeting Notes URL to be uploaded to an event, " +
+               "and filters out leads that have converted (and should have an account, so ignore the lead.)";
+    }
+    ui.alert(theMessage);
     return;
   }  
   
@@ -494,6 +500,14 @@ function menuItem30_() {
     ui.alert("The schema of your sheet is too old! The GAS (Google App Script) you have pulled from Github won't work with it. " +
              "You need to start fresh.\n\nI'm sorry. Sometimes progress requires adding or changing some tabs or cells. Github only manages the code.\n\n" +
              "Please copy \"Activity Machine " + GAS_VERSION + "\" to you local Google drive, update your Zaps to use it, and reload your config.");
+  }
+  else if ("v" + GAS_VERSION != gasVersion && GAS_VERSION == "0.1.8") {
+    ui.alert("Sheet schema is compatible with the GAS (Google App Script). However ...\n\n" +
+    "You need to UPDATE BOTH the \"Upload SE Events\"  and the \"Import Missing Leads\" Zaps!\n" + 
+    "See the manual, Addendums A and B in the Setup section. This enables a meeting Notes URL to be uploaded to an event, " +
+    "and filters out leads that have converted (and should have an account, so ignore the lead.)\n\n" +
+    "Updating the sheet version to " + "v" + GAS_VERSION + ".");
+    gasRange.setValue("v" + GAS_VERSION);
   }
   else if ("v" + GAS_VERSION != gasVersion) {
     ui.alert("Sheet schema is compatible with the GAS (Google App Script). Updating the sheet version to " + "v" + GAS_VERSION + ".");
@@ -558,10 +572,6 @@ function handleReviewMenuEdit_(cell, value) {
     SpreadsheetApp.getUi().alert("We have exceeded " + MAX_ROWS + " events! Please reduce the number of calendars or the length of time being analyzed, or talk to Dave about bumping this limit up. Thank you.\n--The Activity Machine");
     return; 
   }  
-  if (!value) {
-    Logger.log("ERROR: data validation failing on Review tab's Event Type field!");
-    return;
-  }
   switch (cell.columnStart) {
     case REVIEW_EVENT_TYPE + 1:
       handleEventTypeChange_(cell, value);
@@ -595,6 +605,14 @@ function handleReviewMenuEdit_(cell, value) {
       break;
     case REVIEW_LEAD + 1:
       handleValueSelection_(cell, value, REVIEW_ORIG_LEAD - REVIEW_LEAD);
+      break;
+    case REVIEW_NOTES + 1:
+      handleValueSelection_(cell, value, REVIEW_ORIG_NOTES - REVIEW_NOTES);
+      break;
+    case REVIEW_PROCESS + 1:
+      let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
+      reviewRowWasTouchedArray[cell.rowStart] = true;   
+      PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 
       break;
     default:
   }
@@ -692,8 +710,10 @@ function initValidation_(cell, type) {
 }
 
 function handleValueSelection_(cell, value, originalValueOffset) {
+  
+  if (typeof value === 'undefined') value = "";
   let originalValue = cell.offset(0, originalValueOffset).getValue();
-  if (value != originalValue) {
+  if (originalValue != value) {
     let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
     reviewRowWasTouchedArray[cell.rowStart] = true;   
     PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 

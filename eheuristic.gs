@@ -372,8 +372,8 @@ function lookForMeetingType_(stage, text) {
 
 function filterAndAnalyzeDescription_(text) {
 
-  let rv = {hasTeleconference : false, filteredText : text, prepTime : 0, quality : ""}
-
+  let rv = {hasTeleconference : false, filteredText : text, prepTime : 0, quality : "", notes : ""}
+  
   if (!text) return rv;
   
   // 
@@ -398,11 +398,19 @@ function filterAndAnalyzeDescription_(text) {
     }
   }
   
+  // Process Notes tag
+  regex = /[Nn][Oo][Tt][Ee][Ss] *: *\S+/; 
+  let notesArray = text.match(regex);
+  if (notesArray && notesArray[0]) {
+    let i = notesArray[0].indexOf(':');
+    rv.notes = notesArray[0].substring(i);
+  }
+  
   // Process Quality tag
   regex = /[Qq][Uu][Au][Ll][Ii][Tt][Yy] *: *[0-9]/; 
-  let qualArray = text.match(regex);
-  if (qualArray && qualArray[0]) {
-    let kv = qualArray[0].split(':');
+  let qualityArray = text.match(regex);
+  if (qualityArray && qualityArray[0]) {
+    let kv = qualityArray[0].split(':');
     rv.quality = parseInt(kv[1]);
     if (rv.quality < 1) rv.quality = 1;
     else if (rv.quality > 5) rv.quality = 5;

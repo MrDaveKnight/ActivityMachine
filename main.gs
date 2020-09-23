@@ -28,7 +28,7 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION = "0.1.7"; 
+const GAS_VERSION = "0.1.8"; 
 const MIN_SCHEMA_VERSION = "1"; // v0.1.x
 
 // Clear meeting type default
@@ -117,7 +117,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
-const EVENT_COLUMNS = 15;
+const EVENT_COLUMNS = 16;
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -132,12 +132,13 @@ const EVENT_LOGISTICS = 10;
 const EVENT_PREP_TIME = 11;
 const EVENT_QUALITY = 12;
 const EVENT_LEAD = 13;
-const EVENT_PROCESS = 14;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Process"]]
-const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead"]]
+const EVENT_NOTES = 14;
+const EVENT_PROCESS = 15;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Process"]]
+const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]]
 
 const EVENTS_UNVEILED = "Review"
-const REVIEW_COLUMNS = 16;
+const REVIEW_COLUMNS = 17;
 const REVIEW_ASSIGNED_TO = 0;
 const REVIEW_EVENT_TYPE = 1; // Must be before REVIEW_RELATED_TO and REVIEW_LEAD or you will break the menu
 const REVIEW_RELATED_TO = 2; // Opportunity ID or Account ID
@@ -153,8 +154,9 @@ const REVIEW_LOGISTICS = 11;
 const REVIEW_PREP_TIME = 12;
 const REVIEW_QUALITY = 13;
 const REVIEW_LEAD = 14;
-const REVIEW_PROCESS = 15;
-const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Process"]]
+const REVIEW_NOTES = 15;
+const REVIEW_PROCESS = 16;
+const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Process"]]
 
 // Record original values for highlighting changes by the reviewers
 // No header. Not meant to be seen by a user
@@ -169,6 +171,7 @@ const REVIEW_ORIG_LOGISTICS = 38;
 const REVIEW_ORIG_PREP_TIME = 39;
 const REVIEW_ORIG_QUALITY = 40;
 const REVIEW_ORIG_LEAD = 41;
+const REVIEW_ORIG_NOTES = 42;
 
 const MAX_ROWS = 2000; // Use for warnings and data validation limits
 
