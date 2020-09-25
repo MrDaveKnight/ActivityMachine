@@ -431,7 +431,7 @@ function load_customer_info_(loggingEnabled) {
   alr = rangeData.getLastRow();
   if (alr < 2) {
     // No external customers logged
-    logOneCol("INFO: No out-region customers found! Perhaps you should refresh the In Region Customer tab.");
+    logOneCol("INFO: No out-region customers found! Perhaps you should run Activity > Import Missing Accounts.");
     return true;
   }
   scanRange = sheet.getRange(2,1, alr-1, alc);
