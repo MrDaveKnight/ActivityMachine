@@ -345,26 +345,26 @@ function build_se_events() {
         primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
       } */
       
-    productByOp[opInfo[j][OP_ID]] = opInfo[j][OP_PRIMARY_PRODUCT];
+    primaryProductByOp[opInfo[j][OP_ID]] = opInfo[j][OP_PRIMARY_PRODUCT];
     if (opInfo[j][OP_PRIMARY_PRODUCT] != "Terraform" && 
         opInfo[j][OP_PRIMARY_PRODUCT] != "Vault" &&
         opInfo[j][OP_PRIMARY_PRODUCT] != "Consul" &&
         opInfo[j][OP_PRIMARY_PRODUCT] != "Nomad") {
       let prod = opInfo[j][OP_PRIMARY_PRODUCT].toLowerCase();
       if (prod.indexOf("terraform") != -1 || prod.indexOf("tfe") || prod.indexOf("tfc")) {
-        productByOp[opInfo[j][OP_ID]] = "Terraform";
+        primaryProductByOp[opInfo[j][OP_ID]] = "Terraform";
       }
       else if (prod.indexOf("v") != -1) {
-        productByOp[opInfo[j][OP_ID]] = "Vault";
+        primaryProductByOp[opInfo[j][OP_ID]] = "Vault";
       }
       else if (prod.indexOf("c") != -1) {
-        productByOp[opInfo[j][OP_ID]] = "Consul";
+        primaryProductByOp[opInfo[j][OP_ID]] = "Consul";
       }
       else if (prod.indexOf("n") != -1) {
-        productByOp[opInfo[j][OP_ID]] = "Nomad";
+        primaryProductByOp[opInfo[j][OP_ID]] = "Nomad";
       }
       else {
-        productByOp[opInfo[j][OP_ID]] = "N/A";
+        primaryProductByOp[opInfo[j][OP_ID]] = "N/A";
         Logger.log("WARNING: Primary product for Op " + opInfo[j][OP_NAME] + " wasn't valid: " + opInfo[j][OP_PRIMARY_PRODUCT]);
       }
     }
@@ -641,7 +641,7 @@ function build_se_events() {
           
           // Find an opportunity
           var key = account + makeProductKey_(productInventory, 0);
-          
+     
           var opId = 0;
           if (opByCustomerAndProduct[key]) {
             opId = opByCustomerAndProduct[key];
@@ -653,16 +653,28 @@ function build_se_events() {
             let singleKeys = makeSingleProductKeys_(productInventory);
             for (let j = 0; j < singleKeys.length; j++) {
               opId = opByCustomerAndProduct[account + singleKeys[j]];
-              if (opId) break;
+              if (opId) break;          
             }
           }
           
           if (opId) {
+            
+            // An opportunity can only have 1 primary product, but it may cover multiple products in it's description. If it does contain
+            // multiple products, don't just default to the primary. Instead, look at the product inventory from the invite and try to
+            // match one of those products in the inventory to one of the opportunity's products.
+            let product = primaryProductByOp[opId];
+            if (productInventory.count() > 0 && !productInventory.has(product)) { 
+              // Override the primary product of the opportunity with the main product identified in the invite. 
+              // It could be that there was no opportunity for the product discussed but we had to pick one anyway ... so override.
+              // Or, there were multiple products in the opportunity, but the primary didn't match the one discussed ... so again, override.
+              product = productInventory.getOne();
+            }
+          
             let milestones = { discovery_ended : new Date(2050, 11, 21), closed_at : new Date(2050, 11, 25), was_won : false };
             if (stageMilestonesByOp[opId]) {
               milestones = stageMilestonesByOp[opId];
             }
-            createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], false, productByOp[opId], milestones);
+            createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], false, product, milestones);
             eventCount++;
           }
           else {
@@ -741,7 +753,18 @@ function build_se_events() {
         if (stageMilestonesByOp[opId]) {
           milestones = stageMilestonesByOp[opId];
         }
-        createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, productByOp[opId], milestones);
+        
+        // An opportunity can only have 1 primary product, but it may cover multiple products in it's description. If it does contain
+        // multiple products, don't just default to the primary. Instead, look at the product inventory from the invite and try to
+        // match one of those products in the inventory to one of the opportunity's products.
+        let product = primaryProductByOp[opId];
+        if (productInventory.count() > 0 && !productInventory.has(product)) { 
+          // Override the primary product of the opportunity with the main product identified in the invite. 
+          // It could be that there was no opportunity for the product discussed but we had to pick one anyway ... so override.
+          // Or, there were multiple products in the opportunity, but the primary didn't match the one discussed ... so again, override.
+          product = productInventory.getOne();
+        }
+        createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, product, milestones);
         eventCount++;
       }
       else {
@@ -835,7 +858,19 @@ function build_se_events() {
         if (stageMilestonesByOp[opId]) {
           milestones = stageMilestonesByOp[opId];
         }
-        createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, productByOp[opId], milestones);
+        
+        // An opportunity can only have 1 primary product, but it may cover multiple products in it's description. If it does contain
+        // multiple products, don't just default to the primary. Instead, look at the product inventory from the invite and try to
+        // match one of those products in the inventory to one of the opportunity's products.
+        let product = primaryProductByOp[opId];
+        if (productInventory.count() > 0 && !productInventory.has(product)) { 
+          // Override the primary product of the opportunity with the main product identified in the invite. 
+          // It could be that there was no opportunity for the product discussed but we had to pick an op anyway ... so override.
+          // Or, there were multiple products in the opportunity, but the primary didn't match the one discussed ... so again, override.
+          product = productInventory.getOne();
+        }
+        
+        createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, product, milestones);
         eventCount++;
       }
       else {
@@ -1492,7 +1527,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
   
 }
 
-function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, opProduct, opMilestones) {
+function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, primaryProduct, opMilestones) {
   // We are only placing an event in three phases of the Op (4 stages, Closed get's two)
   // - Discovery & Qualification
   // - Technical & Business Validation
@@ -1555,7 +1590,7 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, opP
   outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
   outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
   outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(opProduct);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(primaryProduct);
   if (isDefaultOp) {
     outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nDefault Op Selected.\nAttendees: " + inviteInfo[ATTENDEE_STR]);
   }

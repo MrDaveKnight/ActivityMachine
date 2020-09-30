@@ -28,8 +28,9 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION = "0.1.8"; 
-const MIN_SCHEMA_VERSION = "1"; // v0.1.x
+const GAS_VERSION_STRING = "0.1.9";
+const GAS_VERSION = 19; 
+const MIN_SCHEMA_VERSION = 10; // 1.0
 
 // Clear meeting type default
 const MEETINGS_HAVE_DEFAULT=true;
@@ -190,7 +191,7 @@ var staffNameToEmailMap = {};
 var opByCustomerAndProduct = {};
 var numberOfOpsByCustomer = {};
 var primaryOpByCustomer = {};
-var productByOp = {};
+var primaryProductByOp = {};
 var stageMilestonesByOp = {};
 var accountTeamByOp = {};
 

@@ -273,6 +273,33 @@ function lookForProducts_(text) {
       if (this.hasNomad) retval++;
       if (this.hasConsul) retval++;
       return retval;
+    },
+    has : function (product) {
+      let retVal = false;
+      switch (product) {
+        case "Terraform":
+          retVal = this.hasTerraform;
+          break;
+        case "Vault":
+          retVal = this.hasVault;
+          break;
+        case "Consul":
+          retVal = this.hasConsul;
+          break;
+        case "Nomad":
+          retVal = this.hasNomad;
+          break;
+        default:
+          retVal = false;
+      }
+    },
+    getOne : function () {
+      let retval = "N/A";
+      if (this.hasTerraform) { retval = "Terraform"; }
+      else if (this.hasVault) { retval = "Vault"; }
+      else if (this.hasConsul) { retval = "Consul"; }
+      else if (this.hasNomad) { retval = "Nomad"; }
+      return retval;
     }
   }
   
@@ -285,7 +312,7 @@ function lookForProducts_(text) {
     returnValue.hasTerraform = regex.test(x);
   }
   
-  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secrets management") != -1;
+  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secret") != -1 || x.indexOf("pki") != -1;
   
   returnValue.hasConsul = x.indexOf("consul") != -1 || x.indexOf("service discovery") != -1 || x.indexOf("service mesh") != -1;
   

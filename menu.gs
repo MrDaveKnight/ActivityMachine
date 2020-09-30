@@ -478,13 +478,16 @@ function menuItem30_() {
   let sheet = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
   let gasRange = sheet.getRange(1,1,1,1); // Cell A1
   let gasValues = gasRange.getValues();
-  let gasVersion = gasValues[0][0];
-  if ("v" + GAS_VERSION == gasVersion) {
+  let gasVersionString = gasValues[0][0];
+  let gasVersion = parseInt(gasVersionString.substring(1).replace(/\./g, ""));  // Assumes v#.#.# in cell A1
+  if (GAS_VERSION == gasVersion) {
     let theMessage = "Sheet version matches the GAS (Google App Script). You are good to go.";
-    if (GAS_VERSION == "0.1.8") {
-      theMessage += "\n\nPlease note however that v0.1.8 required UPDATES to BOTH the \"Upload SE Events\"  and the \"Import Missing Leads\" Zaps! " + 
-               "See the manual, Addendums A and B in the Setup section. This enables a meeting Notes URL to be uploaded to an event, " +
-               "and filters out leads that have converted (and should have an account, so ignore the lead.)";
+    
+    if (GAS_VERSION >= 18) {
+      theMessage += "\n\nPlease note however that v0.1.8 required UPDATES to BOTH the \"Upload SE Events\" and the \"Import Missing Leads\" Zaps! " + 
+               "If you upgraded from v0.1.7 or earlier, and have not yet updated those zaps, please do so. See the manual, addendums A and B in the Setup section. " +
+               "These enable the meeting Notes URL to be uploaded to an event, " +
+               "and filter out leads that have converted (and should have an account, so ignore the lead.)";
     }
     ui.alert(theMessage);
     return;
@@ -493,25 +496,26 @@ function menuItem30_() {
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICES);
   let schemaRange = sheet.getRange(4,6,1,1); // Cell F4
   let schemaValues = schemaRange.getValues();
-  let schemaVersion = schemaValues[0][0];
-  let majorMinorArray = schemaVersion.toString().split(".");
+  let schemaVersionString = schemaValues[0][0];
+  let schemaVersion = 0;
+  if (schemaVersionString) {
+    schemaVersion = parseInt(schemaVersionString.replace(/\./g, ""));
+  }
   
-  if (parseInt(majorMinorArray[0]) != MIN_SCHEMA_VERSION) {
+  if (schemaVersion < MIN_SCHEMA_VERSION) {
     ui.alert("The schema of your sheet is too old! The GAS (Google App Script) you have pulled from Github won't work with it. " +
              "You need to start fresh.\n\nI'm sorry. Sometimes progress requires adding or changing some tabs or cells. Github only manages the code.\n\n" +
-             "Please copy \"Activity Machine " + GAS_VERSION + "\" to you local Google drive, update your Zaps to use it, and reload your config.");
+             "Please copy \"Activity Machine " + GAS_VERSION_STRING + "\" to you local Google drive, update your Zaps to use it, and reload your config.");
   }
-  else if ("v" + GAS_VERSION != gasVersion && GAS_VERSION == "0.1.8") {
-    ui.alert("Sheet schema is compatible with the GAS (Google App Script). However ...\n\n" +
-    "You need to UPDATE BOTH the \"Upload SE Events\"  and the \"Import Missing Leads\" Zaps!\n" + 
-    "See the manual, Addendums A and B in the Setup section. This enables a meeting Notes URL to be uploaded to an event, " +
-    "and filters out leads that have converted (and should have an account, so ignore the lead.)\n\n" +
-    "Updating the sheet version to " + "v" + GAS_VERSION + ".");
-    gasRange.setValue("v" + GAS_VERSION);
+  else if (GAS_VERSION != gasVersion) {
+    ui.alert("Sheet schema is compatible with the GAS (Google App Script). Updating the sheet version to " + "v" + GAS_VERSION_STRING + ".");
+    gasRange.setValue("v" + GAS_VERSION_STRING);
   }
-  else if ("v" + GAS_VERSION != gasVersion) {
-    ui.alert("Sheet schema is compatible with the GAS (Google App Script). Updating the sheet version to " + "v" + GAS_VERSION + ".");
-    gasRange.setValue("v" + GAS_VERSION);
+  if (GAS_VERSION > 17 && gasVersion < 18) {
+    ui.alert("NOTICE\n\n" +
+    "You must UPDATE both the \"Upload SE Events\"  and the \"Import Missing Leads\" Zaps to use version " + GAS_VERSION_STRING + "!\n" + 
+    "See the manual, addendums A and B in the Setup section.\n\nThese updates enable the meeting Notes URL to be uploaded to an event, " +
+    "and filter out leads that have converted from the missing leads list (a converted lead should have an account, so ignore the lead.)");
   }
 }
 
