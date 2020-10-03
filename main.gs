@@ -1,5 +1,6 @@
 // Activity Machine
 //
+//
 // This is a tool to automatically create SE Activities (Field Events in Salesforce) from calendar invites
 // that include customers, partners or leads. Internal-only meetings are not included. All customer/partner/lead facing
 // non-recurring invites are included. All customer/partner/lead facing recurring invites that have been "accepted" 
@@ -28,8 +29,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "0.1.9";
-const GAS_VERSION = 19; 
+const GAS_VERSION_STRING = "0.2.0";
+const GAS_VERSION = 20; 
 const MIN_SCHEMA_VERSION = 10; // 1.0
 
 // Clear meeting type default
@@ -209,6 +210,11 @@ const TERRAFORM = "T";
 const VAULT = "V";
 const CONSUL = "C";
 const NOMAD = "N";
+
+// Track special prep invites
+// Subject contains Prep:<Subject of meeting the prep is for>
+const PREP = "prep";
+var prepCalendarEntries = {};
 
 const PROCESS_UPLOAD = "Upload";
 const PROCESS_SKIP = "Skip";
