@@ -468,6 +468,27 @@ function build_se_events() {
   let eventCount = 0;
   
   for (j = 0 ; j < lastRow - 1; j++) {
+  
+    //  
+    // Look for and track the "PREP" invites. Save time in minutes
+    //  
+    
+    let subjectLine = inviteInfo[j][SUBJECT].split(":");
+    let subjectTag = subjectLine[0].trim().toLowerCase();
+    let subjectTarget = "";  
+    if (subjectTag == PREP && subjectLine[1]) {
+      subjectTarget = subjectLine[1].trim(); // Subject line must match exactly
+      let s = new Date(inviteInfo[j][START]);
+      let e = new Date(inviteInfo[j][END]);
+      let m = (e.getTime() - s.getTime()) / 60000; // minutes
+      if (prepCalendarEntries[subjectTarget]) {
+        prepCalendarEntries[subjectTarget] += m;
+      }   
+      else {
+        prepCalendarEntries[subjectTarget] = m; 
+      }      
+      // Logger.log("DEBUG: Prep for " + subjectLine[1] + " is " + m);
+    }    
     
     if (!inviteInfo[j][ASSIGNED_TO] || !inviteInfo[j][ATTENDEE_STR] || !inviteInfo[j][START]) {
       continue;
@@ -486,44 +507,7 @@ function build_se_events() {
       continue;
     }
     
-    //
-    // Skip bogus meetings
-    //
-    
-    let foundBogusMeeting = false;
-    for (let row in bogusStuff) {
-      if (bogusStuff[row][0] || bogusStuff[row][1]) {      
-        
-        let subjectTest = false;
-        let emailTest = false;
-        
-        if (bogusStuff[row][0]) {
-          let subjectRegex = new RegExp(bogusStuff[row][0]);
-          subjectTest = subjectRegex.test(inviteInfo[j][SUBJECT])
-        }
-        else {
-          subjectTest = true; 
-        }
-        
-        if (bogusStuff[row][1]) {
-          let emailRegex = new RegExp(bogusStuff[row][1]);
-          emailTest = emailRegex.test(inviteInfo[j][ATTENDEE_STR])
-        }
-        else {
-          emailTest = true; 
-        }
-        
-        if (subjectTest && emailTest) {
-          foundBogusMeeting = true;
-          break;
-        }
-      }
-    }
-    if (foundBogusMeeting) {
-      logOneCol(inviteInfo[j][SUBJECT] + " is a bogus meeting.");
-      continue;
-    }
-    
+         
     //
     // Look for "special" known meetings we want to track
     // 
@@ -574,6 +558,44 @@ function build_se_events() {
       }
     }
     if (isSpecialActive) {
+      continue;
+    }
+    
+    //
+    // Skip bogus meetings
+    //
+    
+    let foundBogusMeeting = false;
+    for (let row in bogusStuff) {
+      if (bogusStuff[row][0] || bogusStuff[row][1]) {      
+        
+        let subjectTest = false;
+        let emailTest = false;
+        
+        if (bogusStuff[row][0]) {
+          let subjectRegex = new RegExp(bogusStuff[row][0]);
+          subjectTest = subjectRegex.test(inviteInfo[j][SUBJECT])
+        }
+        else {
+          subjectTest = true; 
+        }
+        
+        if (bogusStuff[row][1]) {
+          let emailRegex = new RegExp(bogusStuff[row][1]);
+          emailTest = emailRegex.test(inviteInfo[j][ATTENDEE_STR])
+        }
+        else {
+          emailTest = true; 
+        }
+        
+        if (subjectTest && emailTest) {
+          foundBogusMeeting = true;
+          break;
+        }
+      }
+    }
+    if (foundBogusMeeting) {
+      logOneCol(inviteInfo[j][SUBJECT] + " is a bogus meeting.");
       continue;
     }
     
@@ -1400,6 +1422,12 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
   
   let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
   let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+  
+  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+  if (!prep) {
+    prep = subjectScan.prepTime; 
+  }
   
   let logistics = "Face to Face";
   if (descriptionScan.hasTeleconference) {
@@ -1425,7 +1453,7 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
   outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
   outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
   outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
@@ -1440,6 +1468,12 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
   
   let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
   let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+  
+  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+  if (!prep) {
+    prep = subjectScan.prepTime; 
+  }
   
   let logistics = "Face to Face";
   if (descriptionScan.hasTeleconference) {
@@ -1470,7 +1504,7 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
     outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
     outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
-    outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
     outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
     outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
@@ -1486,6 +1520,12 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
   
   let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
   let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+  
+  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+  if (!prep) {
+    prep = subjectScan.prepTime; 
+  }
   
   let logistics = "Face to Face";
   if (descriptionScan.hasTeleconference) {
@@ -1516,7 +1556,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
   outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
   outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
   outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
   outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
@@ -1543,6 +1583,12 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, pri
   
   //Logger.log("DEBUG: createOpEvent_: " + inviteInfo[SUBJECT]);
   let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]);
+  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+  
+  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+  if (!prep) {
+    prep = subjectScan.prepTime; 
+  }
   
   let logistics = "Face to Face";
   if (descriptionScan.hasTeleconference) {
@@ -1598,7 +1644,7 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, pri
     outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
   }
   outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics); 
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(descriptionScan.prepTime);
+  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
   outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
   outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
   outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
