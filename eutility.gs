@@ -524,18 +524,6 @@ function load_tab_(sheetName, fromRow, minColumnCount) {
   return [];
 }
 
-function analyzeSubject_(text) {
-  
-  let rv = {prepTime : 0}
-  
-  let subject = text.trim();
-  if (prepCalendarEntries[subject]) {
-    rv.prepTime = prepCalendarEntries[subject];
-    prepCalendarEntries[subject] = 0;
-  }   
-  return rv;
-}
-
 function generateLongId_(id) {
 
   // Transform a 15 character case sensitive Salesforce ID into the 

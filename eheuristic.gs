@@ -430,17 +430,11 @@ function filterAndAnalyzeDescription_(text) {
   let notesArray = text.match(regex);
   if (notesArray && notesArray[0]) {
     let i = notesArray[0].indexOf(':');
-    let n = notesArray[0].substring(i+1);
-    let t = n.indexOf('<');
-    if (t != -1) {
-      // URLs can't have a HTML tag, i.e. a < (or a > for that matter)
-      n = n.substring(0,t); // prune off the tag
-    }
-    rv.notes = n.trim();
+    rv.notes = notesArray[0].substring(i);
   }
   
   // Process Quality tag
-  regex = /[Qq][Uu][Aa][Ll][Ii][Tt][Yy] *: *[0-9]/; 
+  regex = /[Qq][Uu][Au][Ll][Ii][Tt][Yy] *: *[0-9]/; 
   let qualityArray = text.match(regex);
   if (qualityArray && qualityArray[0]) {
     let kv = qualityArray[0].split(':');
