@@ -312,7 +312,7 @@ function lookForProducts_(text) {
     returnValue.hasTerraform = regex.test(x);
   }
   
-  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secret") != -1 || x.indexOf("pki") != -1;
+  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secret") != -1 || x.indexOf("pki") != -1 || x.indexOf("pam") != -1;
   
   returnValue.hasConsul = x.indexOf("consul") != -1 || x.indexOf("service discovery") != -1 || x.indexOf("service mesh") != -1;
   
@@ -482,13 +482,13 @@ function filterAndAnalyzeDescription_(text) {
 }
 
 function isRepPresent_(createdBy, attendees) {
-  if (staffEmailToRoleMap[createdBy] && staffEmailToRoleMap[createdBy] == STAFF_ROLE_REP) {
+  if (staffEmailToRoleMap[createdBy] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMap[createdBy]) != -1) {
     return true;
   }
   
   for (let j = 0; j < attendees.length; j++) {
     let attendeeEmail = attendees[j].trim();    
-    if (staffEmailToRoleMap[attendeeEmail] && staffEmailToRoleMap[attendeeEmail] == STAFF_ROLE_REP) {
+    if (staffEmailToRoleMap[attendeeEmail] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMap[attendeeEmail]) != -1) {
       return true;
     }
   }

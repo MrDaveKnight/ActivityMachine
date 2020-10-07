@@ -29,8 +29,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "0.2.0";
-const GAS_VERSION = 20; 
+const GAS_VERSION_STRING = "0.2.1";
+const GAS_VERSION = 21; 
 const MIN_SCHEMA_VERSION = 10; // 1.0
 
 // Clear meeting type default
@@ -79,7 +79,7 @@ const STAFF_NAME = 0;
 const STAFF_EMAIL = 1;
 const STAFF_ROLE = 4;
 const STAFF_LONG_ID = 5;
-const STAFF_ROLE_REP = "E1"
+const STAFF_ROLE_REPS = "E1:E2:C1:CAM"; // All the "Job Roles" for reps
 
 const OPPORTUNITIES = "Opportunities";
 const OP_COLUMNS = 12;
