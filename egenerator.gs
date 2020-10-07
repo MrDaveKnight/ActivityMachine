@@ -908,7 +908,7 @@ function build_se_events() {
         eventCount++;
       }
       else {       
-        logThreeCol("WARNING - Unable to find an customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
+        logThreeCol("WARNING - Unable to find a customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
       }     
     }
   }
