@@ -169,9 +169,11 @@ function build_se_events() {
   var staffInfo = scanRange.getValues();
   
   if (slc < STAFF_COLUMNS - 1) {
-    logOneCol("ERROR: Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
+    logOneCol("ERROR - Imported Staff info was only " + slc + " fields wide. Not enough! Something's not good.");
     return;
   }
+  
+  if (slr < 2) logOneCol("WARNING - No staff found! Pleaase load the Staff tab before continuing. Thank you --The Management.");
   
   // In case we need to generate long ids
   let longIdCells = sheet.getRange(2, 1); // To initialize if we have to
