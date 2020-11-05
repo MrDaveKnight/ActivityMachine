@@ -534,7 +534,7 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, lo
   let alr = rangeData.getLastRow();
   if (alr < 2) {
     // No in region customers (that's odd)
-    if (loggingEnabled) logOneCol("WARNING : No in-region customers found! Perhaps you should refresh the In Region Customer tab.");
+    if (loggingEnabled) logOneCol("WARNING - No in-region customers found! Perhaps you should refresh the In Region Customer tab.");
   }
   else {
     
@@ -567,7 +567,7 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, lo
   alr = rangeData.getLastRow();
   if (alr < 2) {
     // No external customers logged
-    if (loggingEnabled) logOneCol("INFO: No out-region customers found! Perhaps you should run Activity > Import Missing Accounts.");
+    if (loggingEnabled) logOneCol("INFO - No out-region customers found! Perhaps you should run Activity > Import Missing Accounts.");
     return true;
   }
   
