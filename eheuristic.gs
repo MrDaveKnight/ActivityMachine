@@ -219,6 +219,9 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
 
   
   for (var j = 0; j < attendees.length; j++) {
+  
+    if ("raphael.saraiva@netbr.com.br" ==  attendees[j]) Logger.log("DAK: Here's johnny!");
+  
     var domain = attendees[j].substring(attendees[j].indexOf("@")+1).trim();    
     var accountId = "";
     var type = "hashi";
@@ -457,12 +460,16 @@ function filterAndAnalyzeDescription_(text) {
     regex = /Join Zoom Meeting[\s\S]*/;
     rv.hasTeleconference = true;
   }
+  else if (text.indexOf("is inviting you to a scheduled Zoom meeting") != -1) {
+    regex = /is inviting you to a scheduled Zoom meeting[\s\S]*/;
+    rv.hasTeleconference = true;
+  }
   else if (text.indexOf("Do not delete or change any of the following text.") != -1) {
     regex = /Do not delete or change any of the following text.[\s\S]*/;
     rv.hasTeleconference = true;
   }
-  else if (text.indexOf("Join Microsoft Teams Meeting") != -1) {
-    regex = /Join Microsoft Teams Meeting[\s\S]*/;
+  else if (text.indexOf("Microsoft Teams") != -1) { 
+    regex = new RegExp(/Microsoft Teams Meeting[\s\S]*/, "gi");
     rv.hasTeleconference = true;
   }
   else if (text.indexOf("getclockwise.com") != -1) {
@@ -482,13 +489,13 @@ function filterAndAnalyzeDescription_(text) {
 }
 
 function isRepPresent_(createdBy, attendees) {
-  if (staffEmailToRoleMap[createdBy] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMap[createdBy]) != -1) {
+  if (staffEmailToRoleMapG[createdBy] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMapG[createdBy]) != -1) {
     return true;
   }
   
   for (let j = 0; j < attendees.length; j++) {
     let attendeeEmail = attendees[j].trim();    
-    if (staffEmailToRoleMap[attendeeEmail] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMap[attendeeEmail]) != -1) {
+    if (staffEmailToRoleMapG[attendeeEmail] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMapG[attendeeEmail]) != -1) {
       return true;
     }
   }

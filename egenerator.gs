@@ -131,7 +131,7 @@ function build_se_events() {
   //
   
   logStamp("SE Event Build");
-  
+    
   clearTab_(EVENTS, EVENT_HEADER);
   clearTab_(EVENTS_UNVEILED, REVIEW_HEADER);
   
@@ -146,15 +146,16 @@ function build_se_events() {
   // Load Account Info
   //
   
-  if (!load_customer_info_(true)) {
+  // Load "in-play" customers
+  if (!load_customer_info_(false, emailToCustomerMapG, accountTypeG, true)) { 
     return;
   }
-  if (!load_partner_info_(true)) {
+  // Loads "in-play" partners
+  if (!load_partner_info_(false, emailToPartnerMapG, accountTypeG, true)) {
     return;
   }
   
-  load_lead_info_(true);
-  
+  load_lead_info_(true); // Always filters just what's in play (there are hundreds of thousands of leads man).
   
   //
   // Load Staff Info - SEs and Reps
@@ -178,21 +179,21 @@ function build_se_events() {
   // Build the email to user id mapping  
   for (var j = 0 ; j < slr - 1; j++) {
     if (!staffInfo[j][STAFF_EMAIL]) {
-      logOneCol("WARNING:" + staffInfo[j][STAFF_NAME] + " has no email!");
+      logOneCol("WARNING - " + staffInfo[j][STAFF_NAME] + " has no email!");
       continue;
     }
-    staffNameToEmailMap[staffInfo[j][STAFF_NAME].trim()] = staffInfo[j][STAFF_EMAIL].trim();
+    staffNameToEmailMapG[staffInfo[j][STAFF_NAME].trim()] = staffInfo[j][STAFF_EMAIL].trim();
     
     if (!staffInfo[j][STAFF_LONG_ID]) {
       let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
       longIdCells.offset(j, STAFF_LONG_ID).setValue(longId);
-      staffEmailToIdMap[staffInfo[j][STAFF_EMAIL].trim()] = longId.trim();
+      staffEmailToIdMapG[staffInfo[j][STAFF_EMAIL].trim()] = longId.trim();
     }
     else {
-      staffEmailToIdMap[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_LONG_ID].trim();
+      staffEmailToIdMapG[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_LONG_ID].trim();
     }
     
-    staffEmailToRoleMap[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_ROLE].trim();
+    staffEmailToRoleMapG[staffInfo[j][STAFF_EMAIL].trim()] = staffInfo[j][STAFF_ROLE].trim();
     //Logger.log("DEBUG: " + staffInfo[j][STAFF_EMAIL] + " -> " + staffInfo[j][STAFF_ID]);
     
   }
@@ -201,12 +202,12 @@ function build_se_events() {
   // Load Opportunity Info
   //
   
+  let targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); // for filtering out only the opportunities associated with accounts in the invites
+  
   sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
   rangeData = sheet.getDataRange();
   var olc = rangeData.getLastColumn();
-  var olr = rangeData.getLastRow();
-  scanRange = sheet.getRange(2,1, olr-1, olc);
-  var opInfo = scanRange.getValues();
+  var olr = rangeData.getLastRow();  
   
   if (olc < OP_COLUMNS) {
     logOneCol("ERROR: Imported opportunity info was only " + olc + " fields wide. Not enough! Something needs to be fixed.");
@@ -224,153 +225,178 @@ function build_se_events() {
   let opStageIndexedByCustomerAndProduct = {}; // For op selection priority 
   let primaryOpTypeIndexedByCustomer = {}; // For selecting the primary opportunity out of a set with different products ... DEPRECATED
   let primaryOpStageIndexedByCustomer = {}; // Don't want Closed/Lost to be a default
-  let primaryOpActivityDateIndexedByCustomer = {}; // What to target op with most recent activiity
-  for (j = 0 ; j < olr - 1; j++) {
-    let scanResults = lookForProducts_(opInfo[j][OP_NAME]);
-    let productKey = makeProductKey_(scanResults, opInfo[j][OP_PRIMARY_PRODUCT]);
-    if (productKey == "-") {
-      logOneCol("WARNING: " + opInfo[j][OP_NAME] + " has no product!");
-    }
+  let primaryOpActivityDateIndexedByCustomer = {}; // What to target op with most recent activity
+  
+  let chunkSize = 1000;
+  let chunkFirstRow = 2;
+  let chunkLastRow = chunkSize < olr ? chunkSize : olr;
+  let chunkLength = chunkLastRow - chunkFirstRow + 1;
+  while (chunkLength > 0) {
     
-    let latestActivityDate = Date.parse(opInfo[j][OP_ACTIVITY_DATE]);
+    let scanRange = sheet.getRange(chunkFirstRow,1, chunkLength, olc);
+    let opInfo = scanRange.getValues();
     
-    // Important Note:
-    // The OP_ACCOUNT_ID provided in the opportunity record does NOT have the
-    // extra 3 characters at the end needed to make it a so called "18 Digit Account ID".
-    // However, the account records we use to find accounts from emails DOES
-    // use the full "18 Digit Account ID". Since these account IDs need to sync
-    // up at some point, we will be stripping off the 3 character postfix when
-    // we create the keys from emails. We don't do that here mind you (they are already gone),
-    // but later we will. Just a heads up on this goofy problem created by Salesforce
-    let key = opInfo[j][OP_ACCOUNT_ID] + productKey;
-    
-    if (!numberOfOpsByCustomer[opInfo[j][OP_ACCOUNT_ID]]) {
-      numberOfOpsByCustomer[opInfo[j][OP_ACCOUNT_ID]] = 1;
-    }
-    else {
-      numberOfOpsByCustomer[opInfo[j][OP_ACCOUNT_ID]]++;
-    }
-    
-    if (opByCustomerAndProduct[key]) {
-      // Use earliest opportunity. They come in sorted on close date. 
-      // However, factor in the type of op.
+    for (let j = 0; j < chunkLength; j++) {
       
-      // Tried "Favor new business over renewal", but that doesn't seem to make sense.
-      // FIXME - we need to add "renewal" keyword to invites that are for renewal. Important metric
-      // We could also try to figure out contacts associated with an opportunity? Use the invitees as a clue to the op?
-      
-      /*
-      if ((opInfo[j][OP_TYPE] == "New Business" && opTypeIndexedByCustomerAndProduct[key] != "New Business") ||
-      (opInfo[j][OP_TYPE] == "Expansion" && opTypeIndexedByCustomerAndProduct[key] != "New Business" && 
-      opTypeIndexedByCustomerAndProduct[key] != "Expansion") ||
-      (opInfo[j][OP_TYPE] == "Add-on" && opTypeIndexedByCustomerAndProduct[key] != "New Business" && 
-      opTypeIndexedByCustomerAndProduct[key] != "Expansion" && opTypeIndexedByCustomerAndProduct[key] != "Add-on") ||
-      (opInfo[j][OP_TYPE] == "Renewal" && opTypeIndexedByCustomerAndProduct[key] == "Services")) {  
-      
-      if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
-      Logger.log("TRACE Account: Tracking op " + opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
+      if (!targetedAccounts[opInfo[j][OP_ACCOUNT_ID]]) {
+        continue;
       }
       
-      opByCustomerAndProduct[key] = opInfo[j][OP_ID];
-      opTypeIndexedByCustomerAndProduct[key] = opInfo[j][OP_TYPE];
+      let scanResults = lookForProducts_(opInfo[j][OP_NAME]);
+      let productKey = makeProductKey_(scanResults, opInfo[j][OP_PRIMARY_PRODUCT]);
+      if (productKey == "-") {
+        logOneCol("NOTICE - " + opInfo[j][OP_NAME] + " has no product!");
       }
-      */
       
-      // Select an active op if available
-      if (opInfo[j][OP_STAGE].indexOf("Closed") == -1 && opStageIndexedByCustomerAndProduct[key].indexOf("Closed") != -1) {
-        opByCustomerAndProduct[key] = opInfo[j][OP_ID];
+      let latestActivityDate = Date.parse(opInfo[j][OP_ACTIVITY_DATE]);
+      
+      // Important Note:
+      // The OP_ACCOUNT_ID provided in the opportunity record does NOT have the
+      // extra 3 characters at the end needed to make it a so called "18 Digit Account ID".
+      // However, the account records we use to find accounts from emails DOES
+      // use the full "18 Digit Account ID". Since these account IDs need to sync
+      // up at some point, we will be stripping off the 3 character postfix when
+      // we create the keys from emails. We don't do that here mind you (they are already gone),
+      // but later we will. Just a heads up on this goofy problem created by Salesforce
+      let key = opInfo[j][OP_ACCOUNT_ID] + productKey;
+      
+      if (!numberOfOpsByCustomerG[opInfo[j][OP_ACCOUNT_ID]]) {
+        numberOfOpsByCustomerG[opInfo[j][OP_ACCOUNT_ID]] = 1;
+      }
+      else {
+        numberOfOpsByCustomerG[opInfo[j][OP_ACCOUNT_ID]]++;
+      }
+      
+      if (opByCustomerAndProductG[key]) {
+        // Use earliest opportunity. They come in sorted on close date. 
+        // However, factor in the type of op.
+        
+        // Tried "Favor new business over renewal", but that doesn't seem to make sense.
+        // FIXME - we need to add "renewal" keyword to invites that are for renewal. Important metric
+        // We could also try to figure out contacts associated with an opportunity? Use the invitees as a clue to the op?
+        
+        /*
+        if ((opInfo[j][OP_TYPE] == "New Business" && opTypeIndexedByCustomerAndProduct[key] != "New Business") ||
+        (opInfo[j][OP_TYPE] == "Expansion" && opTypeIndexedByCustomerAndProduct[key] != "New Business" && 
+        opTypeIndexedByCustomerAndProduct[key] != "Expansion") ||
+        (opInfo[j][OP_TYPE] == "Add-on" && opTypeIndexedByCustomerAndProduct[key] != "New Business" && 
+        opTypeIndexedByCustomerAndProduct[key] != "Expansion" && opTypeIndexedByCustomerAndProduct[key] != "Add-on") ||
+        (opInfo[j][OP_TYPE] == "Renewal" && opTypeIndexedByCustomerAndProduct[key] == "Services")) {  
+        
+        if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
+        Logger.log("TRACE Account: Tracking op " + opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
+        }
+        
+        opByCustomerAndProductG[key] = opInfo[j][OP_ID];
+        opTypeIndexedByCustomerAndProduct[key] = opInfo[j][OP_TYPE];
+        }
+        */
+        
+        // Select an active op if available
+        if (opInfo[j][OP_STAGE].indexOf("Closed") == -1 && opStageIndexedByCustomerAndProduct[key].indexOf("Closed") != -1) {
+          opByCustomerAndProductG[key] = opInfo[j][OP_ID];
+          opTypeIndexedByCustomerAndProduct[key] = opInfo[j][OP_TYPE];
+          opStageIndexedByCustomerAndProduct[key] = opInfo[j][OP_STAGE];
+        }
+      }
+      else {
+        
+        
+        if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
+          Logger.log("TRACE Account: Tracking op " + opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
+        }
+        
+        opByCustomerAndProductG[key] = opInfo[j][OP_ID];
         opTypeIndexedByCustomerAndProduct[key] = opInfo[j][OP_TYPE];
         opStageIndexedByCustomerAndProduct[key] = opInfo[j][OP_STAGE];
       }
-    }
-    else {
-    
-      
-      if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
-        Logger.log("TRACE Account: Tracking op " + opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
+      if (!primaryOpByCustomerG[opInfo[j][OP_ACCOUNT_ID]]) {
+        if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
+          Logger.log("TRACE Account: Tracking primary op "+ opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
+        }
+        primaryOpByCustomerG[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
+        primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
+        primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
+        primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;    
       }
-      
-      opByCustomerAndProduct[key] = opInfo[j][OP_ID];
-      opTypeIndexedByCustomerAndProduct[key] = opInfo[j][OP_TYPE];
-      opStageIndexedByCustomerAndProduct[key] = opInfo[j][OP_STAGE];
-    }
-    if (!primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]]) {
-      if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
-        Logger.log("TRACE Account: Tracking primary op "+ opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
-      }
-      primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
-      primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
-      primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
-      primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;    
-    }
-    else {
-      if ((opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1) || 
-      (primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] < latestActivityDate)) {
-        primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
+      else {
+        if ((opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1) || 
+          (primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] < latestActivityDate)) {
+            primaryOpByCustomerG[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
+            primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
+            primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
+            primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
+          }
+        
+        /*
+        for debug logging
+        if ((opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1)) {
+        primaryOpByCustomerG[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
         primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
         primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
         primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
-      }
-   
-      /*
-      for debug logging
-      if ((opInfo[j][OP_STAGE].indexOf("Closed") == -1 &&  primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]].indexOf("Closed") != -1)) {
-      primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
-      primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
-      primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
-      primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
-      }
-      else if ((primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] < latestActivityDate)) {
-      Logger.log("Reselected a primary op. Old: " + primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ":" + primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ":" + primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ", New: " + 
-      opInfo[j][OP_TYPE] + ":" + opInfo[j][OP_STAGE] + ":" + latestActivityDate + "(" + opInfo[j][OP_ACTIVITY_DATE] + ")");
-      primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
-      primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
-      primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
-      primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
-      }
-      */
-    }
-    
-    
-    /* deprecated
-    else if ((primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Closed/Lost") ||
-             (primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Services" && opInfo[j][OP_TYPE] != "Services") ||
-      (primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Renewal" && (opInfo[j][OP_TYPE] != "Services" && opInfo[j][OP_TYPE] != "Services"))) {
-        // Make the primary something other than services or renewals if something else exists
-        if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
-          Logger.log("TRACE Account: Resetting primary op to "+ opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
         }
-        primaryOpByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to   
+        else if ((primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] < latestActivityDate)) {
+        Logger.log("Reselected a primary op. Old: " + primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ":" + primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ":" + primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] + ", New: " + 
+        opInfo[j][OP_TYPE] + ":" + opInfo[j][OP_STAGE] + ":" + latestActivityDate + "(" + opInfo[j][OP_ACTIVITY_DATE] + ")");
+        primaryOpByCustomerG[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to
         primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
         primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
+        primaryOpActivityDateIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = latestActivityDate;
+        }
+        */
+      }
+      
+      
+      /* deprecated
+      else if ((primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Closed/Lost") ||
+      (primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Services" && opInfo[j][OP_TYPE] != "Services") ||
+      (primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] == "Renewal" && (opInfo[j][OP_TYPE] != "Services" && opInfo[j][OP_TYPE] != "Services"))) {
+      // Make the primary something other than services or renewals if something else exists
+      if (IS_TRACE_ACCOUNT_ON && TRACE_ACCOUNT_ID == opInfo[j][OP_ACCOUNT_ID]) {
+      Logger.log("TRACE Account: Resetting primary op to "+ opInfo[j][OP_ID] + ":" + opInfo[j][OP_TYPE] + productKey);
+      }
+      primaryOpByCustomerG[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_ID]; // Pick an op for all invites with no product specified to go to   
+      primaryOpTypeIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_TYPE];
+      primaryOpStageIndexedByCustomer[opInfo[j][OP_ACCOUNT_ID]] = opInfo[j][OP_STAGE];
       } */
       
-    primaryProductByOp[opInfo[j][OP_ID]] = opInfo[j][OP_PRIMARY_PRODUCT];
-    if (opInfo[j][OP_PRIMARY_PRODUCT] != "Terraform" && 
-        opInfo[j][OP_PRIMARY_PRODUCT] != "Vault" &&
-        opInfo[j][OP_PRIMARY_PRODUCT] != "Consul" &&
-        opInfo[j][OP_PRIMARY_PRODUCT] != "Nomad") {
-      let prod = opInfo[j][OP_PRIMARY_PRODUCT].toLowerCase();
-      if (prod.indexOf("terraform") != -1 || prod.indexOf("tfe") || prod.indexOf("tfc")) {
-        primaryProductByOp[opInfo[j][OP_ID]] = "Terraform";
+      primaryProductByOpG[opInfo[j][OP_ID]] = opInfo[j][OP_PRIMARY_PRODUCT];
+      if (opInfo[j][OP_PRIMARY_PRODUCT] != "Terraform" && 
+          opInfo[j][OP_PRIMARY_PRODUCT] != "Vault" &&
+          opInfo[j][OP_PRIMARY_PRODUCT] != "Consul" &&
+          opInfo[j][OP_PRIMARY_PRODUCT] != "Nomad") {
+        let prod = opInfo[j][OP_PRIMARY_PRODUCT].toLowerCase();
+        if (prod.indexOf("terraform") != -1 || prod.indexOf("tfe") || prod.indexOf("tfc")) {
+          primaryProductByOpG[opInfo[j][OP_ID]] = "Terraform";
+        }
+        else if (prod.indexOf("v") != -1) {
+          primaryProductByOpG[opInfo[j][OP_ID]] = "Vault";
+        }
+        else if (prod.indexOf("c") != -1) {
+          primaryProductByOpG[opInfo[j][OP_ID]] = "Consul";
+        }
+        else if (prod.indexOf("n") != -1) {
+          primaryProductByOpG[opInfo[j][OP_ID]] = "Nomad";
+        }
+        else {
+          primaryProductByOpG[opInfo[j][OP_ID]] = "N/A";
+          Logger.log("WARNING - Primary product for Op " + opInfo[j][OP_NAME] + " wasn't valid: " + opInfo[j][OP_PRIMARY_PRODUCT]);
+        }
       }
-      else if (prod.indexOf("v") != -1) {
-        primaryProductByOp[opInfo[j][OP_ID]] = "Vault";
-      }
-      else if (prod.indexOf("c") != -1) {
-        primaryProductByOp[opInfo[j][OP_ID]] = "Consul";
-      }
-      else if (prod.indexOf("n") != -1) {
-        primaryProductByOp[opInfo[j][OP_ID]] = "Nomad";
-      }
-      else {
-        primaryProductByOp[opInfo[j][OP_ID]] = "N/A";
-        Logger.log("WARNING: Primary product for Op " + opInfo[j][OP_NAME] + " wasn't valid: " + opInfo[j][OP_PRIMARY_PRODUCT]);
-      }
+      let team = {se_primary : opInfo[j][OP_SE_PRIMARY] , se_secondary : opInfo[j][OP_SE_SECONDARY] , rep : opInfo[j][OP_OWNER] };
+      accountTeamByOpG[opInfo[j][OP_ID]] = team; // Also used as an op history fitler
+      
     }
-    let team = {se_primary : opInfo[j][OP_SE_PRIMARY] , se_secondary : opInfo[j][OP_SE_SECONDARY] , rep : opInfo[j][OP_OWNER] };
-    accountTeamByOp[opInfo[j][OP_ID]] = team;
-  }
+    
+    chunkFirstRow = chunkLastRow + 1;
+    chunkLastRow += chunkSize;
+    chunkLength = chunkSize;
+    if (chunkLastRow > olr) {
+      chunkLastRow = olr;
+      chunkLength = chunkLastRow - chunkFirstRow + 1
+    }
+  } 
   
   //
   // Load Opportunity Stage History
@@ -379,47 +405,64 @@ function build_se_events() {
   var sheet = SpreadsheetApp.getActive().getSheetByName(HISTORY);
   rangeData = sheet.getDataRange();
   var hlc = rangeData.getLastColumn();
-  var hlr = rangeData.getLastRow();
-  var scanRange = sheet.getRange(2,1, hlr-1, hlc);
-  var historyInfo = scanRange.getValues();
+  var hlr = rangeData.getLastRow(); 
   
   if (hlc < HISTORY_COLUMNS) {
     logOneCol("ERROR: Imported opportunity history was only " + hlc + " fields wide. Not enough! Qu'est-ce que c'est?");
     return;
   }
   
-  for (j = 0; j < historyInfo.length; j++) {
-    if (accountTeamByOp[historyInfo[j][HISTORY_OP_ID]]) {
-      // This op is being tracked
+  
+  chunkSize = 1000;
+  chunkFirstRow = 2;
+  chunkLastRow = chunkSize < hlr ? chunkSize : hlr;
+  chunkLength = chunkLastRow - chunkFirstRow + 1;
+  while (chunkLength > 0) {
+    let scanRange = sheet.getRange(chunkFirstRow,1, chunkLength, hlc);
+    let historyInfo = scanRange.getValues();
+    
+    for (let j = 0; j < chunkLength; j++) {
       
-      if (!stageMilestonesByOp[historyInfo[j][HISTORY_OP_ID]]) {
-        stageMilestonesByOp[historyInfo[j][HISTORY_OP_ID]] = { discovery_ended : new Date(2050, 11, 21), closed_at : new Date(2050, 11, 25), was_won : false };
-      }
-      
-      var milestone = stageMilestonesByOp[historyInfo[j][HISTORY_OP_ID]];
-      let stage = historyInfo[j][HISTORY_STAGE_VALUE];
-      let stageDate = Date.parse(historyInfo[j][HISTORY_STAGE_DATE]);
-      if (stage == "Closed/Won" ||
-          stage == "Closed/Lost" ||
-          stage == "Closed Lost/Churn" ||
-          stage == "Debooking") {
-        if (stageDate < milestone.closed_at) {
-          milestone.closed_at = stageDate;
-        }
-        if (stage == "Closed/Won") {
-          milestone.was_won = true;
-        }
-      }
-      else if (stage != "Discovery & Qualification" && stage != "None") {
+      if (accountTeamByOpG[historyInfo[j][HISTORY_OP_ID]]) {
+        // This op is being tracked
         
-        // Stage is "Technical & Business Validation" || "Success Planning" || "Deal Review & Proposal" ||
-        // "Negotiation & Legal" || "Bookings Review"
-        if (stageDate < milestone.discovery_ended) {
-          milestone.discovery_ended = stageDate;
+        if (!stageMilestonesByOpG[historyInfo[j][HISTORY_OP_ID]]) {
+          stageMilestonesByOpG[historyInfo[j][HISTORY_OP_ID]] = { discovery_ended : new Date(2050, 11, 21), closed_at : new Date(2050, 11, 25), was_won : false };
+        }
+        
+        var milestone = stageMilestonesByOpG[historyInfo[j][HISTORY_OP_ID]];
+        let stage = historyInfo[j][HISTORY_STAGE_VALUE];
+        let stageDate = Date.parse(historyInfo[j][HISTORY_STAGE_DATE]);
+        if (stage == "Closed/Won" ||
+            stage == "Closed/Lost" ||
+            stage == "Closed Lost/Churn" ||
+            stage == "Debooking") {
+          if (stageDate < milestone.closed_at) {
+            milestone.closed_at = stageDate;
+          }
+          if (stage == "Closed/Won") {
+            milestone.was_won = true;
+          }
+        }
+        else if (stage != "Discovery & Qualification" && stage != "None") {
+          
+          // Stage is "Technical & Business Validation" || "Success Planning" || "Deal Review & Proposal" ||
+          // "Negotiation & Legal" || "Bookings Review"
+          if (stageDate < milestone.discovery_ended) {
+            milestone.discovery_ended = stageDate;
+          }
         }
       }
     }
-  }
+    
+    chunkFirstRow = chunkLastRow + 1;
+    chunkLastRow += chunkSize;
+    chunkLength = chunkSize;
+    if (chunkLastRow > hlr) {
+      chunkLastRow = hlr;
+      chunkLength = chunkLastRow - chunkFirstRow + 1
+    }
+  } 
   
   //
   // Load Special meetings and Account overrides
@@ -468,7 +511,7 @@ function build_se_events() {
   let eventCount = 0;
   
   for (j = 0 ; j < lastRow - 1; j++) {
-  
+    
     //  
     // Look for and track the "PREP" invites. Save time in minutes
     //  
@@ -494,7 +537,7 @@ function build_se_events() {
       continue;
     }
     
-    var attendees = inviteInfo[j][ATTENDEE_STR].split(","); // convert comma separated list of emails to an array
+    var attendees = inviteInfo[j][ATTENDEE_STR].split(","); // convert comma separated list of emails converted to an array
     if (attendees.length == 0) {
       continue; 
     }
@@ -507,7 +550,7 @@ function build_se_events() {
       continue;
     }
     
-         
+    
     //
     // Look for "special" known meetings we want to track
     // 
@@ -551,7 +594,7 @@ function build_se_events() {
             createSpecialEvents_(outputCursor, attendees, inviteInfo[j], pi, meetingType);
             eventCount++;
             isSpecialActive = true;
-            logOneCol(inviteInfo[j][SUBJECT] + " is a special meeting.");
+            logOneCol("NOTICE - " + inviteInfo[j][SUBJECT] + " is a special meeting.");
             break;
           }
         }
@@ -603,7 +646,7 @@ function build_se_events() {
     // Determine who was at the meeting
     //
     
-    var attendeeInfo = lookForAccounts_(attendees, emailToCustomerMap, emailToPartnerMap);
+    var attendeeInfo = lookForAccounts_(attendees, emailToCustomerMapG, emailToPartnerMapG);
     // attendeeInfo.customers - Map of prospect/customer Salesforce 18-Digit account id to number of attendees
     // attendeeInfo.partners - Map of partner Salesforce 18-Digit account id to number of attendees
     // attendeeInfo.others - Map of unknown email domains to number of attendees
@@ -620,7 +663,7 @@ function build_se_events() {
     //
     // Manual Overrides
     //
-     
+    
     let isOverrideActive = false;
     
     for (let row in overrides) {
@@ -661,12 +704,13 @@ function build_se_events() {
             break;
           }
           
-          // Find an opportunity
-          var key = account + makeProductKey_(productInventory, 0);
-     
+          // Find an opportunity 
+          let shortId = account.substring(0, account.length - 3); // Opportunities reference their accounts by the short account id, so that is how the key was made in the opBy... map
+          var key = shortId + makeProductKey_(productInventory, 0);
+          
           var opId = 0;
-          if (opByCustomerAndProduct[key]) {
-            opId = opByCustomerAndProduct[key];
+          if (opByCustomerAndProductG[key]) {
+            opId = opByCustomerAndProductG[key];
           }
           
           if (!opId && productInventory.count() > 1) { 
@@ -674,7 +718,7 @@ function build_se_events() {
             // So, fall back to single product opportunities. See if we can find one.
             let singleKeys = makeSingleProductKeys_(productInventory);
             for (let j = 0; j < singleKeys.length; j++) {
-              opId = opByCustomerAndProduct[account + singleKeys[j]];
+              opId = opByCustomerAndProductG[shortId + singleKeys[j]];
               if (opId) break;          
             }
           }
@@ -684,19 +728,19 @@ function build_se_events() {
             // An opportunity can only have 1 primary product, but it may cover multiple products in it's description. If it does contain
             // multiple products, don't just default to the primary. Instead, look at the product inventory from the invite and try to
             // match one of those products in the inventory to one of the opportunity's products.
-            let product = primaryProductByOp[opId];
+            let product = primaryProductByOpG[opId];
             if (productInventory.count() > 0 && !productInventory.has(product)) { 
               // Override the primary product of the opportunity with the main product identified in the invite. 
               // It could be that there was no opportunity for the product discussed but we had to pick one anyway ... so override.
               // Or, there were multiple products in the opportunity, but the primary didn't match the one discussed ... so again, override.
               product = productInventory.getOne();
             }
-          
+            
             let milestones = { discovery_ended : new Date(2050, 11, 21), closed_at : new Date(2050, 11, 25), was_won : false };
-            if (stageMilestonesByOp[opId]) {
-              milestones = stageMilestonesByOp[opId];
+            if (stageMilestonesByOpG[opId]) {
+              milestones = stageMilestonesByOpG[opId];
             }
-            createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], false, product, milestones);
+            createOpEvent_(outputCursor, account, opId, attendees, inviteInfo[j], false, product, milestones);
             eventCount++;
           }
           else {
@@ -708,14 +752,14 @@ function build_se_events() {
         }
       }
     }
-  
+    
     
     if (isOverrideActive) {
-      logOneCol(inviteInfo[j][SUBJECT] + " has been overrided.");
+      logOneCol("NOTICE - " + inviteInfo[j][SUBJECT] + " has been overrided.");
       continue;
     }
-      
-      
+    
+    
     //
     // Create the event
     //
@@ -728,11 +772,11 @@ function build_se_events() {
       if (IS_TRACE_ACCOUNT_ON && attendeeInfo.customers[TRACE_ACCOUNT_ID_LONG]) {
         Logger.log("TRACE Account: Found an attendee from this account in " + inviteInfo[j][SUBJECT]);
       }
-    
+      
       //Logger.log("DEBUG: found one customer account in invite: " + opInfo[j][OP_NAME]);
       
-      var customerId = 0;
-      let longCustomerId = 0;
+      let customerId = 0;
+      let longCustomerId = 0;     
       for (account in attendeeInfo.customers) {
         // The account keys for locating opportunities in the code are NOT built from 18-Digit Account IDs!
         // The account here is 18-Digit, so strip off the 3 character postfix.
@@ -750,43 +794,44 @@ function build_se_events() {
       
       let isDefaultOp = false;
       var opId = 0;
-      if (opByCustomerAndProduct[key]) {
-        opId = opByCustomerAndProduct[key];
-      }
+      if (opByCustomerAndProductG[key]) {      
+        opId = opByCustomerAndProductG[key];
+      } 
+      
       if (!opId && productInventory.count() > 1) { 
         // Couldn't find an opportunity to match the 2 or more products in the invite, i.e "-<product-code-1><product-code-2>[<product-code-n>]"
         // So, fall back to single product opportunities. See if we can find one.
         
         let singleKeys = makeSingleProductKeys_(productInventory);
         for (let j = 0; j < singleKeys.length; j++) {
-          opId = opByCustomerAndProduct[customerId + singleKeys[j]];
+          opId = opByCustomerAndProductG[customerId + singleKeys[j]];
           if (opId) break;
         }
       }
       if (!opId) {
-        if (numberOfOpsByCustomer[customerId] > 1) {
+        if (numberOfOpsByCustomerG[customerId] > 1) {
           isDefaultOp = true; // We were unable to deteremine the product in the invite, so selecting the default (primary) op
         }
-        opId = primaryOpByCustomer[customerId]; // No product info found in invite, pick "primary" op for this period
+        opId = primaryOpByCustomerG[customerId]; // No product info found in invite, pick "primary" op for this period
       }
       
       if (opId) {
         let milestones = { discovery_ended : new Date(2050, 11, 21), closed_at : new Date(2050, 11, 25), was_won : false };
-        if (stageMilestonesByOp[opId]) {
-          milestones = stageMilestonesByOp[opId];
+        if (stageMilestonesByOpG[opId]) {
+          milestones = stageMilestonesByOpG[opId];
         }
         
         // An opportunity can only have 1 primary product, but it may cover multiple products in it's description. If it does contain
         // multiple products, don't just default to the primary. Instead, look at the product inventory from the invite and try to
         // match one of those products in the inventory to one of the opportunity's products.
-        let product = primaryProductByOp[opId];
+        let product = primaryProductByOpG[opId];
         if (productInventory.count() > 0 && !productInventory.has(product)) { 
           // Override the primary product of the opportunity with the main product identified in the invite. 
           // It could be that there was no opportunity for the product discussed but we had to pick one anyway ... so override.
           // Or, there were multiple products in the opportunity, but the primary didn't match the one discussed ... so again, override.
           product = productInventory.getOne();
         }
-        createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, product, milestones);
+        createOpEvent_(outputCursor, longCustomerId, opId, attendees, inviteInfo[j], isDefaultOp, product, milestones);
         eventCount++;
       }
       else {
@@ -794,7 +839,7 @@ function build_se_events() {
       }
     }
     else if (attendeeInfo.stats.customer_accounts > 1) {
-    
+      
       if (IS_TRACE_ACCOUNT_ON && attendeeInfo.customers[TRACE_ACCOUNT_ID_LONG]) {
         Logger.log("TRACE Account: Found an attendee from this account in " + inviteInfo[j][SUBJECT]);
       }
@@ -807,19 +852,21 @@ function build_se_events() {
       //Logger.log("DEBUG: found multiple customer accounts in invite: " + opInfo[j][OP_NAME]);
       
       // Look for at most two Customers 
-      var primaryId = 0;
-      var primaryCnt = 0;
-      var secondaryId = 0;
-      var secondaryCnt = 0;
+      let primaryId = 0;
+      let longPrimaryId = 0; 
+      let primaryCnt = 0;
+      let secondaryId = 0;
+      let longSecondaryId = 0;
+      let secondaryCnt = 0;
       for (account in attendeeInfo.customers) {
-        if (!primaryId || attendeeInfo.customers[account] > primaryCnt) {
-          secondaryId = primaryId;
+        if (!longPrimaryId || attendeeInfo.customers[account] > primaryCnt) {
+          longSecondaryId = longPrimaryId;
           secondaryCnt = primaryCnt;
-          primaryId = account;
+          longPrimaryId = account;
           primaryCnt = attendeeInfo.customers[account]; 
         }
-        else if (!secondaryId || attendeeInfo.customers[account] > secondaryCnt) {
-          secondaryId = account;
+        else if (!longSecondaryId || attendeeInfo.customers[account] > secondaryCnt) {
+          longSecondaryId = account;
           secondaryCnt = attendeeInfo.customers[account];
         }
       }
@@ -829,18 +876,21 @@ function build_se_events() {
         productInventory = lookForProducts_(inviteInfo[j][DESCRIPTION]);
       }
       var productKey = makeProductKey_(productInventory, 0);
-   
+      
       var opId = 0;
       let isDefaultOp = false;
-      primaryId = primaryId.substring(0, primaryId.length - 3); // Strip off the extra 3 characters that make it an 18-Digit id
-      if (secondaryId) {
-        secondaryId = secondaryId.substring(0, secondaryId.length - 3);
+      primaryId = longPrimaryId.substring(0, longPrimaryId.length - 3); // Strip off the extra 3 characters that make it an 18-Digit id
+      if (longSecondaryId) {
+        secondaryId = longSecondaryId.substring(0, longSecondaryId.length - 3);
       }
-      if (opByCustomerAndProduct[primaryId + productKey]) {
-        opId = opByCustomerAndProduct[primaryId + productKey];
+      let customerId = 0;
+      if (opByCustomerAndProductG[primaryId + productKey]) {
+        opId = opByCustomerAndProductG[primaryId + productKey];
+        customerId = longPrimaryId;
       }
-      else if (secondaryId && opByCustomerAndProduct[secondaryId + productKey]) {
-        opId = opByCustomerAndProduct[secondaryId + productKey];
+      else if (secondaryId && opByCustomerAndProductG[secondaryId + productKey]) {
+        opId = opByCustomerAndProductG[secondaryId + productKey];
+        customerId = longSecondaryId;
       }
       
       if (!opId && productInventory.count() > 1) { 
@@ -848,8 +898,11 @@ function build_se_events() {
         // So, fall back to single product opportunities. See if we can find one.
         let singleKeys = makeSingleProductKeys_(productInventory);
         for (let j = 0; j < singleKeys.length; j++) {
-          opId = opByCustomerAndProduct[primaryId + singleKeys[j]];
-          if (opId) break;
+          opId = opByCustomerAndProductG[primaryId + singleKeys[j]];
+          if (opId) {
+            customerId = longPrimaryId;
+            break;
+          }
         }
       }
       if (!opId && productInventory.count() > 1) { 
@@ -857,34 +910,39 @@ function build_se_events() {
         // So, fall back to single product opportunities. See if we can find one.
         let singleKeys = makeSingleProductKeys_(productInventory);
         for (let j = 0; j < singleKeys.length; j++) {
-          opId = opByCustomerAndProduct[secondaryId + singleKeys[j]];
-          if (opId) break;
+          opId = opByCustomerAndProductG[secondaryId + singleKeys[j]];
+          if (opId) {
+            customerId = longSecondaryId;
+            break;
+          }
         }
       }
       
       if (!opId) {
-        if (numberOfOpsByCustomer[primaryId] > 1) {
+        if (numberOfOpsByCustomerG[primaryId] > 1) {
           isDefaultOp = true; // We were unable to deteremine the product in the invite, so selecting the default (primary) op
         }
-        opId = primaryOpByCustomer[primaryId]; // No product info found in invite, pick "primary" op for primary account
+        opId = primaryOpByCustomerG[primaryId]; // No product info found in invite, pick "primary" op for primary account
+        customerId = longPrimaryId;
       }
       if (!opId) {
-        if (numberOfOpsByCustomer[secondaryId] > 1) {
+        if (numberOfOpsByCustomerG[secondaryId] > 1) {
           isDefaultOp = true; // We were unable to deteremine the product in the invite, so selecting the default (primary) op
         }
-        opId = primaryOpByCustomer[secondaryId]; // No product info found in invite, pick "primary" op for secondary account
+        opId = primaryOpByCustomerG[secondaryId]; // No product info found in invite, pick "primary" op for secondary account
+        customerId = longSecondaryId;
       }
       
       if (opId) {
         let milestones = { discovery_ended : new Date(2050, 11, 21), closed_at : new Date(2050, 11, 25), was_won : false };
-        if (stageMilestonesByOp[opId]) {
-          milestones = stageMilestonesByOp[opId];
+        if (stageMilestonesByOpG[opId]) {
+          milestones = stageMilestonesByOpG[opId];
         }
         
         // An opportunity can only have 1 primary product, but it may cover multiple products in it's description. If it does contain
         // multiple products, don't just default to the primary. Instead, look at the product inventory from the invite and try to
         // match one of those products in the inventory to one of the opportunity's products.
-        let product = primaryProductByOp[opId];
+        let product = primaryProductByOpG[opId];
         if (productInventory.count() > 0 && !productInventory.has(product)) { 
           // Override the primary product of the opportunity with the main product identified in the invite. 
           // It could be that there was no opportunity for the product discussed but we had to pick an op anyway ... so override.
@@ -892,7 +950,7 @@ function build_se_events() {
           product = productInventory.getOne();
         }
         
-        createOpEvent_(outputCursor, opId, attendees, inviteInfo[j], isDefaultOp, product, milestones);
+        createOpEvent_(outputCursor, customerId, opId, attendees, inviteInfo[j], isDefaultOp, product, milestones);
         eventCount++;
       }
       else {
@@ -901,7 +959,7 @@ function build_se_events() {
     } 
     else if (attendeeInfo.stats.others > 0) {
       // Could not find an account or partner. Look for a lead...
-      Logger.log(inviteInfo[j][SUBJECT] + " fell through.");
+      // Logger.log(inviteInfo[j][SUBJECT] + " fell through.");
       let lead = findLead_(attendees);
       if (lead) {
         createLeadEvent_(outputCursor, lead, attendees, inviteInfo[j], productInventory);
@@ -914,6 +972,8 @@ function build_se_events() {
   }
   
   logOneCol("Generated a total of " + eventCount + " events.");
+  logOneCol("End time: " + new Date().toLocaleTimeString());
+  
 }
 
 
@@ -921,28 +981,14 @@ function unveil_se_events() {
   //Copy events over to Review tab replacing account or opportunity ids with names 
   
   logStamp("Unveiling Events");
-
+    
   //
   // Load Opportunity Info
   //
   
-  let opNameById = {}; 
-  
-  let sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
-  let rangeData = sheet.getDataRange();
-  let olc = rangeData.getLastColumn();
-  let olr = rangeData.getLastRow();
-  let scanRange = sheet.getRange(2,1, olr-1, olc);
-  let opInfo = scanRange.getValues();
-  
-  if (olc < OP_COLUMNS) {
-    logOneCol("ERROR: Imported opportunity info was only " + olc + " fields wide. Not enough! Something needs to be fixed.");
-    return;
-  }
-  
-  for (var j = 0 ; j < olr - 1; j++) {    
-    opNameById[opInfo[j][OP_ID]] = opInfo[j][OP_NAME];  
-  }
+  // OP_ACCOUT_ID field in OPPORTUNITIES is short (15 digit), so TRUNCATE the long (18 digit) account ids! The true bool is to enable truncation.
+  let targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); 
+  let opNameById = load_map_(OPPORTUNITIES, 2, OP_COLUMNS, OP_ID, OP_NAME, targetedAccounts, OP_ACCOUNT_ID, null);
   
   //
   // Load Staff names
@@ -966,7 +1012,7 @@ function unveil_se_events() {
   
   // Build the user id to name mapping  
   for (var j = 0 ; j < slr - 1; j++) {
-  
+    
     if (!staffInfo[j][STAFF_LONG_ID]) {
       let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
       longIdCells.offset(j,STAFF_LONG_ID).setValue(longId);
@@ -982,81 +1028,32 @@ function unveil_se_events() {
   // Load Partner Info
   //
   
-  let partnerNameById = {};
-  sheet = SpreadsheetApp.getActive().getSheetByName(PARTNERS);
-  rangeData = sheet.getDataRange();
-  var plc = rangeData.getLastColumn();
-  var plr = rangeData.getLastRow();
-  if (plr > 1) {
-    scanRange = sheet.getRange(2,1, plr-1, plc);
-    let partnerInfo = scanRange.getValues();
-    
-    if (plc < PARTNER_COLUMNS) {
-      logOneCol("ERROR: Imported Partners was only " + plc + " fields wide. Not enough! Something is awry.");
-      return;
-    }
-    
-    for (j = 0 ; j < plr - 1; j++) {
-      partnerNameById[partnerInfo[j][PARTNER_ID]]  = partnerInfo[j][PARTNER_NAME];
-    }
-  }
+  let targetedPartners = loadFilter(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
+  let partnerNameById = load_map_(PARTNERS, 2, PARTNER_COLUMNS, PARTNER_ID, PARTNER_NAME, targetedPartners, PARTNER_ID, null);
+  
+  
   
   //
   // Load All Customer Info - in region first, external stuff second
   //
   
-  let customerNameById = {};
-  sheet = SpreadsheetApp.getActive().getSheetByName(IN_REGION_CUSTOMERS);
-  rangeData = sheet.getDataRange();
-  let alc = rangeData.getLastColumn();
-  let alr = rangeData.getLastRow();
-  if (alr > 1) {
-    scanRange = sheet.getRange(2,1, alr-1, alc);
-    let customerInfo = scanRange.getValues();
-    
-    if (alc < CUSTOMER_COLUMNS) {
-      Logger.log("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
-      return;
-    }
-    
-    for (j = 0 ; j < alr - 1; j++) {
-      customerNameById[customerInfo[j][CUSTOMER_ID]] = customerInfo[j][CUSTOMER_NAME];
-    }
-  }
+  let inPlayCustomers = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  let customerNameById = load_map_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_ID, CUSTOMER_NAME, inPlayCustomers, CUSTOMER_ID, null);
   
-  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
-  rangeData = sheet.getDataRange();
-  alc = rangeData.getLastColumn();
-  alr = rangeData.getLastRow();
-  if (alr > 1) {
-    
-    scanRange = sheet.getRange(2,1, alr-1, alc);
-    customerInfo = scanRange.getValues();
-    
-    if (alc < CUSTOMER_COLUMNS) {
-      logOneCol("ERROR: Imported Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
-      return; 
-    }
-    
-    for (j = 0 ; j < alr - 1; j++) {
-      customerNameById[customerInfo[j][CUSTOMER_ID]] = customerInfo[j][CUSTOMER_NAME];
-    }
-  }
+  let externalCustomers = loadFilter(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_ID, CUSTOMER_NAME, externalCustomers, CUSTOMER_ID, customerNameById);
   
   //
   // Load Leads
   //
-  EVENTS_UNVEILED
-  let leadNameById = {};
-  let leadInfo = load_tab_(MISSING_LEADS, 2, LEAD_COLUMNS);
-  for (j=0; j<leadInfo.length; j++) {
-    leadNameById[leadInfo[j][LEAD_ID]] = leadInfo[j][LEAD_NAME];
-  }
+  
+  let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
+  let leadNameById = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_ID, LEAD_NAME, targetedLeads, LEAD_EMAIL, null);
   
   //
   // Copy events over, replacing account or opportunity ids with names, or lead ids with names
   //
-
+  
   sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
   rangeData = sheet.getDataRange();
   let elc = rangeData.getLastColumn();
@@ -1086,7 +1083,7 @@ function unveil_se_events() {
   
   let reviewRowWasTouchedArray = new Array(elr).fill(false);
   PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray));
- 
+  
   for (j = 0 ; j < elr-1; j++) {
     // Note that these types are in the Data Validation for the associated field on the Review tab
     let name = "General";
@@ -1154,14 +1151,23 @@ function unveil_se_events() {
     }
     outputRange.offset(rowOffset, REVIEW_NOTES).setValue(eventInfo[j][EVENT_NOTES]);
     outputRange.offset(rowOffset, REVIEW_ORIG_NOTES).setValue(eventInfo[j][EVENT_NOTES]);
+    // If we ever want to upload in-region vs out-of-region meetings, we can use account type
+    //outputRange.offset(rowOffset, REVIEW_ACCOUNT_TYPE).setValue(eventInfo[j][EVENT_ACCOUNT_TYPE]);
+    //outputRange.offset(rowOffset, REVIEW_ORIG_ACCOUNT_TYPE).setValue(eventInfo[j][EVENT_ACCOUNT_TYPE]);   
     outputRange.offset(rowOffset, REVIEW_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
+    
     
     rowOffset++;
   }
   
+  // 
+  // WARNING - This protection is hardcoded to the column format of unveiled events tab!
+  // If the header changes, you may need to update this
+  //
+  
   var protection = sheet.protect().setDescription('Review data protection');
   var unprotected1 = sheet.getRange(2, 2, rowOffset, 3); 
-  var unprotected2 = sheet.getRange(2, 8, rowOffset, REVIEW_COLUMNS - 7); 
+  var unprotected2 = sheet.getRange(2, 8, rowOffset, 9); 
   protection.setUnprotectedRanges([unprotected1, unprotected2]);
   // Ensure the current user is an editor before removing others. Otherwise, if the user's edit
   // permission comes from a group, the script will throw an exception upon removing the group.
@@ -1177,66 +1183,54 @@ function unveil_se_events() {
   logOneCol("Unveiled " + cC + " Customer events.");
   logOneCol("Unveiled " + cL + " Lead events.");
   logOneCol("Unveiled " + cG + " General/Multi-customer events.");
-  logOneCol("Unveiled at total of " + rowOffset + " events.");
+  logOneCol("Unveiled a total of " + rowOffset + " events.");
+  logOneCol("End time: " + new Date().toLocaleTimeString());
   
   sheet.activate();
+  
 }
 
 function reconcile_se_events() {
   
   logStamp("Event Reconciliation");
-
+  
   //
   // Load Opportunity Info
   //
   
-  let opInfo = load_tab_(OPPORTUNITIES, 2, OP_COLUMNS);
-  let opIdByName = {}; 
-  for (var j = 0 ; j < opInfo.length; j++) {    
-    opIdByName[opInfo[j][OP_NAME]] = opInfo[j][OP_ID];  
-  }
+  // OP_ACCOUT_ID field in OPPORTUNITIES is short (15 digit), so TRUNCATE the long (18 digit) account ids! The true bool is to enable truncation.
+  let targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); 
+  let opIdByName = load_map_(OPPORTUNITIES, 2, OP_COLUMNS, OP_NAME, OP_ID, targetedAccounts, OP_ACCOUNT_ID, null);
   
-    
   //
   // Load Partner Info
   //
   
-  let partnerInfo = load_tab_(PARTNERS, 2, PARTNER_COLUMNS);
-  let partnerIdByName = {};
-  for (j = 0 ; j < partnerInfo.length; j++) {
-    partnerIdByName[partnerInfo[j][PARTNER_NAME]]  = partnerInfo[j][PARTNER_ID];
-  }
+  let targetedPartners = loadFilter(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
+  let partnerIdByName = load_map_(PARTNERS, 2, PARTNER_COLUMNS, PARTNER_NAME, PARTNER_ID, targetedPartners, PARTNER_ID, null);
   
   //
   // Load All Customer Info - in region first, external stuff second
   //
   
-  let customerInfo = load_tab_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS);
-  let customerIdByName = {};
-  for (j = 0 ; j < customerInfo.length; j++) {
-    customerIdByName[customerInfo[j][CUSTOMER_NAME]] = customerInfo[j][CUSTOMER_ID];
-  }
+  let inPlayCustomers = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  let customerIdByName = load_map_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, null);
   
-  let externalCustomerInfo = load_tab_(MISSING_CUSTOMERS, 2, CUSTOMER_COLUMNS);
-  for (j = 0 ; j < externalCustomerInfo.length ; j++) {
-    customerIdByName[externalCustomerInfo[j][CUSTOMER_NAME]] = externalCustomerInfo[j][CUSTOMER_ID];
-  }
-  
+  let externalCustomers = loadFilter(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, externalCustomers, CUSTOMER_ID, customerIdByName);
   
   //
   // Load Leads
   //
   
-  let leadIdByName = {};
-  let leadInfo = load_tab_(MISSING_LEADS, 2, LEAD_COLUMNS);
-  for (j=0; j<leadInfo.length; j++) {
-    leadIdByName[leadInfo[j][LEAD_NAME]] = leadInfo[j][LEAD_ID];
-  }
+  
+  let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
+  let leadIdByName = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_NAME, LEAD_ID, targetedLeads, LEAD_EMAIL, null); 
   
   //
   // Scan unveiled events in the Review tab, updating fields in the corresponding Event tab record when necessary
   //
-    
+  
   let reviewInfo = load_tab_(EVENTS_UNVEILED, 2, REVIEW_COLUMNS);
   let eventInfo = load_tab_(EVENTS, 2, EVENT_COLUMNS);
   let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
@@ -1244,7 +1238,7 @@ function reconcile_se_events() {
   // Clear any left over update color and set event output cursor
   let sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
   let outputRange = sheet.getRange(2,1); // skip over the header
- 
+  
   for (j = 0 ; j < reviewInfo.length; j++) {
     
     if (!reviewRowWasTouchedArray[j+2]) continue; // Array is indexed on table row number
@@ -1419,84 +1413,34 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
   // There is no account for these special events
   
   // Logger.log("DEBUG: Entered createSpecialEvents_ for: " + inviteInfo[SUBJECT]);
-  
-  let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
-  let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
-  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
-  
-  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
-  if (!prep) {
-    prep = subjectScan.prepTime; 
-  }
-  
-  let logistics = "Face to Face";
-  if (descriptionScan.hasTeleconference) {
-    logistics = "Remote";
-  }
-  
-  let repAttended = "No";
-  if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
-    repAttended = "Yes"; 
-  }
-  
-  
-  
-  // Logger.log("Debug: Creating createAccountEvents_ for: " + account);
-  
-  outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue("None"); // None accepts all meeting types
-  outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(meetingType);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
-  outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
-  
-  outputTab.rowOffset++;
-  
-}
-
-function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, productInventory) {
-
-  // Logger.log("DEBUG: Entered createAccountEvents_ for: " + inviteInfo[SUBJECT]);
-  
-  let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
-  let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
-  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
-  
-  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
-  if (!prep) {
-    prep = subjectScan.prepTime; 
-  }
-  
-  let logistics = "Face to Face";
-  if (descriptionScan.hasTeleconference) {
-    logistics = "Remote";
-  }
-  
-  let repAttended = "No";
-  if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
-    repAttended = "Yes"; 
-  }
-  
-  let eventCount = 0;
-  
-  let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
-  
-  for (account in attendeeInfo) {
+  try {
+    
+    let assignedTo = staffEmailToIdMapG[inviteInfo[ASSIGNED_TO]];
+    let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+    let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+    
+    let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+    if (!prep) {
+      prep = subjectScan.prepTime; 
+    }
+    
+    let logistics = "Face to Face";
+    if (descriptionScan.hasTeleconference) {
+      logistics = "Remote";
+    }
+    
+    let repAttended = "No";
+    if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
+      repAttended = "Yes"; 
+    }
+    
+    
     
     // Logger.log("Debug: Creating createAccountEvents_ for: " + account);
     
     outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
     outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue("None"); // None accepts all meeting types
-    outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting);
-    outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(account); // relate directly to the account
+    outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(meetingType);
     outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
     outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
     outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
@@ -1507,67 +1451,136 @@ function createAccountEvents_(outputTab, attendees, attendeeInfo, inviteInfo, pr
     outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
     outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
     outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue("None");
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
     
     outputTab.rowOffset++;
-    eventCount++;
     
+  }
+  catch (e) {
+    logOneCol("ERROR - createSpecialEvents_ exception: " + e);
+  }
+  
+}
+
+function createAccountEvents_(outputTab, attendees, attendeeLog, inviteInfo, productInventory) {
+
+  // Logger.log("DEBUG: Entered createAccountEvents_ for: " + inviteInfo[SUBJECT]);
+  
+  let eventCount = 0;
+  try {
+    
+    let assignedTo = staffEmailToIdMapG[inviteInfo[ASSIGNED_TO]];
+    let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+    let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+    
+    let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+    if (!prep) {
+      prep = subjectScan.prepTime; 
+    }
+    
+    let logistics = "Face to Face";
+    if (descriptionScan.hasTeleconference) {
+      logistics = "Remote";
+    }
+    
+    let repAttended = "No";
+    if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
+      repAttended = "Yes"; 
+    }
+    
+    let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
+    
+    for (account in attendeeLog) {
+      
+      // Logger.log("Debug: Creating createAccountEvents_ for: " + account);
+      
+      outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue("None"); // None accepts all meeting types
+      outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(account); // relate directly to the account
+      outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
+      outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(accountTypeNamesG[accountTypeG[account]]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+      
+      outputTab.rowOffset++;
+      eventCount++;
+      
+    }
+  }
+  catch (e) {
+    logOneCol("ERROR - createAccountEvents_ exception: " + e);
   }
   return eventCount;
 }
 
 function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInventory) {
-  
-  let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
-  let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
-  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
-  
-  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
-  if (!prep) {
-    prep = subjectScan.prepTime; 
+
+  try {
+    
+    let assignedTo = staffEmailToIdMapG[inviteInfo[ASSIGNED_TO]];
+    let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]); // returns filteredText, hasTeleconference and prepTime
+    let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+    
+    let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+    if (!prep) {
+      prep = subjectScan.prepTime; 
+    }
+    
+    let logistics = "Face to Face";
+    if (descriptionScan.hasTeleconference) {
+      logistics = "Remote";
+    }
+    
+    let repAttended = "No";
+    if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
+      repAttended = "Yes"; 
+    }
+    
+    let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
+    if (event.meeting != "Happy Hour" && event.meeting != "Demo") { // "Happy Hour", (short) "Demo" or "Discovery" are acceptable for leads. We better not be doing anything more 
+      event.meeting = "Discovery";
+    }
+    
+    
+    //Logger.log("Debug: Running createLeadEvent_ for: " + lead);
+    
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue("None"); // None accepts all meeting types
+    outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting);
+    // outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(); No accounts available to relate to - using a Lead
+    outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue("Lead");
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+    
+    
+    outputTab.rowOffset++;
   }
-  
-  let logistics = "Face to Face";
-  if (descriptionScan.hasTeleconference) {
-    logistics = "Remote";
+  catch (e) {
+    logOneCol("ERROR - createLeadEvent_ exception: " + e);
   }
-  
-  let repAttended = "No";
-  if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
-    repAttended = "Yes"; 
-  }
-  
-  let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
-  if (event.meeting != "Happy Hour" && event.meeting != "Demo") { // "Happy Hour", (short) "Demo" or "Discovery" are acceptable for leads. We better not be doing anything more 
-    event.meeting = "Discovery";
-  }
-  
-  
-  Logger.log("Debug: Running createLeadEvent_ for: " + lead);
-  
-  outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue("None"); // None accepts all meeting types
-  outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting);
-  // outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(); No accounts available to relate to - using a Lead
-  outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(getOneProduct_(productInventory));
-  outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nProducts: " + getProducts_(productInventory) + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
-  
-  
-  outputTab.rowOffset++;
-  
 }
 
-function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, primaryProduct, opMilestones) {
+function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDefaultOp, primaryProduct, opMilestones) {
   // We are only placing an event in three phases of the Op (4 stages, Closed get's two)
   // - Discovery & Qualification
   // - Technical & Business Validation
@@ -1576,79 +1589,86 @@ function createOpEvent_(outputTab, opId, attendees, inviteInfo, isDefaultOp, pri
   // All the other stages aren't relevant to SE activity (and in fact block various meeting types, so we must
   // stay away from selecting them.)
   
-  if (!opMilestones) {
-    Logger.log("ERROR: Lost opportunity's stage milestones!");
-    return;
-  }
-  
-  //Logger.log("DEBUG: createOpEvent_: " + inviteInfo[SUBJECT]);
-  let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]);
-  let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
-  
-  let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
-  if (!prep) {
-    prep = subjectScan.prepTime; 
-  }
-  
-  let logistics = "Face to Face";
-  if (descriptionScan.hasTeleconference) {
-    logistics = "Remote";
-  }
-  
-  // Determine stage of opportunity when invite occurred
-  let inviteDate = Date.parse(inviteInfo[START]);
-  let opStage = "Discovery & Qualification";
-  
-  if (inviteDate > opMilestones.closed_at) {
-    if (opMilestones.was_won == true) {
-      opStage = "Closed/Won";
+  try {
+   
+    if (!opMilestones) {
+      Logger.log("ERROR - Lost opportunity's stage milestones!");
+      return;
+    }
+    
+    //Logger.log("DEBUG: createOpEvent_: " + inviteInfo[SUBJECT]);
+    let descriptionScan = filterAndAnalyzeDescription_(inviteInfo[DESCRIPTION]);
+    let subjectScan = analyzeSubject_(inviteInfo[SUBJECT]);
+    
+    let prep = descriptionScan.prepTime; // OVERRIDES other prep calendar entries
+    if (!prep) {
+      prep = subjectScan.prepTime; 
+    }
+    
+    let logistics = "Face to Face";
+    if (descriptionScan.hasTeleconference) {
+      logistics = "Remote";
+    }
+    
+    // Determine stage of opportunity when invite occurred
+    let inviteDate = Date.parse(inviteInfo[START]);
+    let opStage = "Discovery & Qualification";
+    
+    if (inviteDate > opMilestones.closed_at) {
+      if (opMilestones.was_won == true) {
+        opStage = "Closed/Won";
+      }
+      else {
+        opStage = "Closed/Lost";
+      }
+    }
+    else if (inviteDate > opMilestones.discovery_ended) {   
+      opStage = "Technical & Business Validation";   
+    }
+    
+    let assignedTo = staffEmailToIdMapG[inviteInfo[ASSIGNED_TO]];
+    
+    // FIXME Only knows about in-region EAMs
+    let repAttended = "No";
+    if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
+      repAttended = "Yes"; 
+    }
+    
+    /*
+    if (inviteInfo[ASSIGNED_TO] == accountTeamByOpG[opId].rep ||
+    inviteInfo[ASSIGNED_TO] == accountTeamByOpG[opId].rep
+    repAttended = "Yes";
+    */
+    
+    
+    let event = lookForMeetingType_(opStage, inviteInfo[SUBJECT] + " " + descriptionScan.filteredText);
+    
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue(event.stage);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting); 
+    outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(opId); // Relate to the opportunity
+    outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(primaryProduct);
+    if (isDefaultOp) {
+      outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nDefault Op Selected.\nAttendees: " + inviteInfo[ATTENDEE_STR]);
     }
     else {
-      opStage = "Closed/Lost";
+      outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
     }
+    outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics); 
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(accountTypeNamesG[accountTypeG[accountId]]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+    
+    outputTab.rowOffset++;  
+    
   }
-  else if (inviteDate > opMilestones.discovery_ended) {   
-    opStage = "Technical & Business Validation";   
-  }
-  
-  let assignedTo = staffEmailToIdMap[inviteInfo[ASSIGNED_TO]];
-  
-  // FIXME Only knows about South Strategic EAMs
-  let repAttended = "No";
-  if (isRepPresent_(inviteInfo[CREATED_BY], attendees)) {
-    repAttended = "Yes"; 
-  }
-  
-  /*
-  if (inviteInfo[ASSIGNED_TO] == accountTeamByOp[opId].rep ||
-  inviteInfo[ASSIGNED_TO] == accountTeamByOp[opId].rep
-  repAttended = "Yes";
-  */
-  
-  
-  let event = lookForMeetingType_(opStage, inviteInfo[SUBJECT] + " " + descriptionScan.filteredText);
-  
-  outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue(event.stage);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_MEETING_TYPE).setValue(event.meeting); 
-  outputTab.range.offset(outputTab.rowOffset, EVENT_RELATED_TO).setValue(opId); // Relate to the opportunity
-  outputTab.range.offset(outputTab.rowOffset, EVENT_SUBJECT).setValue(inviteInfo[SUBJECT]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_START).setValue(inviteInfo[START]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_END).setValue(inviteInfo[END]);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_REP_ATTENDED).setValue(repAttended);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PRODUCT).setValue(primaryProduct);
-  if (isDefaultOp) {
-    outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nDefault Op Selected.\nAttendees: " + inviteInfo[ATTENDEE_STR]);
-  }
-  else {
-    outputTab.range.offset(outputTab.rowOffset, EVENT_DESC).setValue(descriptionScan.filteredText + "\nAttendees: " + inviteInfo[ATTENDEE_STR]);
-  }
-  outputTab.range.offset(outputTab.rowOffset, EVENT_LOGISTICS).setValue(logistics); 
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PREP_TIME).setValue(prep);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
-  outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
-  
-  outputTab.rowOffset++;  
-  
+  catch (e) {
+    logOneCol("ERROR - createOpEvent_ exception: " + e);
+  }  
 }

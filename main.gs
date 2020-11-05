@@ -27,11 +27,14 @@
 // Information from Salesforce needed by the invite-to-event transform logic is stored in other google sheet tabs,
 // and imported via "Dataconnector for Salesforce".
 //
+// Config assumptions:
+// 1. Hashicorp doesn't show up in any customer, partner or lead lists.
+//
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "0.2.1";
-const GAS_VERSION = 21; 
-const MIN_SCHEMA_VERSION = 10; // 1.0
+const GAS_VERSION_STRING = "1.0.0";
+const GAS_VERSION = 100; 
+const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
 const MEETINGS_HAVE_DEFAULT=true;
@@ -44,12 +47,19 @@ const MEETINGS_HAVE_DEFAULT=true;
 const RUN_PARMS = "Run Settings"
 const CHOICES = "Choices"
 
-const MISSING_DOMAINS = "Missing Domains (Zap)";
-const MISSING_EMAILS = "Missing Emails (Zap)";
-const MISSING_EMAIL_DOMAIN = 0;
+// Filter tables to help us deal with massive amounts of Salesforce records
+const MISSING_DOMAINS = "Missing Domains";
+const MISSING_CUSTOMERS = "Missing Customers";
+const POTENTIAL_LEADS = "Lead Accounts";
+const IN_PLAY_CUSTOMERS = "In Play Customers";
+const IN_PLAY_PARTNERS = "In Play Partners";
+const FILTER_EMAIL_DOMAIN = 0;
+const FILTER_ACCOUNT_ID = 0;
+const FILTER_TYPE_DOMAIN = 1;
+const FILTER_TYPE_ID = 2;
 
-const IN_REGION_CUSTOMERS = "In Region Customers"; // Our Region's Customers or Prospects - Accounts for short. They are accounts in Salesforce
-const MISSING_CUSTOMERS = "Missing Customers (Zap)"; // Dynamic account imports for each missing customer
+const IN_REGION_CUSTOMERS = "In-Region Customers"; // Our Region's Customers or Prospects; Accounts for short. They are accounts in Salesforce
+const ALL_CUSTOMERS = "Customers"; // ALL Customers and Prospects in Salesforce! A big list. Logic handles I/O to this tab in chunks and target filters.
 const CUSTOMER_COLUMNS = 7;
 const CUSTOMER_ID = 1;
 const CUSTOMER_NAME = 3;
@@ -57,7 +67,7 @@ const CUSTOMER_EMAIL_DOMAIN = 5;
 const CUSTOMER_ALT_EMAIL_DOMAINS = 6;
 const CUSTOMER_HEADER = [['Account Owner', '18-Digit Account ID', 'Solutions Engineer', 'Account Name', 'Owner Region', 'Email Domain', 'Alt Email Domains']];		
 
-const PARTNERS = "Partners"; // Also an account in Salesforce
+const PARTNERS = "Partners"; // ALL Partners in Salesforce, also an account btw. Relatively long list. Logic handles I/O to this tab in chunks.
 const PARTNER_COLUMNS = 4;
 const PARTNER_ID = 1;
 const PARTNER_NAME =2;
@@ -65,7 +75,7 @@ const PARTNER_EMAIL_DOMAIN = 3;
 const PARTNER_ALT_EMAIL_DOMAINS = 4;
 const PARTNER_HEADER = [['Account Owner', '18-Digit Account ID', 'Account Name', 'Email Domain']];			// FIXME Alt email			
 
-const MISSING_LEADS = "Missing Leads (Zap)";
+const LEADS = "Leads";  // // ALL Leads in Salesforce! A huge list! 150K records at last count. Logic handles I/O to this tab in chunks and target filters.
 const LEAD_COLUMNS = 3;
 const LEAD_ID = 0;
 const LEAD_NAME =1;
@@ -80,6 +90,7 @@ const STAFF_EMAIL = 1;
 const STAFF_ROLE = 4;
 const STAFF_LONG_ID = 5;
 const STAFF_ROLE_REPS = "E1:E2:C1:CAM"; // All the "Job Roles" for reps
+const STAAFF_HEADER = [['18-Digit Lead ID', 'Account Name', 'Email']];	
 
 const OPPORTUNITIES = "Opportunities";
 const OP_COLUMNS = 12;
@@ -119,7 +130,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
-const EVENT_COLUMNS = 16;
+const EVENT_COLUMNS = 17;
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -135,12 +146,13 @@ const EVENT_PREP_TIME = 11;
 const EVENT_QUALITY = 12;
 const EVENT_LEAD = 13;
 const EVENT_NOTES = 14;
-const EVENT_PROCESS = 15;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Process"]]
+const EVENT_ACCOUNT_TYPE = 15;
+const EVENT_PROCESS = 16;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process"]]
 const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]]
 
 const EVENTS_UNVEILED = "Review"
-const REVIEW_COLUMNS = 17;
+const REVIEW_COLUMNS = 18;
 const REVIEW_ASSIGNED_TO = 0;
 const REVIEW_EVENT_TYPE = 1; // Must be before REVIEW_RELATED_TO and REVIEW_LEAD or you will break the menu
 const REVIEW_RELATED_TO = 2; // Opportunity ID or Account ID
@@ -157,8 +169,10 @@ const REVIEW_PREP_TIME = 12;
 const REVIEW_QUALITY = 13;
 const REVIEW_LEAD = 14;
 const REVIEW_NOTES = 15;
-const REVIEW_PROCESS = 16;
-const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Process"]]
+const REVIEW_ACCOUNT_TYPE = 16;
+const REVIEW_PROCESS = 17;
+const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process"]]
+// There are field protections setup in unveil_se_events that are hardcoded to this header. If you change this, make sure the protections in unveil_se_events are correct or updated.
 
 // Record original values for highlighting changes by the reviewers
 // No header. Not meant to be seen by a user
@@ -174,6 +188,7 @@ const REVIEW_ORIG_PREP_TIME = 39;
 const REVIEW_ORIG_QUALITY = 40;
 const REVIEW_ORIG_LEAD = 41;
 const REVIEW_ORIG_NOTES = 42;
+const REVIEW_ORIG_ACCOUNT_TYPE = 43;
 
 const MAX_ROWS = 2000; // Use for warnings and data validation limits
 
@@ -183,27 +198,31 @@ const LOG_TAB = "Log";
 var AM_LOG; 
 var AM_LOG_ROW; 
 
-var emailToCustomerMap = {};
-var emailToPartnerMap = {};
-var emailToLeadMap = {};
-var staffEmailToIdMap = {};
-var staffEmailToRoleMap = {};
-var staffNameToEmailMap = {};
-var opByCustomerAndProduct = {};
-var numberOfOpsByCustomer = {};
-var primaryOpByCustomer = {};
-var primaryProductByOp = {};
-var stageMilestonesByOp = {};
-var accountTeamByOp = {};
-
 const INTERNAL_CUSTOMER_TYPE = 1;
 const EXTERNAL_CUSTOMER_TYPE = 2;
 const PARTNER_TYPE = 3;
 const LEAD_TYPE = 4;
-var accountType = {}; // Index by account ID
+var accountTypeG = {}; // Index by account ID
+var accountTypeNamesG = [
+  "N/A",
+  "In-region Customer",
+  "Out-or-region Customer",
+  "Partner",
+  "Lead"];
+var emailToCustomerMapG = {}; // Really email domain
+var emailToPartnerMapG = {};
+var emailToLeadMapG = {};
+var staffEmailToIdMapG = {};
+var staffEmailToRoleMapG = {};
+var staffNameToEmailMapG = {}; // Looks like I don't use this anywhere yet
+var opByCustomerAndProductG = {};
+var numberOfOpsByCustomerG = {};
+var primaryOpByCustomerG = {};
+var primaryProductByOpG = {};
+var stageMilestonesByOpG = {};
+var accountTeamByOpG = {};
 
-var missingAccounts = {}; // For tracking missing account data in lookForAccounts_()
-var potentialLeadEmails = {}; // For finding Leads should a missing account not exist.
+
 
 // Product codes for table index keys
 const TERRAFORM = "T";
@@ -227,18 +246,17 @@ const TRACE_ACCOUNT_ID_LONG = "0011C00001rtkI3QAI"
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('Activity')
-      .addItem('Import Calendars', 'menuItem1_')
+      .addItem('Process Events', 'menuItem3_')
       .addSeparator()
-      .addItem('Import Missing Accounts (& wait for zap)', 'menuItem7_')
-      .addSeparator()
-      .addItem('Generate Events', 'menuItem2_')
-      .addSeparator()
-      .addItem('Unveil Events', 'menuItem10_')
+      .addSubMenu(ui.createMenu('Process Events by Stage')
+          .addItem('Import Calendars', 'menuItem1_')
+          .addSeparator()
+          .addItem('Generate Events', 'menuItem2_')
+          .addSeparator()
+          .addItem('Unveil Events', 'menuItem10_'))
       .addSeparator()
       .addItem('Reconcile Events', 'menuItem13_')
       .addSeparator()
-      //.addItem('Import Calendars & Generate Events', 'menuItem3_')
-      //.addSeparator()
       .addItem('Upload Events (& wait for zap)', 'menuItem4_')
       .addSeparator()
       .addSubMenu(ui.createMenu('Clear')
@@ -250,15 +268,16 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Review Tab', 'menuItem11_')
                   .addSeparator()
-                  .addItem('All Missing ... Tabs (Turn off Zapier!)', 'menuItem5_')
-                  .addSeparator()
                   .addItem('Upload Tab (Turn off Zapier!)', 'menuItem6_')
                   .addSeparator()
-                  .addItem('Everything (Turn off Zapier!)', 'menuItem14_'))
-      .addSubMenu(ui.createMenu('Help')
-                  .addItem('Import Calendars', 'menuItem20_')
+                  .addItem('Everything (Turn off Zapier!)', 'menuItem14_')
                   .addSeparator()
-                  .addItem('Import Missing Accounts', 'menuItem21_')
+                  .addItem('Configuration', 'menuItem15_'))
+      .addSeparator()
+      .addSubMenu(ui.createMenu('Help')
+                  .addItem('Process Events', 'menuItem24_')
+                  .addSeparator()
+                  .addItem('Import Calendars', 'menuItem20_')
                   .addSeparator()
                   .addItem('Generate Events', 'menuItem22_')
                   .addSeparator()

@@ -47,7 +47,7 @@ function menuItem1_() {
     import_calendars();
   }
   catch (e) {
-    Logger.log("ERROR: import_calendar threw an unhandled exception!");
+    ui.alert("ERROR - unhandled exception: " + e);
   }
   finally {
     markRunEnd_();
@@ -74,7 +74,7 @@ function menuItem2_() {
       build_se_events();
     }
     catch (e) {
-      Logger.log("ERROR: build_se_events threw an unhandled exception!");
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -91,7 +91,8 @@ function menuItem3_() {
   }
   
   let result = ui.alert('Please confirm', 
-                        'Are you sure you want to import invites and transform into events? This will clear the current set of invites and events, replace them with a fresh import, and fresh set of events from that import.\n\nContinue?',
+                        'You want to run all pre-upload event processing? This will execute the following stages in order...\n\n1. Import Calendars\n2. Generate Events\n3. Unveil Events.' +
+                        '\n\nThis will clear out all invite and event data including the Review tab!\n\nAre you sure you want to do all that?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
@@ -99,9 +100,10 @@ function menuItem3_() {
       markRunStart_();
       import_calendars();
       build_se_events();
+      unveil_se_events();
     }
     catch (e) {
-      Logger.log("ERROR: import_calendar or build_se_events threw an unhandled exception!");
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -126,36 +128,7 @@ function menuItem4_() {
       stage_events_to_upload_tab();
     }
     catch (e) {
-      Logger.log("ERROR: stage_events_to_upload_tab threw an unhandled exception!");
-    }
-    finally {
-      markRunEnd_();
-    }
-  }
-}
-
-function menuItem5_() {
-  
-  let ui = SpreadsheetApp.getUi();
-  
-  if (needToAbortRun_(ui)) {
-    return;
-  }
-  
-  let result = ui.alert('Please confirm', 
-                        'Are you sure you want to clear the "Missing Tabs"? The Zapier "Import Missing Accounts" and "Import Missing Leads" zaps must be OFF!\n\nAre they off?',
-                        ui.ButtonSet.YES_NO);
-  
-  if (result == ui.Button.YES) { 
-    try {
-      markRunStart_();
-      clearTab_(MISSING_CUSTOMERS, CUSTOMER_HEADER);
-      clearTab_(MISSING_LEADS, LEAD_HEADER);
-      clearTab_(MISSING_DOMAINS, [['Email']]); 
-      clearTab_(MISSING_EMAILS, [['Email']]); 
-    }
-    catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -181,30 +154,11 @@ function menuItem6_() {
       clearTab_(UPLOAD_STAGE, UPLOAD_STAGE_HEADER);
     }
     catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
     }
-  }
-}
-
-function menuItem7_() {
-  
-  let ui = SpreadsheetApp.getUi();
-  
-  if (needToAbortRun_(ui)) {
-    return;
-  }
-  
-  try {
-    import_missing_accounts();
-  }
-  catch (e) {
-    Logger.log("ERROR: import_missing_accounts threw an exception!: " + e);
-  }
-  finally {
-    markRunEnd_();
   }
 }
 
@@ -228,7 +182,7 @@ function menuItem8_() {
     clearTab_(CALENDAR, CALENDAR_HEADER);
   }
   catch (e) {
-    Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+    ui.alert("ERROR - unhandled exception: " + e);
   }
   finally {
     markRunEnd_();
@@ -257,7 +211,7 @@ function menuItem9_() {
     clearTab_(EVENTS, EVENT_HEADER);
   }
   catch (e) {
-    Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);
+   ui.alert("ERROR - unhandled exception: " + e);
   }
   finally {
     markRunEnd_();
@@ -285,7 +239,7 @@ function menuItem10_() {
       unveil_se_events();
     }
     catch (e) {
-      Logger.log("ERROR: unveil_se_events threw an unhandled exception: " + e);
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -316,7 +270,7 @@ function menuItem11_() {
       spreadsheet.getRange('2:1000').setBackground('#ffffff'); 
     }
     catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -337,7 +291,7 @@ function menuItem12_() {
     clearTab_(LOG_TAB);
   }
   catch (e) {
-    Logger.log("ERROR: clearTab_ threw an unhandled exception: " + e);
+    ui.alert("ERROR - unhandled exception: " + e);
   }
   finally {
     markRunEnd_();
@@ -365,7 +319,7 @@ function menuItem13_() {
       reconcile_se_events();
     }
     catch (e) {
-      Logger.log("ERROR: reconcile_se_events threw an unhandled exception: " + e);
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -381,17 +335,13 @@ function menuItem14_() {
     return;
   }
   
-  let result = ui.alert('Please confirm that you want to clear out EVERYTHING!', 
-                        '\n\nAll Zapier zaps must be OFF before you continue!\n\nIs Zapier off?',
+  let result = ui.alert('Please confirm delete of EVERYTHING!', 
+                        'Do you want to clear out all calendar and event data?\n\nThe upload zap must be OFF before you continue!\n\nIs Zapier off? Do you want to do this?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
     try {
       markRunStart_();
-      clearTab_(MISSING_CUSTOMERS, CUSTOMER_HEADER);
-      clearTab_(MISSING_LEADS, LEAD_HEADER);
-      clearTab_(MISSING_DOMAINS, [['Email']]); 
-      clearTab_(MISSING_EMAILS, [['Email']]); 
       clearTab_(UPLOAD_STAGE, UPLOAD_STAGE_HEADER);
       clearTab_(CALENDAR, CALENDAR_HEADER);
       clearTab_(EVENTS, EVENT_HEADER);
@@ -399,7 +349,38 @@ function menuItem14_() {
       clearTab_(LOG_TAB);
     }
     catch (e) {
-      Logger.log("ERROR: clearTab_ threw an unhandled exception!");
+      ui.alert("ERROR - unhandled exception: " + e);
+    }
+    finally {
+      markRunEnd_();
+    }
+  }
+}
+
+function menuItem15_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  
+  if (needToAbortRun_(ui)) {
+    return;
+  }
+  
+  let result = ui.alert('Please confirm configuration delete!', 'Do you want to clear out ALL configuration data (the Salesforce info in the blue tabs)?',
+                        ui.ButtonSet.YES_NO);
+  
+  if (result == ui.Button.YES) {
+    try {
+      markRunStart_();
+      clearTab_(IN_REGION_CUSTOMERS, CUSTOMER_HEADER);
+      clearTab_(ALL_CUSTOMERS, CUSTOMER_HEADER);
+      clearTab_(LEADS, LEAD_HEADER);     
+      clearTab_(PARTNERS, PARTNER_HEADER);
+      clearTab_(STAFF);
+      clearTab_(OPPORTUNITIES);
+      clearTab_(HISTORY);
+    }
+    catch (e) {
+      ui.alert("ERROR - unhandled exception: " + e);
     }
     finally {
       markRunEnd_();
@@ -415,20 +396,12 @@ function menuItem20_() {
 
 }
 
-function menuItem21_() {
-  
-  let ui = SpreadsheetApp.getUi();
-  ui.alert("Import Missing Accounts\n\nThis is a dynamic configuration update method. It will identify domains not represented in the current 'In Region Customers' tab along with the email addresses of potential leads for those missing domains, " +
-  "appending that information into the 'Missing Domains' and 'Missing Emails' tabs. From there, two zaps will search for those recently added 'missing' customers and leads, appending what it finds, " +
-  "if anything, into the 'Missing Customers' and 'Missing Leads' tabs. This should be run after a fresh Calendar Import.");
-
-}
-
 function menuItem22_() {
   
   let ui = SpreadsheetApp.getUi();
   ui.alert("Generate Events\n\nThis will generate records in the 'Events' tab for each invite in the 'Calendar' tab that includes a customer, partner or lead. " + 
-           "It will clear whatever is currently in the 'Events' tab before processing invites. Run information will be output to the 'Log' tab, including which 'externally facing' invites could not be matched with a customer, partner or lead.");
+           "It will clear whatever is currently in the 'Events' tab before processing invites. Run information will be output to the 'Log' tab, including any invites that couldn't be processed. " +
+           "Please see the \"WARNING - Unable to find a customer, partner or lead for:\" log message in the manual.");
   
 }
 
@@ -443,8 +416,7 @@ function menuItem23_() {
 function menuItem24_() {
   
   let ui = SpreadsheetApp.getUi();
-  ui.alert("Import Calendars & Generate Events\n\nThis is a convenience method to execute Import Calendars then Generate Events in sequence. " +
-           "Note that Import Missing Accounts will not be executed, so only execute this if you know there are no missing accounts for the current calendar (you have likely searched for missing accounts recently.)");
+  ui.alert("Process Events\n\nExecute the three pre-upload event processing stages in order:\n\n1. Import Calendars\n2. Generate Events\n3. Unveil Events.\n\nMay take a couple minutes to complete, so go get some coffee.");
   
 }
 
@@ -482,13 +454,6 @@ function menuItem30_() {
   let gasVersion = parseInt(gasVersionString.substring(1).replace(/\./g, ""));  // Assumes v#.#.# in cell A1
   if (GAS_VERSION == gasVersion) {
     let theMessage = "Sheet version matches the GAS (Google App Script). You are good to go.";
-    
-    if (GAS_VERSION >= 18) {
-      theMessage += "\n\nPlease note however that v0.1.8 required UPDATES to BOTH the \"Upload SE Events\" and the \"Import Missing Leads\" Zaps! " + 
-               "If you upgraded from v0.1.7 or earlier, and have not yet updated those zaps, please do so. See the manual, addendums A and B in the Setup section. " +
-               "These enable the meeting Notes URL to be uploaded to an event, " +
-               "and filter out leads that have converted (and should have an account, so ignore the lead.)";
-    }
     ui.alert(theMessage);
     return;
   }  
@@ -505,17 +470,26 @@ function menuItem30_() {
   if (schemaVersion < MIN_SCHEMA_VERSION) {
     ui.alert("The schema of your sheet is too old! The GAS (Google App Script) you have pulled from Github won't work with it. " +
              "You need to start fresh.\n\nI'm sorry. Sometimes progress requires adding or changing some tabs or cells. Github only manages the code.\n\n" +
-             "Please copy \"Activity Machine " + GAS_VERSION_STRING + "\" to you local Google drive, update your Zaps to use it, and reload your config.");
+             "Please copy \"Activity Machine " + GAS_VERSION_STRING + "\" to you local Google drive, update the \"Upload Event\" zap to use it, and reload your config.");
   }
   else if (GAS_VERSION != gasVersion) {
-    ui.alert("Sheet schema is compatible with the GAS (Google App Script). Updating the sheet version to " + "v" + GAS_VERSION_STRING + ".");
+    ui.alert("Sheet schema is compatible with the GAS (Google App Script). Updating the sheet version to " + "v" + GAS_VERSION_STRING);
     gasRange.setValue("v" + GAS_VERSION_STRING);
   }
-  if (GAS_VERSION > 17 && gasVersion < 18) {
-    ui.alert("NOTICE\n\n" +
-    "You must UPDATE both the \"Upload SE Events\"  and the \"Import Missing Leads\" Zaps to use version " + GAS_VERSION_STRING + "!\n" + 
-    "See the manual, addendums A and B in the Setup section.\n\nThese updates enable the meeting Notes URL to be uploaded to an event, " +
-    "and filter out leads that have converted from the missing leads list (a converted lead should have an account, so ignore the lead.)");
+  if (gasVersion < 100) {
+  
+    let m = "ZAP NOTICES\n\nBoth the \"Import Missing Accounts\" and \"Import Missing Leads\" Zaps have been DEPRECATED!\n(And there was much rejoicing!) " +
+    "You can delete them!\n\nThey have been replaced by blue configuration tabs for ALL customers and ALL leads in Salesforce. " +
+    "(Logic was added to handle massive numbers of records in a config tab.)";
+    
+    if (gasVersion < 18) {
+    
+      m+= "\n\nAlso note that the \"Upload SE Events\" zap was modified in version 0.1.8 to upload the meeting \"Notes URL\". " +
+      "See the manual, addendum A in the Setup section, for the modification procedure.";
+    
+    }
+    
+    ui.alert(m);
   }
 }
 
@@ -564,7 +538,8 @@ function handleRunParmsMenuEdit_(cell, value) {
   for (var i = 0; i < 500; i++) {
     if (range.offset(i, 2).getValue() == value) {
       let v = range.offset(i,0).getValue();
-      cell.offset(0, 1).setValue(v.substring(0, v.length - 3)); // Creating "short" id (cutting off 3 character post fix)
+      cell.offset(0, 1).setValue(v); 
+      // cell.offset(0, 1).setValue(v.substring(0, v.length - 3)); // Creating "short" id (cutting off 3 character post fix)
       break;
     }
   }
@@ -613,6 +588,9 @@ function handleReviewMenuEdit_(cell, value) {
     case REVIEW_NOTES + 1:
       handleValueSelection_(cell, value, REVIEW_ORIG_NOTES - REVIEW_NOTES);
       break;
+    //case REVIEW_ACCOUNT_TYPE + 1:
+    //  handleValueSelection_(cell, value, REVIEW_ORIG_ACCOUNT_TYPE - REVIEW_ACCOUNT_TYPE);
+    //  break;
     case REVIEW_PROCESS + 1:
       let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
       reviewRowWasTouchedArray[cell.rowStart] = true;   
@@ -654,7 +632,7 @@ function handleEventTypeChange_(cell, value) {
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Lead":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MISSING_LEADS);
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LEADS);
       validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       validationOffset = REVIEW_LEAD - REVIEW_EVENT_TYPE;
@@ -701,7 +679,7 @@ function initValidation_(cell, type) {
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Lead":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(MISSING_LEADS);
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LEADS);
       validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;

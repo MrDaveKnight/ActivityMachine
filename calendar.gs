@@ -4,7 +4,7 @@ function import_calendars() {
   clearTab_(LOG_TAB);
   
   logStamp("Calendar Import");
-
+  
   let sheet = SpreadsheetApp.getActive().getSheetByName(CALENDAR);
   let importCursor = {sheet : sheet, row : 2}; // Drop to row below the header we kept during the clear
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
@@ -22,6 +22,11 @@ function import_calendars() {
     }
   }
   logOneCol("Imported a total of " + inviteCount + " invites.");
+  logOneCol("End time: " + new Date().toLocaleTimeString());
+  
+  create_data_load_filters(); // Just setup for event processing
+  logOneCol("End time: " + new Date().toLocaleTimeString());
+  
 }
 
 function import_gcal_(calName, startDate, endDate, cursor){
