@@ -673,7 +673,7 @@ function build_se_events() {
       if (overrides[row][1]) {      
         
         overrideAccountName = overrides[row][0];
-        overrideAccountId = overrides[row][1];
+        let overrideAccountId = overrides[row][1];
         let subjectTest = false;
         let emailTest = false;
         
@@ -759,7 +759,7 @@ function build_se_events() {
     
     
     if (isOverrideActive) {
-      logOneCol("NOTICE - Account for invite \"" + inviteInfo[j][SUBJECT] + "\" has been overridden with " + overrideAccountName + ":" + overrideAccountId);
+      logOneCol("NOTICE - Account for invite " + inviteInfo[j][SUBJECT] + " has been overridden with " + overrideAccountName + ":" + overrideAccountId);
       continue;
     }
     
