@@ -5,7 +5,7 @@ function createDataLoadFilters() {
   // the account doesn't exist.
   // Also tracks emails to find leads should the out-of-region account not exist.
   
-  logOneCol("Building data load filters...");
+  logStamp("Create Data Load Filters");
 
   // Identifying out-of-region customers and relevant leads to filter the Customer and Leads tabs during event processing
   
@@ -206,7 +206,7 @@ function createDataLoadFilters() {
   customerMap = null;
   typeMap = null;
   
-  logOneCol("Filter build complete " + new Date().toLocaleTimeString());
+  logOneCol("End time: " + new Date().toLocaleTimeString());
   
   // Salesforce OAUTH2 doesn't work, so we have to use Zapier
   // var html = HtmlService.createTemplateFromFile('index').evaluate().setWidth(500);
@@ -224,7 +224,7 @@ function createChoiceLists () {
   // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
   //   
   
-  logOneCol("Building choice lists...");
+  logOneCol("Building choice lists at ");
   
   // Set customer choices cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_ACCOUNT);
@@ -310,7 +310,7 @@ function createChoiceLists () {
     }
   }
   
-  logOneCol("Choice list build complete " + new Date().toLocaleTimeString());
+  logOneCol("Choice list build complete at " + new Date().toLocaleTimeString());
 }
 
 
@@ -764,7 +764,7 @@ function load_lead_info_(loggingEnabled) {
     return;
   }
   
-  load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, phase, loggingEnabled)
+  load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, 2, loggingEnabled); // only called in phase 2
 }
 
 function loadFilter(tabName, fieldNumber, truncate) {

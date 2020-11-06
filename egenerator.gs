@@ -157,7 +157,7 @@ function build_se_events() {
   
   load_lead_info_(true); // Always filters just what's in play (there are hundreds of thousands of leads man).
   
-  createChoiceLists(); // I wants the phase 2 maps
+  createChoiceLists(); // It wants the phase 2 maps
   
   //
   // Load Staff Info - SEs and Reps
