@@ -315,7 +315,7 @@ function lookForProducts_(text) {
     returnValue.hasTerraform = regex.test(x);
   }
   
-  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secret") != -1 || x.indexOf("pki") != -1 || x.indexOf("pam") != -1 || x.indexOf("approle") != -1;
+  returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secret") != -1 || x.indexOf("pki") != -1 || x.indexOf("pam") != -1;
   
   returnValue.hasConsul = x.indexOf("consul") != -1 || x.indexOf("service discovery") != -1 || x.indexOf("service mesh") != -1;
   
