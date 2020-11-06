@@ -1,12 +1,12 @@
-function create_data_load_filters() {   
+function createDataLoadFilters() {   
 
   // Looks for domains that don't have an in-region account, presumably because
   // the domain is from an account external to the region being processed, or
   // the account doesn't exist.
   // Also tracks emails to find leads should the out-of-region account not exist.
 
-  logStamp("Create Data Filters");
-  logOneCol("Identifying out-of-region customers and relevant leads to filter the Customer and Leads tabs during event processing.");
+  logStamp("Create Data Load Filters");
+  // Identifying out-of-region customers and relevant leads to filter the Customer and Leads tabs during event processing
   
   //
   // Load Account Info
@@ -22,14 +22,14 @@ function create_data_load_filters() {
   // Load in-region customers only, the first parm set to false (we know that list won't be massive)
   // Saves info off in emailToCustomerMapG
   // Also updates accountType object
-  if (!load_customer_info_(true, customerMap, typeMap, true)) {
+  if (!load_customer_info_(true, customerMap, typeMap, 1, true)) {
     return;
   }
   
   // Loads ALL partners
   // Saves info off in 
   // Also updates accountType object
-  if (!load_partner_info_(true, partnerMap, typeMap, true)) {
+  if (!load_partner_info_(true, partnerMap, typeMap, 1, true)) {
     return;
   }
   
@@ -81,24 +81,6 @@ function create_data_load_filters() {
   lr = sheet.getLastRow();
   let inPlayPartnerRange = sheet.getRange(lr+1,1);
   let inPlayPartnerCursor = {range : inPlayPartnerRange, rowOffset : 0};
-  
-   // Set customer choices cursor
-  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_ACCOUNT);
-  lr = sheet.getLastRow();
-  let choiceCustomerRange = sheet.getRange(lr+1,1);
-  let choiceCustomerCursor = {range : choiceCustomerRange, rowOffset : 0};
-  
-   // Set partner choices cursor
-  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_PARTNER);
-  lr = sheet.getLastRow();
-  let choicePartnerRange = sheet.getRange(lr+1,1);
-  let choicePartnerCursor = {range : choicePartnerRange, rowOffset : 0};
-  
-  // Set oop choices cursor
-  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_OP);
-  lr = sheet.getLastRow();
-  let choiceOpRange = sheet.getRange(lr+1,1);
-  let choiceOpCursor = {range : choiceOpRange, rowOffset : 0};
   
   // 
   // Step 1: Look for and record email domains that don't have an In Region Customer or Partner account.
@@ -170,12 +152,11 @@ function create_data_load_filters() {
       for (c in attendeeInfo.customers) {
         if (loggedCustomers[c]) continue;
         
-        loggedCustomers[c.substring(0, c.length - 3)] = true;  // Must use short id! Will be used to filter opportunities. 
+        loggedCustomers[c] = true;  // Must use short id! Will be used to filter opportunities. 
         inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(c);      // c is an Id
         inPlayCustomerCursor.rowOffset++;  
-        choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(accountNameG[c]);      // c is an Id
-        choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(c); 
-        choiceCustomerCursor.rowOffset++;  
+        
+        
       }
       for (p in attendeeInfo.partners) {
         if (loggedPartners[p]) continue;
@@ -183,9 +164,8 @@ function create_data_load_filters() {
         loggedPartners[p] = true;
         inPlayPartnerCursor.range.offset(inPlayPartnerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(p);      // p is an id
         inPlayPartnerCursor.rowOffset++; 
-        choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(accountNameG[c]);      // c is an Id
-        choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(c); 
-        choicePartnerCursor.rowOffset++;  
+        
+
       }
     }
   }
@@ -201,7 +181,7 @@ function create_data_load_filters() {
   if (lr > 1) {
     
     // This saves info off in emailToCustomerMapG and also updates accountType object. We'll use accoutTypes of EXTERNAL_CUSTOMER_TYPE to persist that info
-    load_account_info_chunks_(sheet, lr, lc, detectedDomains, FILTER_TYPE_DOMAIN, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, customerMap, typeMap, false);  
+    load_account_info_chunks_(sheet, lr, lc, detectedDomains, FILTER_TYPE_DOMAIN, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, customerMap, typeMap, 1, false);  
     for (account in typeMap) {
      
       if (typeMap[account] == EXTERNAL_CUSTOMER_TYPE) {
@@ -209,7 +189,6 @@ function create_data_load_filters() {
         missingCustomerCursor.rowOffset++;   
         inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(account);    
         inPlayCustomerCursor.rowOffset++;  
-        loggedCustomers[account.substring(0, account.length - 3)] = true; // Filter for ops, so short id
       }
     }
   }
@@ -220,19 +199,76 @@ function create_data_load_filters() {
   logOneCol("Identified " + missingCustomerCursor.rowOffset + " potentially out-of-region customers.");
   logOneCol("Identified " + leadCursor.rowOffset + " potential lead emails.");
   
+  
+  // Wake up the garbage collection? (this isn't necessary, but why not)
+  partnerMap = null;
+  customerMap = null;
+  typeMap = null;
+  
+  logOneCol("Filter build complete " + new Date().toLocaleTimeString());
+  
+  // Salesforce OAUTH2 doesn't work, so we have to use Zapier
+  // var html = HtmlService.createTemplateFromFile('index').evaluate().setWidth(500);
+  // SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function createChoiceLists () {
+
   //
-  // Step 3: Build the rest of the choice lists for review. We need to get all the duplicate accounts in case we selected the wrong one
-  //
-  for (cn in duplicateAccountsG) {
+  // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
+  //   
+  
+  logStamp("Create Review Choice Lists");
+  
+  // Set customer choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_ACCOUNT);
+  lr = sheet.getLastRow();
+  let choiceCustomerRange = sheet.getRange(lr+1,1);
+  let choiceCustomerCursor = {range : choiceCustomerRange, rowOffset : 0};
+  
+   // Set partner choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_PARTNER);
+  lr = sheet.getLastRow();
+  let choicePartnerRange = sheet.getRange(lr+1,1);
+  let choicePartnerCursor = {range : choicePartnerRange, rowOffset : 0};
+  
+  // Set op choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_OP);
+  lr = sheet.getLastRow();
+  let choiceOpRange = sheet.getRange(lr+1,1);
+  let choiceOpCursor = {range : choiceOpRange, rowOffset : 0};
+  
+  let opFilter = {}
+  
+  for (cn in primaryAccountsG) {
+    // First part of choice list init. See finishChoiceLists for second part.
+    let id = primaryAccountsG[cn];
     choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);      
-    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(duplicateAccountsG[cn]); 
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(id); 
     choiceCustomerCursor.rowOffset++;  
+    opFilter[id.substring(0, id.length - 3)] = true;
+  }  
+  for (pn in primaryPartnersG) {      
+    // First part of choice list init. See finishChoiceLists for second part.
+    let id = primaryPartnersG[pn];
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(pn);    
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(id); 
+    choicePartnerCursor.rowOffset++;  
+  }  
+  for (cn in duplicateAccountsG) {
+    let id = duplicateAccountsG[cn];
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);      
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(id); 
+    choiceCustomerCursor.rowOffset++; 
+    opFilter[id.substring(0, id.length - 3)] = true;
   }
   for (pn in duplicatePartnersG) {
-    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(pn);    
-    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(duplicatePartnersG[pn]); 
+    let id = duplicatePartnersG[pn];
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(pn);    
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(id); 
     choicePartnerCursor.rowOffset++;  
   }
+
   
   sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
   rangeData = sheet.getDataRange();
@@ -250,12 +286,12 @@ function create_data_load_filters() {
       
       for (let j = 0; j < chunkLength; j++) {
         
-        if (!loggedCustomers[opInfo[j][OP_ACCOUNT_ID]]) {
+        if (!opFilter[opInfo[j][OP_ACCOUNT_ID]]) {
           continue;
         }
         choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_NAME).setValue(opInfo[j][OP_NAME]);    
         choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_ID).setValue(opInfo[j][OP_ID]); 
-        choiceOpCursor.rowOffset++;             
+        choiceOpCursor.rowOffset++;       
       }
       
       chunkFirstRow = chunkLastRow + 1;
@@ -268,17 +304,8 @@ function create_data_load_filters() {
     }
   }
   
-  
-  // Wake up the garbage collection? (this isn't necessary, but why not)
-  partnerMap = null;
-  customerMap = null;
-  typeMap = null;
-  
-  // Salesforce OAUTH2 doesn't work, so we have to use Zapier
-  // var html = HtmlService.createTemplateFromFile('index').evaluate().setWidth(500);
-  // SpreadsheetApp.getUi().showSidebar(html);
+  logOneCol("Choice list build complete " + new Date().toLocaleTimeString());
 }
-
 
 
 //function onOpen() {
@@ -464,7 +491,7 @@ function stage_events_to_upload_tab() {
   
 }
 
-function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOfColumns, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, loggingEnabled) {
+function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOfColumns, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
 
   let chunkSize = 1000;
   let chunkFirstRow = 2;
@@ -475,7 +502,7 @@ function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOf
     let accountInfo = scanRange.getValues();
     
                               
-    load_account_info_worker_(accountInfo, chunkLength, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, loggingEnabled);
+    load_account_info_worker_(accountInfo, chunkLength, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
     
     chunkFirstRow = chunkLastRow + 1;
     chunkLastRow += chunkSize;
@@ -487,7 +514,7 @@ function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOf
   } 
 }
 
-function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, loggingEnabled) {
+function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
   // accountInfo is an array of account records. numberOfRows is the number of account rounds. 
   // targets is an import filter, an inventory of the domains we are targeting for load, accounts that are not in region 
   // or may not exist yet based on the invite attendees for this run. This is to reduce the amount of information we need to keep in memory.
@@ -570,20 +597,25 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         if (accountLog[domain]) {
           //Logger.log("WARNING : Found account with a duplicate email domain - " + accountInfo[j][accountNameIdx] + ":" + domain);
           
-          if (loggingEnabled) logFourCol("NOTICE - Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
           
-          // Remember the dup
-          switch (accountType) {
-            case INTERNAL_CUSTOMER_TYPE:
-            case EXTERNAL_CUSTOMER_TYPE:
-              duplicateAccountsG[accountInfo[j][accountNameIdx]] = id;
-              break;
-            case INTERNAL_CUSTOMER_TYPE:
-            case PARTNER_TYPE:
-              duplicatePartnersG[accountInfo[j][accountNameIdx]] = id;
-              break;
-            default:
-              break;
+          if (2 == phase) {
+            // Don't report bad Salesforce data if invites don't reference it
+            
+            logFourCol("NOTICE - Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
+            
+            // Remember the dup (for choice lists)
+            switch (accountType) {
+              case INTERNAL_CUSTOMER_TYPE:
+              case EXTERNAL_CUSTOMER_TYPE:
+                duplicateAccountsG[accountInfo[j][accountNameIdx]] = id;
+                break;
+              case INTERNAL_CUSTOMER_TYPE:
+              case PARTNER_TYPE:
+                duplicatePartnersG[accountInfo[j][accountNameIdx]] = id;
+                break;
+              default:
+                break;
+            }
           }
           continue; // Take the first
         }
@@ -591,7 +623,21 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         accountLog[domain] = accountInfo[j][accountNameIdx];
         emailToAccountMap[domain] = id;  
         accountTypeMap[id] = accountType;   
-        accountNameG[id] = accountInfo[j][accountNameIdx]; // For choice lists
+        if (2 == phase) {
+          // Remember the primary (for choice list)
+          switch (accountType) {
+            case INTERNAL_CUSTOMER_TYPE:
+            case EXTERNAL_CUSTOMER_TYPE:
+              primaryAccountsG[accountInfo[j][accountNameIdx]] = id;
+              break;
+            case INTERNAL_CUSTOMER_TYPE:
+            case PARTNER_TYPE:
+              primaryPartnersG[accountInfo[j][accountNameIdx]] = id;
+              break;
+            default:
+              break;
+          }
+        }
         //if (accountTypeG == EXTERNAL_CUSTOMER_TYPE) Logger.log("DAK This made it: " + accountInfo[j][accountNameIdx] + " : " + domain);
         //Logger.log("DEBUG: " + domain + " -> " + emailToAccountMap[domain]);
       }
@@ -604,7 +650,7 @@ function tester() { // DAK
   load_partner_info_(false, emailToPartnerMapG, accountTypeG,true);
 }
 
-function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, loggingEnabled) {
+function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
   // Returns false on error 
   // Updates emailToCustomerMapG and accountTypeG
   
@@ -635,7 +681,7 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, lo
       return false;
     }
     
-    load_account_info_worker_(customerInfo, alr - 1, targetedAccounts, FILTER_TYPE_ID, INTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, loggingEnabled);
+    load_account_info_worker_(customerInfo, alr - 1, targetedAccounts, FILTER_TYPE_ID, INTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
   }
   
   if (inRegionOnly) return true;
@@ -661,12 +707,12 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, lo
   }
   
   // This list could get massive. Do it in baby steps
-  load_account_info_chunks_(sheet, alr, alc, targetedAccounts, FILTER_TYPE_ID, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, loggingEnabled);
+  load_account_info_chunks_(sheet, alr, alc, targetedAccounts, FILTER_TYPE_ID, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
   
   return true;
 }
 
-function load_partner_info_(allPartners, emailToAccountMap, accountTypeMap, loggingEnabled) {
+function load_partner_info_(allPartners, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
 
   // Updates emailToPartnerMapG and accountTypeG
 
@@ -684,7 +730,7 @@ function load_partner_info_(allPartners, emailToAccountMap, accountTypeMap, logg
     logOneCol("WARNING : No Partners found! Perhaps you should refresh the partner tab.");
   }
   else {
-    load_account_info_chunks_(sheet, plr, plc, targets, FILTER_TYPE_ID, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, loggingEnabled);  
+    load_account_info_chunks_(sheet, plr, plc, targets, FILTER_TYPE_ID, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);  
   }
   return true;
 }
@@ -712,7 +758,7 @@ function load_lead_info_(loggingEnabled) {
     return;
   }
   
-  load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, loggingEnabled)
+  load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, phase, loggingEnabled)
 }
 
 function loadFilter(tabName, fieldNumber, truncate) {

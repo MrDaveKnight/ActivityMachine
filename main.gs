@@ -226,7 +226,7 @@ var accountTypeNamesG = [
   "Partner",
   "Lead"];
 var emailToCustomerMapG = {}; // Really email domain
-var emailToPartnerMapG = {};
+var emailToPartnerMapG = {}; // Really email domain
 var emailToLeadMapG = {};
 var staffEmailToIdMapG = {};
 var staffEmailToRoleMapG = {};
@@ -237,9 +237,12 @@ var primaryOpByCustomerG = {};
 var primaryProductByOpG = {};
 var stageMilestonesByOpG = {};
 var accountTeamByOpG = {};
+
+// Review tab choice list trackers - account name:id
 var duplicateAccountsG = {}; // All non-primary accounts that share a domain with the primary
-var duplicatePartnersG = {}; // For the choice lists
-var accountNameG = {}; // by Id, for the choice lists
+var duplicatePartnersG = {}; 
+var primaryAccountsG = {};
+var primaryPartnersG = {};
 
 
 // Product codes for table index keys

@@ -24,7 +24,8 @@ function import_calendars() {
   logOneCol("Imported a total of " + inviteCount + " invites.");
   logOneCol("End time: " + new Date().toLocaleTimeString());
   
-  create_data_load_filters(); // Just setup for event processing
+  createDataLoadFilters(); // Just setup for event processing
+  createChoiceLists();
   logOneCol("End time: " + new Date().toLocaleTimeString());
   
 }

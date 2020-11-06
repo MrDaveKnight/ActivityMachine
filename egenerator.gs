@@ -147,11 +147,11 @@ function build_se_events() {
   //
   
   // Load "in-play" customers
-  if (!load_customer_info_(false, emailToCustomerMapG, accountTypeG, true)) { 
+  if (!load_customer_info_(false, emailToCustomerMapG, accountTypeG, 2, true)) { 
     return;
   }
   // Loads "in-play" partners
-  if (!load_partner_info_(false, emailToPartnerMapG, accountTypeG, true)) {
+  if (!load_partner_info_(false, emailToPartnerMapG, accountTypeG, 2, true)) {
     return;
   }
   
