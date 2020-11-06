@@ -1246,7 +1246,6 @@ function reconcile_se_events() {
     
     if (!reviewRowWasTouchedArray[j+2]) continue; // Array is indexed on table row number
     
-    Logger.log("DAK Row Touched: " + (j+2) + ", event type: " + reviewInfo[j][REVIEW_EVENT_TYPE]);
     
     let relatedTo = null;
     let lead = null;
@@ -1255,14 +1254,12 @@ function reconcile_se_events() {
     switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
       case "Opportunity":
         relatedTo = opIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
-        Logger.log("Related to Op: " + relatedTo);
         break;
       case "Partner":
         relatedTo = partnerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
       case "Customer":
         relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
-        Logger.log("Related to Customer: " + relatedTo);
         break;
       case "Lead":
         lead = leadIdByName[reviewInfo[j][REVIEW_LEAD]];
