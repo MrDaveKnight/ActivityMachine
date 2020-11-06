@@ -214,6 +214,11 @@ function createDataLoadFilters() {
 
 function createChoiceLists () {
 
+  
+  clearTab_(CHOICE_ACCOUNT);
+  clearTab_(CHOICE_PARTNER);
+  clearTab_(CHOICE_OP);
+  
   //
   // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
   //   
