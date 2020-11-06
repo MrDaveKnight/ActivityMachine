@@ -636,7 +636,6 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
             case EXTERNAL_CUSTOMER_TYPE:
               primaryAccountsG[accountInfo[j][accountNameIdx]] = id;
               break;
-            case INTERNAL_CUSTOMER_TYPE:
             case PARTNER_TYPE:
               primaryPartnersG[accountInfo[j][accountNameIdx]] = id;
               break;
