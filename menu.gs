@@ -617,18 +617,18 @@ function handleEventTypeChange_(cell, value) {
     case "Unknown":
       break;
     case "Opportunity":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OPPORTUNITIES);
-      validationRange = validationSheet.getRange(2, OP_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_OP);
+      validationRange = validationSheet.getRange(2, CHOICE_OP_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Partner":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PARTNERS);
-      validationRange = validationSheet.getRange(2, PARTNER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_PARTNER);
+      validationRange = validationSheet.getRange(2, CHOICE_PARTNER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Customer":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(IN_REGION_CUSTOMERS);
-      validationRange = validationSheet.getRange(2, CUSTOMER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_ACCOUNT);
+      validationRange = validationSheet.getRange(2, CHOICE_ACCOUNT_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Lead":
@@ -664,23 +664,23 @@ function initValidation_(cell, type) {
       return;
       break;
     case "Opportunity":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OPPORTUNITIES);
-      validationRange = validationSheet.getRange(2, OP_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_OP);
+      validationRange = validationSheet.getRange(2, CHOICE_OP_NAME+1, validationSheet.getLastRow()); 
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Partner":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PARTNERS);
-      validationRange = validationSheet.getRange(2, PARTNER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_PARTNER);
+      validationRange = validationSheet.getRange(2, CHOICE_PARTNER_NAME+1, validationSheet.getLastRow()); 
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Customer":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(IN_REGION_CUSTOMERS);
-      validationRange = validationSheet.getRange(2, CUSTOMER_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_ACCOUNT);
+      validationRange = validationSheet.getRange(1, CHOICE_ACCOUNT_NAME+1, validationSheet.getLastRow()); 
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Lead":
       validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LEADS);
-      validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); 
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     default:

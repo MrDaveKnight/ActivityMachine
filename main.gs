@@ -190,6 +190,22 @@ const REVIEW_ORIG_LEAD = 41;
 const REVIEW_ORIG_NOTES = 42;
 const REVIEW_ORIG_ACCOUNT_TYPE = 43;
 
+// Choice Tables for Review Tab
+// The Saleforce configuration tables are too massive for field dropdown selection.
+// Use these tables to filter things down.
+// Give all the domains in the calendar invites, include ALL accounts (even duplicates)
+// Give all the accounts, include all possible opportunities
+// A filtered selection of leads already exists in Lead Accounts
+const CHOICE_ACCOUNT = "Account Choices";
+const CHOICE_ACCOUNT_NAME = 0;
+const CHOICE_ACCOUNT_ID = 1;
+const CHOICE_PARTNER = "Partner Choices";
+const CHOICE_PARTNER_NAME = 0;
+const CHOICE_PARTNER_ID = 1;
+const CHOICE_OP = "Op Choices";
+const CHOICE_OP_NAME = 0;
+const CHOICE_OP_ID = 1;
+
 const MAX_ROWS = 2000; // Use for warnings and data validation limits
 
 
@@ -221,7 +237,9 @@ var primaryOpByCustomerG = {};
 var primaryProductByOpG = {};
 var stageMilestonesByOpG = {};
 var accountTeamByOpG = {};
-
+var duplicateAccountsG = {}; // All non-primary accounts that share a domain with the primary
+var duplicatePartnersG = {}; // For the choice lists
+var accountNameG = {}; // by Id, for the choice lists
 
 
 // Product codes for table index keys

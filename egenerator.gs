@@ -1203,25 +1203,23 @@ function reconcile_se_events() {
   //
   
   // OP_ACCOUT_ID field in OPPORTUNITIES is short (15 digit), so TRUNCATE the long (18 digit) account ids! The true bool is to enable truncation.
-  let targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); 
+  let targetedAccounts = loadFilter(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, true); 
   let opIdByName = load_map_(OPPORTUNITIES, 2, OP_COLUMNS, OP_NAME, OP_ID, targetedAccounts, OP_ACCOUNT_ID, null);
   
   //
   // Load Partner Info
   //
   
-  let targetedPartners = loadFilter(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
+  let targetedPartners = loadFilter(CHOICE_PARTNER, CHOICE_PARTNER_ID, false);
   let partnerIdByName = load_map_(PARTNERS, 2, PARTNER_COLUMNS, PARTNER_NAME, PARTNER_ID, targetedPartners, PARTNER_ID, null);
   
   //
   // Load All Customer Info - in region first, external stuff second
   //
   
-  let inPlayCustomers = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  let inPlayCustomers = loadFilter(CHOICE_ACCOUNT, FILTER_ACCOUNT_ID, false);
   let customerIdByName = load_map_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, null);
-  
-  let externalCustomers = loadFilter(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
-  load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, externalCustomers, CUSTOMER_ID, customerIdByName);
+  load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, customerIdByName);
   
   //
   // Load Leads

@@ -12,7 +12,7 @@ function create_data_load_filters() {
   // Load Account Info
   //
   
-  let partnerMap = {}; // email to account
+  let partnerMap = {}; // domain to account
   let customerMap = {};
   let typeMap = {}; // account to account type
   // These maps will be UNFILTERED (every record will be in them. Not a problem for in-region customers, but the partner list is pretty big.
@@ -58,7 +58,7 @@ function create_data_load_filters() {
   let missingOutputRange = sheet.getRange(lr+1,1);
   let missingDomainCursor = {range : missingOutputRange, rowOffset : 0};
   
-    // Set missing domain output cursor
+    // Set missing customer id output cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
   lr = sheet.getLastRow();
   let missingCustomerRange = sheet.getRange(lr+1,1);
@@ -81,6 +81,24 @@ function create_data_load_filters() {
   lr = sheet.getLastRow();
   let inPlayPartnerRange = sheet.getRange(lr+1,1);
   let inPlayPartnerCursor = {range : inPlayPartnerRange, rowOffset : 0};
+  
+   // Set customer choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_ACCOUNT);
+  lr = sheet.getLastRow();
+  let choiceCustomerRange = sheet.getRange(lr+1,1);
+  let choiceCustomerCursor = {range : choiceCustomerRange, rowOffset : 0};
+  
+   // Set partner choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_PARTNER);
+  lr = sheet.getLastRow();
+  let choicePartnerRange = sheet.getRange(lr+1,1);
+  let choicePartnerCursor = {range : choicePartnerRange, rowOffset : 0};
+  
+  // Set oop choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_OP);
+  lr = sheet.getLastRow();
+  let choiceOpRange = sheet.getRange(lr+1,1);
+  let choiceOpCursor = {range : choiceOpRange, rowOffset : 0};
   
   // 
   // Step 1: Look for and record email domains that don't have an In Region Customer or Partner account.
@@ -152,16 +170,22 @@ function create_data_load_filters() {
       for (c in attendeeInfo.customers) {
         if (loggedCustomers[c]) continue;
         
-        loggedCustomers[c] = true;
+        loggedCustomers[c.substring(0, c.length - 3)] = true;  // Must use short id! Will be used to filter opportunities. 
         inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(c);      // c is an Id
         inPlayCustomerCursor.rowOffset++;  
+        choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(accountNameG[c]);      // c is an Id
+        choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(c); 
+        choiceCustomerCursor.rowOffset++;  
       }
       for (p in attendeeInfo.partners) {
         if (loggedPartners[p]) continue;
         
         loggedPartners[p] = true;
         inPlayPartnerCursor.range.offset(inPlayPartnerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(p);      // p is an id
-        inPlayPartnerCursor.rowOffset++;  
+        inPlayPartnerCursor.rowOffset++; 
+        choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(accountNameG[c]);      // c is an Id
+        choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(c); 
+        choicePartnerCursor.rowOffset++;  
       }
     }
   }
@@ -185,6 +209,7 @@ function create_data_load_filters() {
         missingCustomerCursor.rowOffset++;   
         inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(account);    
         inPlayCustomerCursor.rowOffset++;  
+        loggedCustomers[account.substring(0, account.length - 3)] = true; // Filter for ops, so short id
       }
     }
   }
@@ -194,6 +219,55 @@ function create_data_load_filters() {
   logOneCol("Identified " + inPlayPartnerCursor.rowOffset + " partners in the current calendar invite set.");
   logOneCol("Identified " + missingCustomerCursor.rowOffset + " potentially out-of-region customers.");
   logOneCol("Identified " + leadCursor.rowOffset + " potential lead emails.");
+  
+  //
+  // Step 3: Build the rest of the choice lists for review. We need to get all the duplicate accounts in case we selected the wrong one
+  //
+  for (cn in duplicateAccountsG) {
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);      
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(duplicateAccountsG[cn]); 
+    choiceCustomerCursor.rowOffset++;  
+  }
+  for (pn in duplicatePartnersG) {
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(pn);    
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(duplicatePartnersG[pn]); 
+    choicePartnerCursor.rowOffset++;  
+  }
+  
+  sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
+  rangeData = sheet.getDataRange();
+  let olc = rangeData.getLastColumn();
+  let olr = rangeData.getLastRow();  
+  
+  if (olc >= OP_COLUMNS) {
+    let chunkSize = 1000;
+    let chunkFirstRow = 2;
+    let chunkLastRow = chunkSize < olr ? chunkSize : olr;
+    let chunkLength = chunkLastRow - chunkFirstRow + 1;
+    while (chunkLength > 0) {
+      let scanRange = sheet.getRange(chunkFirstRow,1, chunkLength, olc);
+      let opInfo = scanRange.getValues();
+      
+      for (let j = 0; j < chunkLength; j++) {
+        
+        if (!loggedCustomers[opInfo[j][OP_ACCOUNT_ID]]) {
+          continue;
+        }
+        choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_NAME).setValue(opInfo[j][OP_NAME]);    
+        choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_ID).setValue(opInfo[j][OP_ID]); 
+        choiceOpCursor.rowOffset++;             
+      }
+      
+      chunkFirstRow = chunkLastRow + 1;
+      chunkLastRow += chunkSize;
+      chunkLength = chunkSize;
+      if (chunkLastRow > olr) {
+        chunkLastRow = olr;
+        chunkLength = chunkLastRow - chunkFirstRow + 1
+      }
+    }
+  }
+  
   
   // Wake up the garbage collection? (this isn't necessary, but why not)
   partnerMap = null;
@@ -496,13 +570,28 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         if (accountLog[domain]) {
           //Logger.log("WARNING : Found account with a duplicate email domain - " + accountInfo[j][accountNameIdx] + ":" + domain);
           
-          if (loggingEnabled) logFourCol("NOTICE - Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);         
+          if (loggingEnabled) logFourCol("NOTICE - Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
+          
+          // Remember the dup
+          switch (accountType) {
+            case INTERNAL_CUSTOMER_TYPE:
+            case EXTERNAL_CUSTOMER_TYPE:
+              duplicateAccountsG[accountInfo[j][accountNameIdx]] = id;
+              break;
+            case INTERNAL_CUSTOMER_TYPE:
+            case PARTNER_TYPE:
+              duplicatePartnersG[accountInfo[j][accountNameIdx]] = id;
+              break;
+            default:
+              break;
+          }
           continue; // Take the first
         }
         
         accountLog[domain] = accountInfo[j][accountNameIdx];
         emailToAccountMap[domain] = id;  
         accountTypeMap[id] = accountType;   
+        accountNameG[id] = accountInfo[j][accountNameIdx]; // For choice lists
         //if (accountTypeG == EXTERNAL_CUSTOMER_TYPE) Logger.log("DAK This made it: " + accountInfo[j][accountNameIdx] + " : " + domain);
         //Logger.log("DEBUG: " + domain + " -> " + emailToAccountMap[domain]);
       }
