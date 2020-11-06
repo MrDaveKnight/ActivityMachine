@@ -764,7 +764,7 @@ function load_lead_info_(loggingEnabled) {
     return;
   }
   
-  load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, phase, loggingEnabled)
+  load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, 2, loggingEnabled)
 }
 
 function loadFilter(tabName, fieldNumber, truncate) {
