@@ -592,9 +592,11 @@ function handleReviewMenuEdit_(cell, value) {
     //  handleValueSelection_(cell, value, REVIEW_ORIG_ACCOUNT_TYPE - REVIEW_ACCOUNT_TYPE);
     //  break;
     case REVIEW_PROCESS + 1:
-      let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
-      reviewRowWasTouchedArray[cell.rowStart] = true;   
-      PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 
+      handleValueSelection_(cell, value, REVIEW_ORIG_PROCESS - REVIEW_PROCESS);
+      // I guueess I didn't want to color a skip red?  This is done in the function above.
+      //let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
+      //reviewRowWasTouchedArray[cell.rowStart] = true;   
+      //PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 
       break;
     default:
   }

@@ -752,7 +752,7 @@ function build_se_events() {
           else {
             customer = {};
             customer[overrideAccountId] = 1;
-            eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        // DAK
+            eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        
           }
           break;
         }
@@ -1161,6 +1161,7 @@ function unveil_se_events() {
     //outputRange.offset(rowOffset, REVIEW_ACCOUNT_TYPE).setValue(eventInfo[j][EVENT_ACCOUNT_TYPE]);
     //outputRange.offset(rowOffset, REVIEW_ORIG_ACCOUNT_TYPE).setValue(eventInfo[j][EVENT_ACCOUNT_TYPE]);   
     outputRange.offset(rowOffset, REVIEW_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
+    outputRange.offset(rowOffset, REVIEW_ORIG_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
     
     
     rowOffset++;
@@ -1219,15 +1220,13 @@ function reconcile_se_events() {
   // Load All Customer Info - in region first, external stuff second
   //
   
-  let inPlayCustomers = loadFilter(CHOICE_ACCOUNT, FILTER_ACCOUNT_ID, false);
-  let customerIdByName = load_map_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, null);
-  load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, customerIdByName);
+  let inPlayCustomers = loadFilter(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, false);  
+  let customerIdByName = load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, null);
   
   //
   // Load Leads
   //
-  
-  
+   
   let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
   let leadIdByName = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_NAME, LEAD_ID, targetedLeads, LEAD_EMAIL, null); 
   
@@ -1247,6 +1246,8 @@ function reconcile_se_events() {
     
     if (!reviewRowWasTouchedArray[j+2]) continue; // Array is indexed on table row number
     
+    Logger.log("DAK Row Touched: " + (j+2) + ", event type: " + reviewInfo[j][REVIEW_EVENT_TYPE]);
+    
     let relatedTo = null;
     let lead = null;
     let wasDeleted = false;
@@ -1254,12 +1255,14 @@ function reconcile_se_events() {
     switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
       case "Opportunity":
         relatedTo = opIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        Logger.log("Related to Op: " + relatedTo);
         break;
       case "Partner":
         relatedTo = partnerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
       case "Customer":
         relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        Logger.log("Related to Customer: " + relatedTo);
         break;
       case "Lead":
         lead = leadIdByName[reviewInfo[j][REVIEW_LEAD]];

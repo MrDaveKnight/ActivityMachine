@@ -189,6 +189,7 @@ const REVIEW_ORIG_QUALITY = 40;
 const REVIEW_ORIG_LEAD = 41;
 const REVIEW_ORIG_NOTES = 42;
 const REVIEW_ORIG_ACCOUNT_TYPE = 43;
+const REVIEW_ORIG_PROCESS = 44;
 
 // Choice Tables for Review Tab
 // The Saleforce configuration tables are too massive for field dropdown selection.
@@ -243,6 +244,8 @@ var duplicateAccountsG = {}; // All non-primary accounts that share a domain wit
 var duplicatePartnersG = {}; 
 var primaryAccountsG = {};
 var primaryPartnersG = {};
+
+var testmeG = {};
 
 
 // Product codes for table index keys

@@ -541,7 +541,7 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
   for (let j = 0; j < numberOfRows; j++) {
   
     let id = accountInfo[j][accountIdIdx].trim();
-    
+
     if (filter && filterType == FILTER_TYPE_ID && !filter[id]) {
       continue;
     }
@@ -610,14 +610,18 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
             logFourCol("NOTICE - Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
             
             // Remember the dup (for choice lists)
+            // It is the case that an account with multiple domains could be primary on one domain, but not-primary on another.
+            // Therefore, it is possible that an account was already put into the other queue already. Don't allow for duplicate accounts.
             switch (accountType) {
               case INTERNAL_CUSTOMER_TYPE:
               case EXTERNAL_CUSTOMER_TYPE:
-                duplicateAccountsG[accountInfo[j][accountNameIdx]] = id;
+                if (!primaryAccountsG[accountInfo[j][accountNameIdx]])
+                  duplicateAccountsG[accountInfo[j][accountNameIdx]] = id;
                 break;
               case INTERNAL_CUSTOMER_TYPE:
               case PARTNER_TYPE:
-                duplicatePartnersG[accountInfo[j][accountNameIdx]] = id;
+                if (!primaryPartnersG[accountInfo[j][accountNameIdx]])
+                  duplicatePartnersG[accountInfo[j][accountNameIdx]] = id;
                 break;
               default:
                 break;
@@ -631,21 +635,23 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         accountTypeMap[id] = accountType;   
         if (2 == phase) {
           // Remember the primary (for choice list)
+          // It is the case that an account with multiple domains could be primary on one domain, but not-primary on another.
+          // Therefore, it is possible that an account was already put into the other queue already. Don't allow for duplicate accounts.
           switch (accountType) {
             case INTERNAL_CUSTOMER_TYPE:
-            case EXTERNAL_CUSTOMER_TYPE:
-              primaryAccountsG[accountInfo[j][accountNameIdx]] = id;
+            case EXTERNAL_CUSTOMER_TYPE:    
+              if (!duplicateAccountsG[accountInfo[j][accountNameIdx]])
+                primaryAccountsG[accountInfo[j][accountNameIdx]] = id;
               break;
             case INTERNAL_CUSTOMER_TYPE:
             case PARTNER_TYPE:
-              primaryPartnersG[accountInfo[j][accountNameIdx]] = id;
+              if (!duplicatePartnersG[accountInfo[j][accountNameIdx]])
+                primaryPartnersG[accountInfo[j][accountNameIdx]] = id;
               break;
             default:
               break;
           }
         }
-        //if (accountTypeG == EXTERNAL_CUSTOMER_TYPE) Logger.log("DAK This made it: " + accountInfo[j][accountNameIdx] + " : " + domain);
-        //Logger.log("DEBUG: " + domain + " -> " + emailToAccountMap[domain]);
       }
     }
   }

@@ -220,8 +220,6 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
   
   for (var j = 0; j < attendees.length; j++) {
   
-    if ("raphael.saraiva@netbr.com.br" ==  attendees[j]) Logger.log("DAK: Here's johnny!");
-  
     var domain = attendees[j].substring(attendees[j].indexOf("@")+1).trim();    
     var accountId = "";
     var type = "hashi";
