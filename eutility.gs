@@ -4,8 +4,9 @@ function createDataLoadFilters() {
   // the domain is from an account external to the region being processed, or
   // the account doesn't exist.
   // Also tracks emails to find leads should the out-of-region account not exist.
+  
+  logOneCol("Building data load filters...");
 
-  logStamp("Create Data Load Filters");
   // Identifying out-of-region customers and relevant leads to filter the Customer and Leads tabs during event processing
   
   //
@@ -223,7 +224,7 @@ function createChoiceLists () {
   // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
   //   
   
-  logStamp("Create Review Choice Lists");
+  logOneCol("Building choice lists...");
   
   // Set customer choices cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_ACCOUNT);

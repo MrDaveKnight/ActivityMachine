@@ -25,9 +25,6 @@ function import_calendars() {
   logOneCol("End time: " + new Date().toLocaleTimeString());
   
   createDataLoadFilters(); // Just setup for event processing
-  createChoiceLists();
-  logOneCol("End time: " + new Date().toLocaleTimeString());
-  
 }
 
 function import_gcal_(calName, startDate, endDate, cursor){
