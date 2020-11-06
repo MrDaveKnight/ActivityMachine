@@ -471,7 +471,7 @@ function build_se_events() {
   //
   
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS); 
-  let overrideRange = parms.getRange(5,8,16,4); // Hardcoded to format of cells in RUN_PARMS!
+  let overrideRange = parms.getRange(5,7,16,5); // Hardcoded to format of cells in RUN_PARMS!
   let overrides = overrideRange.getValues();
   let specialRange = parms.getRange(31,7,16,3); // Hardcoded to format of cells in RUN_PARMS!
   let specials = specialRange.getValues();
@@ -667,28 +667,30 @@ function build_se_events() {
     //
     
     let isOverrideActive = false;
-    
+    let overrideAccountName = "None";
+    let overrideAccountId = "None";
     for (let row in overrides) {
-      if (overrides[row][0]) {      
+      if (overrides[row][1]) {      
         
-        let account = overrides[row][0];
+        overrideAccountName = overrides[row][0];
+        let overrideAccountId = overrides[row][1];
         let subjectTest = false;
         let emailTest = false;
         
-        if (!overrides[row][1] && !overrides[row][2]) {
+        if (!overrides[row][2] && !overrides[row][3]) {
           continue;
         }
         
-        if (overrides[row][1]) {
-          let subjectRegex = new RegExp(overrides[row][1]);
+        if (overrides[row][2]) {
+          let subjectRegex = new RegExp(overrides[row][2]);
           subjectTest = subjectRegex.test(inviteInfo[j][SUBJECT])
         }
         else {
           subjectTest = true; 
         }
         
-        if (overrides[row][2]) {
-          let emailRegex = new RegExp(overrides[row][2]);
+        if (overrides[row][3]) {
+          let emailRegex = new RegExp(overrides[row][3]);
           emailTest = emailRegex.test(inviteInfo[j][ATTENDEE_STR])
         }
         else {
@@ -699,15 +701,15 @@ function build_se_events() {
           
           isOverrideActive = true;
           
-          if (overrides[row][3] == "Yes") {
+          if (overrides[row][4] == "Yes") {
             customer = {};
-            customer[account] = 1;
+            customer[overrideAccountId] = 1;
             eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);      
             break;
           }
           
           // Find an opportunity 
-          let shortId = account.substring(0, account.length - 3); // Opportunities reference their accounts by the short account id, so that is how the key was made in the opBy... map
+          let shortId = overrideAccountId.substring(0, overrideAccountId.length - 3); // Opportunities reference their accounts by the short account id, so that is how the key was made in the opBy... map
           var key = shortId + makeProductKey_(productInventory, 0);
           
           var opId = 0;
@@ -742,13 +744,13 @@ function build_se_events() {
             if (stageMilestonesByOpG[opId]) {
               milestones = stageMilestonesByOpG[opId];
             }
-            createOpEvent_(outputCursor, account, opId, attendees, inviteInfo[j], false, product, milestones);
+            createOpEvent_(outputCursor, overrideAccountId, opId, attendees, inviteInfo[j], false, product, milestones);
             eventCount++;
           }
           else {
             customer = {};
-            customer[account] = 1;
-            eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        
+            customer[overrideAccountId] = 1;
+            eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        // DAK
           }
           break;
         }
@@ -757,7 +759,7 @@ function build_se_events() {
     
     
     if (isOverrideActive) {
-      logOneCol("NOTICE - " + inviteInfo[j][SUBJECT] + " has been overrided.");
+      logOneCol("NOTICE - Account for invite " + inviteInfo[j][SUBJECT] + " has been overridden with " + overrideAccountName + ":" + overrideAccountId);
       continue;
     }
     
