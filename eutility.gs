@@ -197,7 +197,7 @@ function createDataLoadFilters() {
   
   logOneCol("Identified " + inPlayCustomerCursor.rowOffset + " customers in the current calendar invite set.");
   logOneCol("Identified " + inPlayPartnerCursor.rowOffset + " partners in the current calendar invite set.");
-  logOneCol("Identified " + missingCustomerCursor.rowOffset + " potentially out-of-region customers.");
+  logOneCol("Identified " + missingCustomerCursor.rowOffset + " potential out-of-region customers.");
   logOneCol("Identified " + leadCursor.rowOffset + " potential lead emails.");
   
   
@@ -607,7 +607,7 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
           if (2 == phase) {
             // Don't report bad Salesforce data if invites don't reference it
             
-            logFourCol("NOTICE - Multiple accounts for email domain:", domain, "Ignored: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
+            logFourCol("NOTICE - Multiple accounts for email domain!", "Domain: " + domain, "Rejected: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
             
             // Remember the dup (for choice lists)
             // It is the case that an account with multiple domains could be primary on one domain, but not-primary on another.

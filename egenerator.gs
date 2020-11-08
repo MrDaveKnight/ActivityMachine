@@ -761,8 +761,8 @@ function build_se_events() {
     
     
     if (isOverrideActive) {
-      logOneCol("NOTICE - Account for invite \"" + inviteInfo[j][SUBJECT] + "\" has been overridden with " + overrideAccountName + ":" + overrideAccountId);
-      continue;
+      logThreeCol("NOTICE - Account Override!", "For Invite: " + inviteInfo[j][SUBJECT], "Selected Account: " + overrideAccountName + " (" + overrideAccountId + ")"); 
+      continue; // DAK
     }
     
     
