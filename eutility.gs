@@ -805,7 +805,7 @@ function loadFilter(tabName, fieldNumber, truncate) {
     }
   }
   catch (e) {
-    Logger.log("loadFilter_ exception: " + e);
+    logOneCol("ERROR - loadFilter_ issue on " + tabName + ": " + e);
   }
   return targets;
 }
@@ -848,7 +848,7 @@ function load_tab_(sheetName, fromRow, minColumnCount) {
     }
   }
   catch (e) {
-    logOneCol("ERROR: loadFilter_ issue on " + tabName + ": " + e);
+    logOneCol("ERROR - load_tab_ issue on " + sheetName + ": " + e);
   }
   
   return [];
@@ -897,7 +897,7 @@ function load_map_(tabName, firstRow, tabColumns, keyField, valueField, filter, 
     } 
   }
   catch (e) {
-    Logger.log(tabName + " load_map_ exception: " + e);
+    logOneCol("ERROR - load_map_ issue on " + tabName + ": " + e);
   }
   
   return map;
