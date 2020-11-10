@@ -848,7 +848,7 @@ function load_tab_(sheetName, fromRow, minColumnCount) {
     }
   }
   catch (e) {
-    Logger.log("load_tab_ exception: " + e);
+    logOneCol("ERROR: loadFilter_ issue on " + tabName + ": " + e);
   }
   
   return [];
