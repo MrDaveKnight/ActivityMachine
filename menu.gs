@@ -71,6 +71,7 @@ function menuItem2_() {
   if (result == ui.Button.YES) {  
     try {
       markRunStart_();
+      createDataLoadFilters();
       build_se_events();
     }
     catch (e) {
@@ -99,6 +100,7 @@ function menuItem3_() {
     try {
       markRunStart_();
       import_calendars();
+      createDataLoadFilters();
       build_se_events();
       unveil_se_events();
     }

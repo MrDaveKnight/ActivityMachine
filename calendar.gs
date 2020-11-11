@@ -24,7 +24,6 @@ function import_calendars() {
   logOneCol("Imported a total of " + inviteCount + " invites.");
   logOneCol("End time: " + new Date().toLocaleTimeString());
   
-  createDataLoadFilters(); // Just setup for event processing
 }
 
 function import_gcal_(calName, startDate, endDate, cursor){
