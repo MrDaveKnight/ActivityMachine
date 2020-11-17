@@ -164,6 +164,35 @@ function menuItem6_() {
   }
 }
 
+function menuItem7_() {
+  
+  let ui = SpreadsheetApp.getUi();
+  
+  if (needToAbortRun_(ui)) {
+    return;
+  }
+  
+  let result = ui.alert('Please confirm', 
+                        'You want to run Generate Events and Unveil Events?' +
+                        '\n\nThis will clear out all event data including the Review tab!\n\nAre you sure you want to do all that?',
+                        ui.ButtonSet.YES_NO);
+  
+  if (result == ui.Button.YES) {
+    try {
+      markRunStart_();
+      createDataLoadFilters();
+      build_se_events();
+      unveil_se_events();
+    }
+    catch (e) {
+      ui.alert("ERROR - unhandled exception: " + e);
+    }
+    finally {
+      markRunEnd_();
+    }
+  }
+}
+
 function menuItem8_() {
   
   let ui = SpreadsheetApp.getUi();

@@ -1429,7 +1429,7 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
     }
     
     let logistics = "Face to Face";
-    if (descriptionScan.hasTeleconference) {
+    if (descriptionScan.hasTeleconference || isLocationRemote_(inviteInfo[LOCATION])) {
       logistics = "Remote";
     }
     
@@ -1484,7 +1484,7 @@ function createAccountEvents_(outputTab, attendees, attendeeLog, inviteInfo, pro
     }
     
     let logistics = "Face to Face";
-    if (descriptionScan.hasTeleconference) {
+    if (descriptionScan.hasTeleconference || isLocationRemote_(inviteInfo[LOCATION])) {
       logistics = "Remote";
     }
     
@@ -1541,7 +1541,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
     }
     
     let logistics = "Face to Face";
-    if (descriptionScan.hasTeleconference) {
+    if (descriptionScan.hasTeleconference || isLocationRemote_(inviteInfo[LOCATION])) {
       logistics = "Remote";
     }
     
@@ -1610,7 +1610,7 @@ function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDef
     }
     
     let logistics = "Face to Face";
-    if (descriptionScan.hasTeleconference) {
+    if (descriptionScan.hasTeleconference || isLocationRemote_(inviteInfo[LOCATION])) {
       logistics = "Remote";
     }
     

@@ -398,6 +398,14 @@ function lookForMeetingType_(stage, text) {
   
 }
 
+function isLocationRemote_(text) {
+  
+  let retVal = false; 
+  let t = text.toLowerCase();
+  retVal = t.indexOf("zoom") != -1 || t.indexOf("webex") != -1 || t.indexOf("remote") != -1 || t.indexOf("microsoft teams") != -1;
+  return retVal;
+}
+
 function filterAndAnalyzeDescription_(text) {
 
   let rv = {hasTeleconference : false, filteredText : text, prepTime : 0, quality : "", notes : ""}
