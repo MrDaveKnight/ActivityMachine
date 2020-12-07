@@ -32,8 +32,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.1.1";
-const GAS_VERSION = 111; 
+const GAS_VERSION_STRING = "1.1.2";
+const GAS_VERSION = 112; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
