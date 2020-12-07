@@ -225,23 +225,22 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
     var type = "hashi";
     if (domain == "gmail.com") continue; // Thanks to Fernando for putting gmail as the domain for a prospect called "Freelance"
     
-    if (customerMap[domain]) {
-      type = "customers";
-      accountId = customerMap[domain];
-    }
-    else if (partnerMap[domain] && domain != "hashicorp.com") {
-      type = "partners";
-      accountId = partnerMap[domain];
-    }
-    else if (domain != "hashicorp.com") {
-      type = "others";
-      accountId = domain;
-    }
-    
-    if ("hashi" == type) {
+    if (domain == "hashicorp.com") {
       rv.stats.hashi++;
     }
     else {
+      if (customerMap[domain]) {
+        type = "customers";
+        accountId = customerMap[domain];
+      }
+      else if (partnerMap[domain]) {
+        type = "partners";
+        accountId = partnerMap[domain];
+      }
+      else {
+        type = "others";
+        accountId = domain;
+      }    
       rv.stats[type]++;
       if (!rv[type][accountId]) {
         rv[type][accountId] = 1;
