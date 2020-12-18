@@ -36,11 +36,11 @@ function import_gcal_(calName, startDate, endDate, cursor){
   // Returns the number of invites imported.
   //
   
-  var cal = CalendarApp.getCalendarById(calName);
+  var cal = CalendarApp.getCalendarById(calName.trim());
   
   if (!cal) {
     Logger.log("ERROR: not subscribed to " + calName);
-    return;
+    return 0;
   }
   
   // Optional variations on getEvents
