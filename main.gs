@@ -32,8 +32,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.1.2";
-const GAS_VERSION = 112; 
+const GAS_VERSION_STRING = "1.2.0";
+const GAS_VERSION = 120; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
@@ -53,7 +53,7 @@ const MISSING_CUSTOMERS = "Missing Customers";
 const POTENTIAL_LEADS = "Lead Accounts";
 const IN_PLAY_CUSTOMERS = "In Play Customers";
 const IN_PLAY_PARTNERS = "In Play Partners";
-const FILTER_EMAIL_DOMAIN = 0;
+const FILTER_EMAIL_DOMAIN = 0; // This is actually the full email of the lead (need to change name)
 const FILTER_ACCOUNT_ID = 0;
 const FILTER_TYPE_DOMAIN = 1;
 const FILTER_TYPE_ID = 2;
@@ -206,6 +206,8 @@ const CHOICE_PARTNER_ID = 1;
 const CHOICE_OP = "Op Choices";
 const CHOICE_OP_NAME = 0;
 const CHOICE_OP_ID = 1;
+const CHOICE_LEAD = "Lead Choices"
+const CHOICE_LEAD_EMAIL = 0;
 
 const MAX_ROWS = 2000; // Use for warnings and data validation limits
 
@@ -226,9 +228,9 @@ var accountTypeNamesG = [
   "Out-or-region Customer",
   "Partner",
   "Lead"];
-var emailToCustomerMapG = {}; // Really email domain
-var emailToPartnerMapG = {}; // Really email domain
-var emailToLeadMapG = {};
+var emailToCustomerMapG = {}; // Email domain to customer account id
+var emailToPartnerMapG = {}; // Email domain to customer account id
+var emailToLeadMapG = {};     // Full email address to lead id (different from customers and partners!)
 var staffEmailToIdMapG = {};
 var staffEmailToRoleMapG = {};
 var staffNameToEmailMapG = {}; // Looks like I don't use this anywhere yet

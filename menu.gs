@@ -6,6 +6,19 @@ function markRunEnd_() {
   PropertiesService.getScriptProperties().deleteProperty('whoIsRunning');
 }
 
+function dependenciesGood() {
+  
+  let sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_LEAD);
+  
+  if (!sheet) { 
+    SpreadsheetApp.getUi().alert("ABORTING!\n\nPlease create a new tab called \"Lead Choices\", hide it and run again.\n\n" +
+                                 "Processing introduced in 1.2.0 introduced that hidden tab to hold a list that limits the lead choices in the review tab to only valid " +
+                                 "leads from the set of all attendees currently imported.");
+    return false;
+  }
+  return true;
+}
+
 function needToAbortRun_(ui) {
   // Are we currently executing code? Used to disable menu items during runs
   if (PropertiesService.getScriptProperties().getProperty('whoIsRunning') === null) {
@@ -59,7 +72,7 @@ function menuItem2_() {
   
   let ui = SpreadsheetApp.getUi();
   
-  if (needToAbortRun_(ui)) {
+  if (needToAbortRun_(ui) || !dependenciesGood()) {
     return;
   }
   
@@ -87,7 +100,7 @@ function menuItem3_() {
   
   let ui = SpreadsheetApp.getUi();
   
-  if (needToAbortRun_(ui)) {
+  if (needToAbortRun_(ui) || !dependenciesGood()) {
     return;
   }
   
@@ -116,7 +129,7 @@ function menuItem3_() {
 function menuItem4_() {
   
   let ui = SpreadsheetApp.getUi();
-  if (needToAbortRun_(ui)) {
+  if (needToAbortRun_(ui) || !dependenciesGood()) {
     return;
   }
   
@@ -168,7 +181,7 @@ function menuItem7_() {
   
   let ui = SpreadsheetApp.getUi();
   
-  if (needToAbortRun_(ui)) {
+  if (needToAbortRun_(ui) || !dependenciesGood()) {
     return;
   }
   
@@ -254,7 +267,7 @@ function menuItem10_() {
   
   let ui = SpreadsheetApp.getUi();
   
-  if (needToAbortRun_(ui)) {
+  if (needToAbortRun_(ui) || !dependenciesGood()) {
     return;
   }
   
@@ -526,18 +539,51 @@ function menuItem30_() {
 
 
 function onEdit(e) {
-   
-  // Only do this is a single cell is changed
-  if (e.range.rowStart != e.range.rowEnd || e.range.columnStart != e.range.columnEnd) {
-    return;
-  }
   
   let thisSheet = e.source.getActiveSheet();
-  if (thisSheet.getName() == RUN_PARMS) {
+  if (thisSheet.getName() == RUN_PARMS && e.range.rowStart == e.range.rowEnd) {
     handleRunParmsMenuEdit_(e.range, e.value);
   }
   else if (thisSheet.getName() == EVENTS_UNVEILED) {
-    handleReviewMenuEdit_(e.range, e.value);
+
+    if (!e.value && e.range.rowStart == e.range.rowEnd) {
+      // This means a range inside of a filtered review table was updated. The event only 
+      // Passes in the first cell, even though many cells, not necessarily contigous, are updated.
+      // In this case we can't track which rows, so we have to turn off the dirty row tracking and
+      // fall back to processing every single row on a reconcile. 
+      // There must be some way to determine the other cells, but Google is making it incredibly hard to figure out.
+      SpreadsheetApp.getUi().alert("WARNING\n\nA filtered range on the review tab was updated. Color coding to indicate updated values MAY or MAY NOT be completely accurate.\n\nReconcile should work however.");
+      PropertiesService.getScriptProperties().setProperty("reviewTouchEnabled", "false"); // turned out this didn't save much time, but ... was cool so leaving it in. ;)
+    }
+    else {
+      updateDirtyRows(e.range.rowStart, e.range.rowEnd); // Filter on rows for follow-on reconcile (so we don't waste time copying every row from review back to events)
+      handleReviewMenuEdit_(e.range, e.value); // Just sets the red indicator for cell change
+    }
+  }
+}
+
+function updateDirtyRows(start, end) {
+  
+  if (start > end) {
+    // GAS has gone brain dead
+    logOneCol("ERROR - Google range corrupted during review! A subsequent reconcile may not be complete.");
+    return;
+  }
+  
+  try {
+    var lock = LockService.getScriptLock(); // In case two people are making updates to the review tab at the same time
+    lock.waitLock(5000); // 5 sec
+    let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
+    for (let i = start; i < end + 1; i++) {
+      reviewRowWasTouchedArray[i] = true;   
+    } 
+    PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray));     
+  }
+  catch (err) {
+    logOneCol("WARNING - Exeception during review update tracking. A subsequent reconcile may not be complete.");
+  }
+  finally {
+    lock.releaseLock();
   }
 }
 
@@ -576,61 +622,86 @@ function handleRunParmsMenuEdit_(cell, value) {
   }
 }
 
-function handleReviewMenuEdit_(cell, value) {
+function handleReviewMenuEdit_(range, value) {
 
-  if (cell.rowStart > MAX_ROWS) {
+  if (range.rowStart > MAX_ROWS) {
     SpreadsheetApp.getUi().alert("We have exceeded " + MAX_ROWS + " events! Please reduce the number of calendars or the length of time being analyzed, or talk to Dave about bumping this limit up. Thank you.\n--The Activity Machine");
     return; 
   }  
-  switch (cell.columnStart) {
-    case REVIEW_EVENT_TYPE + 1:
-      handleEventTypeChange_(cell, value);
-      break;
+ 
+  if (range.rowStart == range.rowEnd && range.columnStart == range.columnEnd) {
+    // value only set if range is a single cell
+    if (range.columnStart == REVIEW_EVENT_TYPE + 1) {
+      handleEventTypeChange_(range, value);
+    }
+    else {
+      let origValue = range.offset(0, getOriginalValueOffset_(range.columnStart)).getValue();
+      colorCell_(range, value, origValue);
+    }
+  }
+  else {
+    for (let i = 0; i <= range.rowEnd - range.rowStart; i++) {
+      for (let j = 0; j <= range.columnEnd - range.columnStart; j++) {
+        let cell = range.offset(i,j,1,1);
+        let value = cell.getValue();
+        if (range.columnStart + j == REVIEW_EVENT_TYPE + 1) {
+          handleEventTypeChange_(cell, value);
+        }
+        else {
+          let origValue = cell.offset(0, getOriginalValueOffset_(range.columnStart + j)).getValue();
+          colorCell_(cell, value, origValue);
+        }
+      }
+    }
+  }
+}
+
+function getOriginalValueOffset_(column) {
+
+  let retVal = 0;
+  switch (column) {
     case REVIEW_RELATED_TO + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_RELATED_TO - REVIEW_RELATED_TO);
+      retVal = (REVIEW_ORIG_RELATED_TO - REVIEW_RELATED_TO);
       break;
     case REVIEW_OP_STAGE + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_OP_STAGE - REVIEW_OP_STAGE);
+      retVal = (REVIEW_ORIG_OP_STAGE - REVIEW_OP_STAGE);
       break;
     case REVIEW_PRODUCT + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_PRODUCT - REVIEW_PRODUCT);
+      retVal = (REVIEW_ORIG_PRODUCT - REVIEW_PRODUCT);
       break;
     case REVIEW_DESC + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_DESC - REVIEW_DESC);
+      retVal = (REVIEW_ORIG_DESC - REVIEW_DESC);
       break;
     case REVIEW_MEETING_TYPE + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_MEETING_TYPE - REVIEW_MEETING_TYPE);
+      retVal = (REVIEW_ORIG_MEETING_TYPE - REVIEW_MEETING_TYPE);
       break;
     case REVIEW_REP_ATTENDED + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_REP_ATTENDED - REVIEW_REP_ATTENDED);
+      retVal = (REVIEW_ORIG_REP_ATTENDED - REVIEW_REP_ATTENDED);
       break;
     case REVIEW_LOGISTICS + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_LOGISTICS - REVIEW_LOGISTICS);
+      retVal = (REVIEW_ORIG_LOGISTICS - REVIEW_LOGISTICS);
       break;
     case REVIEW_PREP_TIME + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_PREP_TIME - REVIEW_PREP_TIME);
+      retVal = (REVIEW_ORIG_PREP_TIME - REVIEW_PREP_TIME);
       break;
     case REVIEW_QUALITY + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_QUALITY - REVIEW_QUALITY);
+      retVal = (REVIEW_ORIG_QUALITY - REVIEW_QUALITY);
       break;
     case REVIEW_LEAD + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_LEAD - REVIEW_LEAD);
+      retVal = (REVIEW_ORIG_LEAD - REVIEW_LEAD);
       break;
     case REVIEW_NOTES + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_NOTES - REVIEW_NOTES);
+      retVal = (REVIEW_ORIG_NOTES - REVIEW_NOTES);
       break;
     //case REVIEW_ACCOUNT_TYPE + 1:
-    //  handleValueSelection_(cell, value, REVIEW_ORIG_ACCOUNT_TYPE - REVIEW_ACCOUNT_TYPE);
+    //  colorCell_(cell, value, REVIEW_ORIG_ACCOUNT_TYPE - REVIEW_ACCOUNT_TYPE);
     //  break;
     case REVIEW_PROCESS + 1:
-      handleValueSelection_(cell, value, REVIEW_ORIG_PROCESS - REVIEW_PROCESS);
-      // I guueess I didn't want to color a skip red?  This is done in the function above.
-      //let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
-      //reviewRowWasTouchedArray[cell.rowStart] = true;   
-      //PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 
+      retVal = (REVIEW_ORIG_PROCESS - REVIEW_PROCESS);
       break;
     default:
   }
+  return retVal;
 }
 
 
@@ -642,8 +713,7 @@ function handleEventTypeChange_(cell, value) {
   let clearedValidationRule = validationRule;
   let validationOffset = REVIEW_RELATED_TO - REVIEW_EVENT_TYPE;
   let clearingOffset = REVIEW_LEAD - REVIEW_EVENT_TYPE;
-  let originalValueOffset = REVIEW_ORIG_LEAD - REVIEW_LEAD;
-  
+  let originalValueOffset = REVIEW_ORIG_LEAD - REVIEW_LEAD + clearingOffset;
   
   switch (value) {
       
@@ -665,23 +735,23 @@ function handleEventTypeChange_(cell, value) {
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       break;
     case "Lead":
-      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LEADS);
-      validationRange = validationSheet.getRange(2, LEAD_NAME+1, validationSheet.getLastRow()); // Skip 1 row header
+      validationSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CHOICE_LEAD);
+      validationRange = validationSheet.getRange(2, CHOICE_LEAD_EMAIL+1, validationSheet.getLastRow()); // Skip 1 row header
       validationRule = SpreadsheetApp.newDataValidation().requireValueInRange(validationRange).build();
       validationOffset = REVIEW_LEAD - REVIEW_EVENT_TYPE;
       clearingOffset = REVIEW_RELATED_TO - REVIEW_EVENT_TYPE;
-      originalValueOffset = REVIEW_ORIG_RELATED_TO - REVIEW_RELATED_TO;
+      originalValueOffset = REVIEW_ORIG_RELATED_TO - REVIEW_RELATED_TO + clearingOffset; 
       break;
     default:
-      Logger.log("ERROR: bogus value in Review tab's Event Type field: " + value);
   }
-  
-  
+   
   cell.offset(0, clearingOffset).setValue("");
   cell.offset(0, clearingOffset).clearDataValidations(); 
-  handleValueSelection_(cell.offset(0, clearingOffset), "", originalValueOffset);
+  let origValue = cell.offset(0, originalValueOffset).getValue();
+  colorCell_(cell.offset(0, clearingOffset), "", origValue);
   cell.offset(0, validationOffset).setDataValidation(validationRule);
-  handleValueSelection_(cell, value, REVIEW_ORIG_EVENT_TYPE - REVIEW_EVENT_TYPE);
+  origValue = cell.offset(0, REVIEW_ORIG_EVENT_TYPE - REVIEW_EVENT_TYPE).getValue();
+  colorCell_(cell, value, origValue);
   
 }
 
@@ -724,14 +794,12 @@ function initValidation_(cell, type) {
   cell.setDataValidation(validationRule);
 }
 
-function handleValueSelection_(cell, value, originalValueOffset) {
-  
+
+
+function colorCell_(cell, value, originalValue) {
   if (typeof value === 'undefined') value = "";
-  let originalValue = cell.offset(0, originalValueOffset).getValue();
+  //let originalValue = cell.offset(0, originalValueOffset).getValue();
   if (originalValue != value) {
-    let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
-    reviewRowWasTouchedArray[cell.rowStart] = true;   
-    PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray)); 
     cell.setBackground("tomato");
   }
   else {

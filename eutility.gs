@@ -20,8 +20,7 @@ function createDataLoadFilters() {
   // We only need these full lists temporarily in this function, so we are not using the global emailToCustomerMapG and emailToPartnerMapG variables.
   // Hopefully these temporary maps will be garbage collected after this function finishes. 
   
-  // Load in-region customers only, the first parm set to false (we know that list won't be massive)
-  // Saves info off in emailToCustomerMapG
+  // Load in-region customers only, the first parm set to true (we know that list won't be massive)
   // Also updates accountType object
   if (!load_customer_info_(true, customerMap, typeMap, 1, true)) {
     return;
@@ -219,6 +218,7 @@ function createChoiceLists () {
   clearTab_(CHOICE_ACCOUNT);
   clearTab_(CHOICE_PARTNER);
   clearTab_(CHOICE_OP);
+  clearTab_(CHOICE_LEAD); 
   
   //
   // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
@@ -243,6 +243,13 @@ function createChoiceLists () {
   lr = sheet.getLastRow();
   let choiceOpRange = sheet.getRange(lr+1,1);
   let choiceOpCursor = {range : choiceOpRange, rowOffset : 0};
+  
+  
+  // Set lead choices cursor
+  sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_LEAD);
+  lr = sheet.getLastRow();
+  let choiceLeadRange = sheet.getRange(lr+1,1);
+  let choiceLeadCursor = {range : choiceLeadRange, rowOffset : 0};
   
   let opFilter = {}
   
@@ -275,6 +282,9 @@ function createChoiceLists () {
     choicePartnerCursor.rowOffset++;  
   }
 
+  //
+  // Ops
+  //
   
   sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
   rangeData = sheet.getDataRange();
@@ -309,6 +319,17 @@ function createChoiceLists () {
       }
     }
   }
+  
+  //
+  // Leads - these are just the "real leads" from all the potential lead emails. 
+  // TODO - provide other real leads for the domain which has no account record. 
+  //
+  
+  for (em in emailToLeadMapG) {
+    choiceLeadCursor.range.offset(choiceLeadCursor.rowOffset, CHOICE_LEAD_EMAIL).setValue(em);    
+    choiceLeadCursor.rowOffset++;  
+  }
+  
   
   logOneCol("Choice list build complete " + new Date().toLocaleTimeString());
 }

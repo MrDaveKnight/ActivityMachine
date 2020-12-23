@@ -157,7 +157,7 @@ function build_se_events() {
   
   load_lead_info_(true); // Always filters just what's in play (there are hundreds of thousands of leads man).
   
-  createChoiceLists(); // I wants the phase 2 maps
+  createChoiceLists(); // I want the phase 2 maps
   
   //
   // Load Staff Info - SEs and Reps
@@ -970,6 +970,9 @@ function build_se_events() {
       if (lead) {
         createLeadEvent_(outputCursor, lead, attendees, inviteInfo[j], productInventory);
         eventCount++;
+        
+        // TODO - find other leads for a company that weren't at the meeting so you can choose a "ghost lead" for all activity leading to an account?
+        
       }
       else {       
         logThreeCol("WARNING - Unable to find a customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
@@ -1054,7 +1057,7 @@ function unveil_se_events() {
   //
   
   let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
-  let leadNameById = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_ID, LEAD_NAME, targetedLeads, LEAD_EMAIL, null);
+  let leadEmailById = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_ID, LEAD_EMAIL, targetedLeads, LEAD_EMAIL, null);
   
   //
   // Copy events over, replacing account or opportunity ids with names, or lead ids with names
@@ -1089,6 +1092,7 @@ function unveil_se_events() {
   
   let reviewRowWasTouchedArray = new Array(elr).fill(false);
   PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray));
+  PropertiesService.getScriptProperties().setProperty("reviewTouchEnabled", "true");
   
   for (j = 0 ; j < elr-1; j++) {
     // Note that these types are in the Data Validation for the associated field on the Review tab
@@ -1109,8 +1113,8 @@ function unveil_se_events() {
       type = "Customer";
       cC++;
     } 
-    else if (leadNameById[eventInfo[j][EVENT_LEAD]]) {
-      name = leadNameById[eventInfo[j][EVENT_LEAD]];
+    else if (leadEmailById[eventInfo[j][EVENT_LEAD]]) {
+      name = leadEmailById[eventInfo[j][EVENT_LEAD]];
       type = "Lead";
       cL++;
     }
@@ -1228,7 +1232,7 @@ function reconcile_se_events() {
   //
    
   let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
-  let leadIdByName = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_NAME, LEAD_ID, targetedLeads, LEAD_EMAIL, null); 
+  let leadIdByEmail = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_EMAIL, LEAD_ID, targetedLeads, LEAD_EMAIL, null); 
   
   //
   // Scan unveiled events in the Review tab, updating fields in the corresponding Event tab record when necessary
@@ -1237,6 +1241,7 @@ function reconcile_se_events() {
   let reviewInfo = load_tab_(EVENTS_UNVEILED, 2, REVIEW_COLUMNS);
   let eventInfo = load_tab_(EVENTS, 2, EVENT_COLUMNS);
   let reviewRowWasTouchedArray = JSON.parse(PropertiesService.getScriptProperties().getProperty("reviewTouches"));
+  let reviewTouchEnabled = PropertiesService.getScriptProperties().getProperty("reviewTouchEnabled") == "true";
   
   // Clear any left over update color and set event output cursor
   let sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
@@ -1244,12 +1249,10 @@ function reconcile_se_events() {
   
   for (j = 0 ; j < reviewInfo.length; j++) {
     
-    if (!reviewRowWasTouchedArray[j+2]) continue; // Array is indexed on table row number
-    
-    
+   if (reviewTouchEnabled && !reviewRowWasTouchedArray[j+2]) continue; // Array is indexed on table row number
+   
     let relatedTo = null;
     let lead = null;
-    let wasDeleted = false;
     let updatedFields = null;
     switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
       case "Opportunity":
@@ -1262,12 +1265,12 @@ function reconcile_se_events() {
         relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
       case "Lead":
-        lead = leadIdByName[reviewInfo[j][REVIEW_LEAD]];
+        lead = leadIdByEmail[reviewInfo[j][REVIEW_LEAD]];
         break;
       case "General":
-        break;
       default:
-        wasDeleted = true; // Empty cell means they deleted this row (or the field is jacked), so skip
+        isGeneral = true; // Empty cell means they deleted this row (or the field is jacked), so make it general
+        break;
     }
     
     if (relatedTo) {
@@ -1300,7 +1303,30 @@ function reconcile_se_events() {
           outputRange.offset(j, EVENT_RELATED_TO).setValue("");
         }
       }
-    } 
+    }
+    else {
+      // General or deleted
+      if (eventInfo[j][EVENT_RELATED_TO] != "") {
+        if (updatedFields) {
+          updatedFields += ", Related To";
+        }
+        else {
+          updatedFields = "Related To";
+        }
+        outputRange.offset(j, EVENT_RELATED_TO).setValue("");
+      }
+      if (eventInfo[j][EVENT_LEAD] != "") {    
+        if (updatedFields) {
+          updatedFields += ", Lead";
+        }
+        else {
+          updatedFields = "Lead";
+        }
+        updatedFields += ", Lead";
+        outputRange.offset(j, EVENT_LEAD).setValue("");
+      } 
+    }
+    
     if (eventInfo[j][EVENT_OP_STAGE] != reviewInfo[j][REVIEW_OP_STAGE]) {
       if (updatedFields) {
         updatedFields += ", Opportunity Stage";
@@ -1410,6 +1436,8 @@ function reconcile_se_events() {
       logThreeCol("Record Update", eventInfo[j][EVENT_SUBJECT] + " / " + date, updatedFields);
     }
   }
+  
+  logOneCol("End time: " + new Date().toLocaleTimeString());
 }
 
 
