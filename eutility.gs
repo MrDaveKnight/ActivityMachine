@@ -2,7 +2,8 @@ function createDataLoadFilters() {
 
   // Looks for domains that don't have an in-region account, presumably because
   // the domain is from an account external to the region being processed, or
-  // the account doesn't exist.
+  // the account doesn't exist. These "out-region" or missing domains are tracked in ...
+  //     detectedDomains
   // Also tracks emails to find leads should the out-of-region account not exist.
   
   logStamp("Create Data Load Filters");
@@ -193,6 +194,46 @@ function createDataLoadFilters() {
     }
   }
   
+  //
+  // Step 3: add in account overrides to ensure the filters account for them
+  //
+  
+  let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS); 
+  let overrideRange = parms.getRange(5,7,16,5); // Hardcoded to format of cells in RUN_PARMS!
+  let overrides = overrideRange.getValues();
+  for (let row in overrides) {
+    if (overrides[row][1]) {         
+      let overrideAccountId = overrides[row][1];
+      if (typeMap[overrideAccountId]) {
+        if (typeMap[overrideAccountId] == INTERNAL_CUSTOMER_TYPE) {
+          if (!loggedCustomers[overrideAccountId]) {
+            
+            loggedCustomers[overrideAccountId] = true;  // Must use short id! Will be used to filter opportunities. 
+            inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);      
+            inPlayCustomerCursor.rowOffset++;  
+          }
+        }
+        else if (typeMap[overrideAccountId] == PARTNER_TYPE) {
+          if (!loggedPartners[overrideAccountId]) {
+            
+            loggedPartners[overrideAccountId] = true;
+            inPlayPartnerCursor.range.offset(inPlayPartnerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);     
+            inPlayPartnerCursor.rowOffset++; 
+          }
+        }
+        if (typeMap[overrideAccountId] == EXTERNAL_CUSTOMER_TYPE) {
+          if (!loggedCustomers[overrideAccountId]) {
+            
+            loggedCustomers[overrideAccountId] = true;  // Must use short id! Will be used to filter opportunities. 
+            missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(overrideAccountId);     
+            missingCustomerCursor.rowOffset++;   
+            inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);      
+            inPlayCustomerCursor.rowOffset++;  
+          }
+        }
+      }
+    }
+  }
   
   logOneCol("Identified " + inPlayCustomerCursor.rowOffset + " customers in the current calendar invite set.");
   logOneCol("Identified " + inPlayPartnerCursor.rowOffset + " partners in the current calendar invite set.");
@@ -215,10 +256,10 @@ function createDataLoadFilters() {
 function createChoiceLists () {
 
   
-  clearTab_(CHOICE_ACCOUNT);
-  clearTab_(CHOICE_PARTNER);
-  clearTab_(CHOICE_OP);
-  clearTab_(CHOICE_LEAD); 
+  clearTab_(CHOICE_ACCOUNT, [['Account Name', 'Account Id']]);
+  clearTab_(CHOICE_PARTNER, [['Account Name', 'Account Id']]);
+  clearTab_(CHOICE_OP, [['Op Name', 'Op Id']]);
+  clearTab_(CHOICE_LEAD, [['Lead Email']]); 
   
   //
   // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
@@ -619,7 +660,7 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         if (uniqueDomains[domain]) {
           continue; // Rep put this domain in twice!
         }
-        uniqueDomains[domain] = true;
+        uniqueDomains[domain] = true; 
         
         if (accountLog[domain]) {
           //Logger.log("WARNING : Found account with a duplicate email domain - " + accountInfo[j][accountNameIdx] + ":" + domain);
@@ -639,7 +680,6 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
                 if (!primaryAccountsG[accountInfo[j][accountNameIdx]])
                   duplicateAccountsG[accountInfo[j][accountNameIdx]] = id;
                 break;
-              case INTERNAL_CUSTOMER_TYPE:
               case PARTNER_TYPE:
                 if (!primaryPartnersG[accountInfo[j][accountNameIdx]])
                   duplicatePartnersG[accountInfo[j][accountNameIdx]] = id;
@@ -653,7 +693,7 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         
         accountLog[domain] = accountInfo[j][accountNameIdx];
         emailToAccountMap[domain] = id;  
-        accountTypeMap[id] = accountType;   
+        accountTypeMap[id] = accountType;  
         if (2 == phase) {
           // Remember the primary (for choice list)
           // It is the case that an account with multiple domains could be primary on one domain, but not-primary on another.
@@ -664,7 +704,6 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
               if (!duplicateAccountsG[accountInfo[j][accountNameIdx]])
                 primaryAccountsG[accountInfo[j][accountNameIdx]] = id;
               break;
-            case INTERNAL_CUSTOMER_TYPE:
             case PARTNER_TYPE:
               if (!duplicatePartnersG[accountInfo[j][accountNameIdx]])
                 primaryPartnersG[accountInfo[j][accountNameIdx]] = id;
@@ -693,7 +732,7 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, ph
   
   let targetedAccounts = null;
   if (!inRegionOnly) {
-    targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+    targetedAccounts = loadFilter_(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
   }
 
   let sheet = SpreadsheetApp.getActive().getSheetByName(IN_REGION_CUSTOMERS);
@@ -723,7 +762,7 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, ph
   // Get the target list, accounts suspected to be out-of-region customers, to filter out what we need to save in memory.
   //
   
-  targetedAccounts = loadFilter(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  targetedAccounts = loadFilter_(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
   
   //
   // Load up customers outside of our region, but only the ones that may be needed (in the targeted list)
@@ -751,7 +790,7 @@ function load_partner_info_(allPartners, emailToAccountMap, accountTypeMap, phas
 
   let targets = null;
   if (!allPartners) {
-    targets = loadFilter(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
+    targets = loadFilter_(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
   }
   
   let sheet = SpreadsheetApp.getActive().getSheetByName(PARTNERS);
@@ -775,7 +814,7 @@ function load_lead_info_(loggingEnabled) {
   // Updates emailToLeadMapG and accountTypeG
   //
   
-  let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
+  let targetedLeads = loadFilter_(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
   
   //
   // Import the targeted lead info
@@ -794,8 +833,9 @@ function load_lead_info_(loggingEnabled) {
   load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, 2, loggingEnabled)
 }
 
-function loadFilter(tabName, fieldNumber, truncate) {
+function loadFilter_(tabName, fieldNumber, truncate) {
   // Create a simple "filter map" keyed by the value in the fieldNumber field of this tabName. The map value will be set to true;
+  // Assumes the table has a header in row 1! (Skips to row 2 for data start)
   // 
   // What's the point of the truncate parm? Almost everything refers to objects in Salesforce by there 18 digit "long id", except ...
   // Opportunties. They use the shorter 15 digit id to reference an account. 
@@ -826,7 +866,7 @@ function loadFilter(tabName, fieldNumber, truncate) {
     }
   }
   catch (e) {
-    logOneCol("ERROR - loadFilter_ issue on " + tabName + ": " + e);
+    logOneCol("ERROR - loadFilter__ issue on " + tabName + ": " + e);
   }
   return targets;
 }
@@ -902,8 +942,7 @@ function load_map_(tabName, firstRow, tabColumns, keyField, valueField, filter, 
         
         if (filter && !filter[info[j][filterField]]) {
           continue;
-        }
-        
+        }   
         map[info[j][keyField]] = info[j][valueField];
         
       }

@@ -206,7 +206,7 @@ function build_se_events() {
   // Load Opportunity Info
   //
   
-  let targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); // for filtering out only the opportunities associated with accounts in the invites
+  let targetedAccounts = loadFilter_(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); // for filtering out only the opportunities associated with accounts in the invites
   
   sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
   rangeData = sheet.getDataRange();
@@ -704,7 +704,7 @@ function build_se_events() {
           isOverrideActive = true;
           
           if (overrides[row][4] == "Yes") {
-            customer = {};
+            let customer = {};
             customer[overrideAccountId] = 1;
             eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);      
             break;
@@ -750,7 +750,7 @@ function build_se_events() {
             eventCount++;
           }
           else {
-            customer = {};
+            let customer = {};
             customer[overrideAccountId] = 1;
             eventCount += createAccountEvents_(outputCursor, attendees, customer, inviteInfo[j], productInventory);        
           }
@@ -762,7 +762,7 @@ function build_se_events() {
     
     if (isOverrideActive) {
       logThreeCol("NOTICE - Account Override!", "For Invite: " + inviteInfo[j][SUBJECT], "Selected Account: " + overrideAccountName + " (" + overrideAccountId + ")"); 
-      continue; // DAK
+      continue;
     }
     
     
@@ -996,7 +996,7 @@ function unveil_se_events() {
   //
   
   // OP_ACCOUT_ID field in OPPORTUNITIES is short (15 digit), so TRUNCATE the long (18 digit) account ids! The true bool is to enable truncation.
-  let targetedAccounts = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); 
+  let targetedAccounts = loadFilter_(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, true); 
   let opNameById = load_map_(OPPORTUNITIES, 2, OP_COLUMNS, OP_ID, OP_NAME, targetedAccounts, OP_ACCOUNT_ID, null);
   
   //
@@ -1037,7 +1037,7 @@ function unveil_se_events() {
   // Load Partner Info
   //
   
-  let targetedPartners = loadFilter(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
+  let targetedPartners = loadFilter_(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
   let partnerNameById = load_map_(PARTNERS, 2, PARTNER_COLUMNS, PARTNER_ID, PARTNER_NAME, targetedPartners, PARTNER_ID, null);
   
   
@@ -1046,17 +1046,17 @@ function unveil_se_events() {
   // Load All Customer Info - in region first, external stuff second
   //
   
-  let inPlayCustomers = loadFilter(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  let inPlayCustomers = loadFilter_(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
   let customerNameById = load_map_(IN_REGION_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_ID, CUSTOMER_NAME, inPlayCustomers, CUSTOMER_ID, null);
   
-  let externalCustomers = loadFilter(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  let externalCustomers = loadFilter_(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
   load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_ID, CUSTOMER_NAME, externalCustomers, CUSTOMER_ID, customerNameById);
   
   //
   // Load Leads
   //
   
-  let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
+  let targetedLeads = loadFilter_(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
   let leadEmailById = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_ID, LEAD_EMAIL, targetedLeads, LEAD_EMAIL, null);
   
   //
@@ -1210,28 +1210,28 @@ function reconcile_se_events() {
   //
   
   // OP_ACCOUT_ID field in OPPORTUNITIES is short (15 digit), so TRUNCATE the long (18 digit) account ids! The true bool is to enable truncation.
-  let targetedAccounts = loadFilter(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, true); 
+  let targetedAccounts = loadFilter_(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, true); 
   let opIdByName = load_map_(OPPORTUNITIES, 2, OP_COLUMNS, OP_NAME, OP_ID, targetedAccounts, OP_ACCOUNT_ID, null);
   
   //
   // Load Partner Info
   //
-  
-  let targetedPartners = loadFilter(CHOICE_PARTNER, CHOICE_PARTNER_ID, false);
+
+  let targetedPartners = loadFilter_(CHOICE_PARTNER, CHOICE_PARTNER_ID, false);
   let partnerIdByName = load_map_(PARTNERS, 2, PARTNER_COLUMNS, PARTNER_NAME, PARTNER_ID, targetedPartners, PARTNER_ID, null);
   
   //
-  // Load All Customer Info - in region first, external stuff second
+  // Load All Customer Info
   //
   
-  let inPlayCustomers = loadFilter(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, false);  
+  let inPlayCustomers = loadFilter_(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, false);  
   let customerIdByName = load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, null);
   
   //
   // Load Leads
   //
    
-  let targetedLeads = loadFilter(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
+  let targetedLeads = loadFilter_(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
   let leadIdByEmail = load_map_(LEADS, 2, LEAD_COLUMNS, LEAD_EMAIL, LEAD_ID, targetedLeads, LEAD_EMAIL, null); 
   
   //
@@ -1269,7 +1269,6 @@ function reconcile_se_events() {
         break;
       case "General":
       default:
-        isGeneral = true; // Empty cell means they deleted this row (or the field is jacked), so make it general
         break;
     }
     
