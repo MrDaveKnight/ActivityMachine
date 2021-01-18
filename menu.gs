@@ -544,7 +544,7 @@ function onEdit(e) {
   if (thisSheet.getName() == RUN_PARMS && e.range.rowStart == e.range.rowEnd) {
     handleRunParmsMenuEdit_(e.range, e.value);
   }
-  else if (thisSheet.getName() == EVENTS_UNVEILED) {
+  else if (thisSheet.getName() == EVENTS_UNVEILED && !inReviewInitialization) {
 
     if (!e.value && e.range.rowStart == e.range.rowEnd) {
       // This means a range inside of a filtered review table was updated. The event only 
@@ -756,6 +756,8 @@ function handleEventTypeChange_(cell, value) {
 }
 
 function initValidation_(cell, type) {
+
+  return; // dak fixme!!!
   
   let validationSheet = null;
   let validationRange = null;

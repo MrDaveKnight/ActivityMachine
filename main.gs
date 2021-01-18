@@ -47,6 +47,12 @@ const MEETINGS_HAVE_DEFAULT=true;
 const RUN_PARMS = "Run Settings"
 const CHOICES = "Choices"
 
+// Event types
+const OP_EVENT = "Opportunity";
+const CUSTOMER_EVENT = "Customer";
+const PARTNER_EVENT = "Partner";
+const LEAD_EVENT = "Lead";
+
 // Filter tables to help us deal with massive amounts of Salesforce records
 const MISSING_DOMAINS = "Missing Domains";
 const MISSING_CUSTOMERS = "Missing Customers";
@@ -89,7 +95,7 @@ const STAFF_NAME = 0;
 const STAFF_EMAIL = 1;
 const STAFF_ROLE = 4;
 const STAFF_LONG_ID = 5;
-const STAFF_ROLE_REPS = "E1:E2:C1:CAM"; // All the "Job Roles" for reps
+const STAFF_ROLE_REPS = "E1:G1:E2:C1:CAM"; // All the "Job Roles" for reps
 const STAAFF_HEADER = [['18-Digit Lead ID', 'Account Name', 'Email']];	
 
 const OPPORTUNITIES = "Opportunities";
@@ -130,7 +136,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
-const EVENT_COLUMNS = 17;
+const EVENT_COLUMNS = 19; // If you add one, update this too
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -146,9 +152,12 @@ const EVENT_PREP_TIME = 11;
 const EVENT_QUALITY = 12;
 const EVENT_LEAD = 13;
 const EVENT_NOTES = 14;
+// Following don't go up to Salesforce
 const EVENT_ACCOUNT_TYPE = 15;
 const EVENT_PROCESS = 16;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process"]]
+const EVENT_RECURRING = 17;
+const EVENT_ATTENDEES = 18;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Recurring", "Attendees"]]
 const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]]
 
 const EVENTS_UNVEILED = "Review"
@@ -190,6 +199,7 @@ const REVIEW_ORIG_LEAD = 41;
 const REVIEW_ORIG_NOTES = 42;
 const REVIEW_ORIG_ACCOUNT_TYPE = 43;
 const REVIEW_ORIG_PROCESS = 44;
+var inReviewInitialization = false; // flag to disable onEdit functionality while the tab is being built
 
 // Choice Tables for Review Tab
 // The Saleforce configuration tables are too massive for field dropdown selection.
@@ -255,6 +265,17 @@ const TERRAFORM = "T";
 const VAULT = "V";
 const CONSUL = "C";
 const NOMAD = "N";
+
+// 
+// Stats
+//
+
+var statsLedgerG = {}; // see the collectStats_ function in eutility.gs
+var statsOutputWorksheetIdG = null;
+const MEETING = "Meetings";
+const MEETING_COUNTS_ORIGIN_ROW = 3;
+const MEETING_COUNTS_ORIGIN_COL = 2;
+
 
 // Track special prep invites
 // Subject contains Prep:<Subject of meeting the prep is for>

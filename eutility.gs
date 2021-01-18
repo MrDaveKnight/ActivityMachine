@@ -1,112 +1,112 @@
-function createDataLoadFilters() {   
+function createDataLoadFilters() {
 
   // Looks for domains that don't have an in-region account, presumably because
   // the domain is from an account external to the region being processed, or
   // the account doesn't exist. These "out-region" or missing domains are tracked in ...
   //     detectedDomains
   // Also tracks emails to find leads should the out-of-region account not exist.
-  
+
   logStamp("Create Data Load Filters");
 
   // Identifying out-of-region customers and relevant leads to filter the Customer and Leads tabs during event processing
-  
+
   //
   // Load Account Info
   //
-  
+
   let partnerMap = {}; // domain to account
   let customerMap = {};
   let typeMap = {}; // account to account type
   // These maps will be UNFILTERED (every record will be in them. Not a problem for in-region customers, but the partner list is pretty big.
   // We only need these full lists temporarily in this function, so we are not using the global emailToCustomerMapG and emailToPartnerMapG variables.
   // Hopefully these temporary maps will be garbage collected after this function finishes. 
-  
+
   // Load in-region customers only, the first parm set to true (we know that list won't be massive)
   // Also updates accountType object
   if (!load_customer_info_(true, customerMap, typeMap, 1, true)) {
     return;
   }
-  
+
   // Loads ALL partners
   // Saves info off in 
   // Also updates accountType object
   if (!load_partner_info_(true, partnerMap, typeMap, 1, true)) {
     return;
   }
-  
+
   // At this point, all the "known" accounts are stored in the accountType object. 
-  
-  clearTab_(MISSING_DOMAINS, [['Email']]); 
-  clearTab_(MISSING_CUSTOMERS, [['Account Id']]); 
-  clearTab_(POTENTIAL_LEADS, [['Email']]); 
-  clearTab_(IN_PLAY_CUSTOMERS, [['Account Id']]); 
+
+  clearTab_(MISSING_DOMAINS, [['Email']]);
+  clearTab_(MISSING_CUSTOMERS, [['Account Id']]);
+  clearTab_(POTENTIAL_LEADS, [['Email']]);
+  clearTab_(IN_PLAY_CUSTOMERS, [['Account Id']]);
   clearTab_(IN_PLAY_PARTNERS, [['Account Id']]);
-  
+
   // 
   // Process Calendar invites
   //
-  
+
   // The raw calendar invites are in the Calendar tab.  
   let inviteInfo = load_tab_(CALENDAR, 2, CALENDAR_COLUMNS);
-  
+
   //Logger.log(CALENDAR + " import. Size is " + inviteInfo.length);
-  
+
   if (inviteInfo.length == 0) return; // Empty (or error). Only header
-  
+
   // Set missing domain output cursor
   let sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_DOMAINS);
   let lr = sheet.getLastRow();
-  let missingOutputRange = sheet.getRange(lr+1,1);
-  let missingDomainCursor = {range : missingOutputRange, rowOffset : 0};
-  
-    // Set missing customer id output cursor
+  let missingOutputRange = sheet.getRange(lr + 1, 1);
+  let missingDomainCursor = { range: missingOutputRange, rowOffset: 0 };
+
+  // Set missing customer id output cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
   lr = sheet.getLastRow();
-  let missingCustomerRange = sheet.getRange(lr+1,1);
-  let missingCustomerCursor = {range : missingCustomerRange, rowOffset : 0};
-  
+  let missingCustomerRange = sheet.getRange(lr + 1, 1);
+  let missingCustomerCursor = { range: missingCustomerRange, rowOffset: 0 };
+
   // Set lead output cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(POTENTIAL_LEADS);
   lr = sheet.getLastRow();
-  let leadOutputRange = sheet.getRange(lr+1,1);
-  let leadCursor = {range : leadOutputRange, rowOffset : 0};
-  
+  let leadOutputRange = sheet.getRange(lr + 1, 1);
+  let leadCursor = { range: leadOutputRange, rowOffset: 0 };
+
   // Set in play customer cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(IN_PLAY_CUSTOMERS);
   lr = sheet.getLastRow();
-  let inPlayCustomerRange = sheet.getRange(lr+1,1);
-  let inPlayCustomerCursor = {range : inPlayCustomerRange, rowOffset : 0};
-  
+  let inPlayCustomerRange = sheet.getRange(lr + 1, 1);
+  let inPlayCustomerCursor = { range: inPlayCustomerRange, rowOffset: 0 };
+
   // Set in play partner cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(IN_PLAY_PARTNERS);
   lr = sheet.getLastRow();
-  let inPlayPartnerRange = sheet.getRange(lr+1,1);
-  let inPlayPartnerCursor = {range : inPlayPartnerRange, rowOffset : 0};
-  
+  let inPlayPartnerRange = sheet.getRange(lr + 1, 1);
+  let inPlayPartnerCursor = { range: inPlayPartnerRange, rowOffset: 0 };
+
   // 
   // Step 1: Look for and record email domains that don't have an In Region Customer or Partner account.
   // Record those domains, while also tracking the account id for the "in play" customers and partners.
   //
-  
+
   let detectedDomains = {}; // For the new stuff
   let loggedLeads = {}; // For the new stuff
   let loggedCustomers = {};
   let loggedPartners = {};
-  for (var j = 0 ; j < inviteInfo.length; j++) {
-    
+  for (var j = 0; j < inviteInfo.length; j++) {
+
     if (!inviteInfo[j][ASSIGNED_TO] || !inviteInfo[j][ATTENDEE_STR] || !inviteInfo[j][START]) {
       continue;
     }
-    
+
     var attendees = inviteInfo[j][ATTENDEE_STR].split(","); // convert comma separated list of emails to an array
     if (attendees.length == 0) {
-      continue; 
+      continue;
     }
-    
+
     //
     // Determine who was at the meeting
     //
-    
+
     var attendeeInfo = lookForAccounts_(attendees, customerMap, partnerMap);
     // attendeeInfo.customers - Map of prospect/customer Salesforce 18-Digit account id to number of attendees
     // attendeeInfo.partners - Map of partner Salesforce 18-Digit account id to number of attendees
@@ -115,242 +115,242 @@ function createDataLoadFilters() {
     // attendeeInfo.stats.partners - Number of partners in attendence
     // attendeeInfo.stats.hashi - Number of hashicorp attendees
     // attendeeInfo.stats.others - Number of unidentified attendees
-    
-    
+
+
     // If no customers or partners, track the missing domains so we can lookup up accounts later from Salesforce
     // (We can't pull in every account in Salesforce because there are too many. So, we look up stuff that isn't
     // "In Region".)
     if (attendeeInfo.stats.customers == 0 && attendeeInfo.stats.partners == 0) {
-      for (d in attendeeInfo.others) {     
-        
+      for (d in attendeeInfo.others) {
+
         if (detectedDomains[d]) {
           continue; // old news
         }
-        
+
         detectedDomains[d] = true;
         missingDomainCursor.range.offset(missingDomainCursor.rowOffset, FILTER_EMAIL_DOMAIN).setValue(d);     // d is a domain
-        missingDomainCursor.rowOffset++;     
+        missingDomainCursor.rowOffset++;
       }
-      for (let j=0; j<attendees.length; j++) {
-        
+      for (let j = 0; j < attendees.length; j++) {
+
         let attendeeEmail = attendees[j];
-        
+
         // By definition, only emails for domains not yet associated with an account are in the attendee list.
         // However, there may be some hashicorp folks. Filter them out.
         // Record all of these non-hashi emails as potential leads (if an accociated account isn't in Salesforce yet)
-        
+
         if (loggedLeads[attendeeEmail]) {
           continue;
         }
         if (attendeeEmail.indexOf("hashicorp") != -1) continue;
-        
+
         loggedLeads[attendeeEmail] = true;
-        leadCursor.range.offset(leadCursor.rowOffset, FILTER_EMAIL_DOMAIN).setValue(attendeeEmail);     
-        leadCursor.rowOffset++;       
-      }  
+        leadCursor.range.offset(leadCursor.rowOffset, FILTER_EMAIL_DOMAIN).setValue(attendeeEmail);
+        leadCursor.rowOffset++;
+      }
     }
     else {
       for (c in attendeeInfo.customers) {
         if (loggedCustomers[c]) continue;
-        
+
         loggedCustomers[c] = true;  // Must use short id! Will be used to filter opportunities. 
         inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(c);      // c is an Id
-        inPlayCustomerCursor.rowOffset++;  
-        
-        
+        inPlayCustomerCursor.rowOffset++;
+
+
       }
       for (p in attendeeInfo.partners) {
         if (loggedPartners[p]) continue;
-        
+
         loggedPartners[p] = true;
         inPlayPartnerCursor.range.offset(inPlayPartnerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(p);      // p is an id
-        inPlayPartnerCursor.rowOffset++; 
-        
+        inPlayPartnerCursor.rowOffset++;
+
 
       }
     }
   }
-  
+
   // 
   // Step 2: look for the accounts associated with the missing domains 
   //
-  
+
   sheet = SpreadsheetApp.getActive().getSheetByName(ALL_CUSTOMERS);
   let rangeData = sheet.getDataRange();
   let lc = rangeData.getLastColumn();
   lr = rangeData.getLastRow();
   if (lr > 1) {
-    
+
     // This saves info off in emailToCustomerMapG and also updates accountType object. We'll use accoutTypes of EXTERNAL_CUSTOMER_TYPE to persist that info
-    load_account_info_chunks_(sheet, lr, lc, detectedDomains, FILTER_TYPE_DOMAIN, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, customerMap, typeMap, 1, false);  
+    load_account_info_chunks_(sheet, lr, lc, detectedDomains, FILTER_TYPE_DOMAIN, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, customerMap, typeMap, 1, false);
     for (account in typeMap) {
-     
+
       if (typeMap[account] == EXTERNAL_CUSTOMER_TYPE) {
-        missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(account);     
-        missingCustomerCursor.rowOffset++;   
-        inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(account);    
-        inPlayCustomerCursor.rowOffset++;  
+        missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(account);
+        missingCustomerCursor.rowOffset++;
+        inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(account);
+        inPlayCustomerCursor.rowOffset++;
       }
     }
   }
-  
+
   //
   // Step 3: add in account overrides to ensure the filters account for them
   //
-  
-  let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS); 
-  let overrideRange = parms.getRange(5,7,16,5); // Hardcoded to format of cells in RUN_PARMS!
+
+  let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
+  let overrideRange = parms.getRange(5, 7, 16, 5); // Hardcoded to format of cells in RUN_PARMS!
   let overrides = overrideRange.getValues();
   for (let row in overrides) {
-    if (overrides[row][1]) {         
+    if (overrides[row][1]) {
       let overrideAccountId = overrides[row][1];
       if (typeMap[overrideAccountId]) {
         if (typeMap[overrideAccountId] == INTERNAL_CUSTOMER_TYPE) {
           if (!loggedCustomers[overrideAccountId]) {
-            
+
             loggedCustomers[overrideAccountId] = true;  // Must use short id! Will be used to filter opportunities. 
-            inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);      
-            inPlayCustomerCursor.rowOffset++;  
+            inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);
+            inPlayCustomerCursor.rowOffset++;
           }
         }
         else if (typeMap[overrideAccountId] == PARTNER_TYPE) {
           if (!loggedPartners[overrideAccountId]) {
-            
+
             loggedPartners[overrideAccountId] = true;
-            inPlayPartnerCursor.range.offset(inPlayPartnerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);     
-            inPlayPartnerCursor.rowOffset++; 
+            inPlayPartnerCursor.range.offset(inPlayPartnerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);
+            inPlayPartnerCursor.rowOffset++;
           }
         }
         if (typeMap[overrideAccountId] == EXTERNAL_CUSTOMER_TYPE) {
           if (!loggedCustomers[overrideAccountId]) {
-            
+
             loggedCustomers[overrideAccountId] = true;  // Must use short id! Will be used to filter opportunities. 
-            missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(overrideAccountId);     
-            missingCustomerCursor.rowOffset++;   
-            inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);      
-            inPlayCustomerCursor.rowOffset++;  
+            missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(overrideAccountId);
+            missingCustomerCursor.rowOffset++;
+            inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);
+            inPlayCustomerCursor.rowOffset++;
           }
         }
       }
     }
   }
-  
+
   logOneCol("Identified " + inPlayCustomerCursor.rowOffset + " customers in the current calendar invite set.");
   logOneCol("Identified " + inPlayPartnerCursor.rowOffset + " partners in the current calendar invite set.");
   logOneCol("Identified " + missingCustomerCursor.rowOffset + " potential out-of-region customers.");
   logOneCol("Identified " + leadCursor.rowOffset + " potential lead emails.");
-  
-  
+
+
   // Wake up the garbage collection? (this isn't necessary, but why not)
   partnerMap = null;
   customerMap = null;
   typeMap = null;
-  
+
   logOneCol("End time: " + new Date().toLocaleTimeString());
-  
+
   // Salesforce OAUTH2 doesn't work, so we have to use Zapier
   // var html = HtmlService.createTemplateFromFile('index').evaluate().setWidth(500);
   // SpreadsheetApp.getUi().showSidebar(html);
 }
 
-function createChoiceLists () {
+function createChoiceLists() {
 
-  
+
   clearTab_(CHOICE_ACCOUNT, [['Account Name', 'Account Id']]);
   clearTab_(CHOICE_PARTNER, [['Account Name', 'Account Id']]);
   clearTab_(CHOICE_OP, [['Op Name', 'Op Id']]);
-  clearTab_(CHOICE_LEAD, [['Lead Email']]); 
-  
+  clearTab_(CHOICE_LEAD, [['Lead Email']]);
+
   //
   // Build the choice lists for the Review tab. We need to get all the duplicate accounts, not just the primary, in case we selected the wrong one.
   //   
-  
+
   logOneCol("Building choice lists " + new Date().toLocaleTimeString());
-  
+
   // Set customer choices cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_ACCOUNT);
   lr = sheet.getLastRow();
-  let choiceCustomerRange = sheet.getRange(lr+1,1);
-  let choiceCustomerCursor = {range : choiceCustomerRange, rowOffset : 0};
-  
-   // Set partner choices cursor
+  let choiceCustomerRange = sheet.getRange(lr + 1, 1);
+  let choiceCustomerCursor = { range: choiceCustomerRange, rowOffset: 0 };
+
+  // Set partner choices cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_PARTNER);
   lr = sheet.getLastRow();
-  let choicePartnerRange = sheet.getRange(lr+1,1);
-  let choicePartnerCursor = {range : choicePartnerRange, rowOffset : 0};
-  
+  let choicePartnerRange = sheet.getRange(lr + 1, 1);
+  let choicePartnerCursor = { range: choicePartnerRange, rowOffset: 0 };
+
   // Set op choices cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_OP);
   lr = sheet.getLastRow();
-  let choiceOpRange = sheet.getRange(lr+1,1);
-  let choiceOpCursor = {range : choiceOpRange, rowOffset : 0};
-  
-  
+  let choiceOpRange = sheet.getRange(lr + 1, 1);
+  let choiceOpCursor = { range: choiceOpRange, rowOffset: 0 };
+
+
   // Set lead choices cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(CHOICE_LEAD);
   lr = sheet.getLastRow();
-  let choiceLeadRange = sheet.getRange(lr+1,1);
-  let choiceLeadCursor = {range : choiceLeadRange, rowOffset : 0};
-  
+  let choiceLeadRange = sheet.getRange(lr + 1, 1);
+  let choiceLeadCursor = { range: choiceLeadRange, rowOffset: 0 };
+
   let opFilter = {}
-  
+
   for (cn in primaryAccountsG) {
     // First part of choice list init. See finishChoiceLists for second part.
     let id = primaryAccountsG[cn];
-    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);      
-    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(id); 
-    choiceCustomerCursor.rowOffset++;  
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(id);
+    choiceCustomerCursor.rowOffset++;
     opFilter[id.substring(0, id.length - 3)] = true;
-  }  
-  for (pn in primaryPartnersG) {      
+  }
+  for (pn in primaryPartnersG) {
     // First part of choice list init. See finishChoiceLists for second part.
     let id = primaryPartnersG[pn];
-    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(pn);    
-    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(id); 
-    choicePartnerCursor.rowOffset++;  
-  }  
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(pn);
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(id);
+    choicePartnerCursor.rowOffset++;
+  }
   for (cn in duplicateAccountsG) {
     let id = duplicateAccountsG[cn];
-    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);      
-    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(id); 
-    choiceCustomerCursor.rowOffset++; 
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_NAME).setValue(cn);
+    choiceCustomerCursor.range.offset(choiceCustomerCursor.rowOffset, CHOICE_ACCOUNT_ID).setValue(id);
+    choiceCustomerCursor.rowOffset++;
     opFilter[id.substring(0, id.length - 3)] = true;
   }
   for (pn in duplicatePartnersG) {
     let id = duplicatePartnersG[pn];
-    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(pn);    
-    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(id); 
-    choicePartnerCursor.rowOffset++;  
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_NAME).setValue(pn);
+    choicePartnerCursor.range.offset(choicePartnerCursor.rowOffset, CHOICE_PARTNER_ID).setValue(id);
+    choicePartnerCursor.rowOffset++;
   }
 
   //
   // Ops
   //
-  
+
   sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES);
   rangeData = sheet.getDataRange();
   let olc = rangeData.getLastColumn();
-  let olr = rangeData.getLastRow();  
-  
+  let olr = rangeData.getLastRow();
+
   if (olc >= OP_COLUMNS) {
     let chunkSize = 1000;
     let chunkFirstRow = 2;
     let chunkLastRow = chunkSize < olr ? chunkSize : olr;
     let chunkLength = chunkLastRow - chunkFirstRow + 1;
     while (chunkLength > 0) {
-      let scanRange = sheet.getRange(chunkFirstRow,1, chunkLength, olc);
+      let scanRange = sheet.getRange(chunkFirstRow, 1, chunkLength, olc);
       let opInfo = scanRange.getValues();
-      
+
       for (let j = 0; j < chunkLength; j++) {
-        
+
         if (!opFilter[opInfo[j][OP_ACCOUNT_ID]]) {
           continue;
         }
-        choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_NAME).setValue(opInfo[j][OP_NAME]);    
-        choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_ID).setValue(opInfo[j][OP_ID]); 
-        choiceOpCursor.rowOffset++;       
+        choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_NAME).setValue(opInfo[j][OP_NAME]);
+        choiceOpCursor.range.offset(choiceOpCursor.rowOffset, CHOICE_OP_ID).setValue(opInfo[j][OP_ID]);
+        choiceOpCursor.rowOffset++;
       }
-      
+
       chunkFirstRow = chunkLastRow + 1;
       chunkLastRow += chunkSize;
       chunkLength = chunkSize;
@@ -360,18 +360,18 @@ function createChoiceLists () {
       }
     }
   }
-  
+
   //
   // Leads - these are just the "real leads" from all the potential lead emails. 
   // TODO - provide other real leads for the domain which has no account record. 
   //
-  
+
   for (em in emailToLeadMapG) {
-    choiceLeadCursor.range.offset(choiceLeadCursor.rowOffset, CHOICE_LEAD_EMAIL).setValue(em);    
-    choiceLeadCursor.rowOffset++;  
+    choiceLeadCursor.range.offset(choiceLeadCursor.rowOffset, CHOICE_LEAD_EMAIL).setValue(em);
+    choiceLeadCursor.rowOffset++;
   }
-  
-  
+
+
   logOneCol("Choice list build complete " + new Date().toLocaleTimeString());
 }
 
@@ -420,9 +420,9 @@ function getOneProduct_(productScan) {
 }
 
 function makeProductKey_(productScan, primary) {
-  
+
   let returnValue = "-";
-  
+
   if (primary && primary != "Terraform" && primary != "Vault" && primary != "Consul" && primary != "Nomad") {
     let x = primary.toLowerCase();
     if (x.indexOf("terraform") != -1) primary = "Terraform";
@@ -433,14 +433,14 @@ function makeProductKey_(productScan, primary) {
     else if (x.indexOf("n") != -1) primary = "Nomad";
     else Logger.log("WARNING : " + primary + "is not a known primary product!");
   }
-  
+
   if (productScan.hasTerraform || (primary && (primary == "Terraform"))) returnValue += TERRAFORM;
   if (productScan.hasVault || (primary && primary == "Vault")) returnValue += VAULT;
   if (productScan.hasConsul || (primary && primary == "Consul")) returnValue += CONSUL;
   if (productScan.hasNomad || (primary && primary == "Nomad")) returnValue += NOMAD;
-  
+
   return returnValue;
-  
+
 }
 
 function makeSingleProductKeys_(productScan) {
@@ -449,17 +449,17 @@ function makeSingleProductKeys_(productScan) {
   // invite specifies multiple products, but there are no opportunities for 
   // that combination of products, we want to look for opportunities that may
   // have one of the products. So, we need to create an array of possible keys
-  
+
   let retval = []
   let i = 0;
-  
+
   if (productScan.hasTerraform) retval[i++] = "-" + TERRAFORM;
   if (productScan.hasVault) retval[i++] = "-" + VAULT;
   if (productScan.hasConsul) retval[i++] = "-" + CONSUL;
   if (productScan.hasNomad) retval[i++] = "-" + NOMAD;
-  
+
   return retval;
-  
+
 }
 
 /*
@@ -489,14 +489,14 @@ function testregex() {
 
 
 function clearTab_(tab_name, header) {
-  
+
   if (!tab_name) return;
-  
+
   let sheet = SpreadsheetApp.getActive().getSheetByName(tab_name);
-  sheet.clearContents();  
-  
+  sheet.clearContents();
+
   if (header) {
-    let range = sheet.getRange(1,1,1,header[0].length);
+    let range = sheet.getRange(1, 1, 1, header[0].length);
     range.setValues(header);
   }
 }
@@ -505,38 +505,38 @@ function clearTab_(tab_name, header) {
 function stage_events_to_upload_tab() {
 
   logStamp("Staging Upload");
-  
+
   // Do NOT clear out old records! Zappier needs to be off before doing that!
-  
+
   let sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
   let rangeData = sheet.getDataRange();
   let elc = rangeData.getLastColumn();
   let elr = rangeData.getLastRow();
   if (elr == 1) return; // Events is empty! Only has the header.
-  let scanRange = sheet.getRange(2,1, elr-1, elc); // 2 is to skip header. Assumes a header!!!!
+  let scanRange = sheet.getRange(2, 1, elr - 1, elc); // 2 is to skip header. Assumes a header!!!!
   let eventInfo = scanRange.getValues();
-  
+
   if (elc < EVENT_COLUMNS) {
     Logger.log("ERROR: Imported Customers was only " + elc + " fields wide. Not enough! Something is wrong.");
     return;
   }
-  
+
   // Set event output cursor
   let sheet2 = SpreadsheetApp.getActive().getSheetByName(UPLOAD_STAGE);
   let ulr = sheet2.getLastRow();
-  let uploadRange = sheet2.getRange(ulr+1,1);
+  let uploadRange = sheet2.getRange(ulr + 1, 1);
   let rowOffset = 0;
   let uc = 0;
-  
-  
-  for (j = 0 ; j < elr - 1; j++) {
-  
-    if (eventInfo[j][EVENT_PROCESS] == PROCESS_SKIP)  {
+
+
+  for (j = 0; j < elr - 1; j++) {
+
+    if (eventInfo[j][EVENT_PROCESS] == PROCESS_SKIP) {
       let date = Utilities.formatDate(new Date(eventInfo[j][EVENT_START]), "GMT-5", "MMM dd, yyyy");
       logOneCol("Skipped " + eventInfo[j][EVENT_SUBJECT] + " / " + date);
       continue;
     }
-    
+
     uploadRange.offset(rowOffset, EVENT_ASSIGNED_TO).setValue(eventInfo[j][EVENT_ASSIGNED_TO]);
     uploadRange.offset(rowOffset, EVENT_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
     uploadRange.offset(rowOffset, EVENT_MEETING_TYPE).setValue(eventInfo[j][EVENT_MEETING_TYPE]);
@@ -548,15 +548,15 @@ function stage_events_to_upload_tab() {
     uploadRange.offset(rowOffset, EVENT_PRODUCT).setValue(eventInfo[j][EVENT_PRODUCT]);
     uploadRange.offset(rowOffset, EVENT_DESC).setValue(eventInfo[j][EVENT_DESC]);
     uploadRange.offset(rowOffset, EVENT_LOGISTICS).setValue(eventInfo[j][EVENT_LOGISTICS]);
-    uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);  
-    uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]); 
-    uploadRange.offset(rowOffset, EVENT_NOTES).setValue(eventInfo[j][EVENT_NOTES]); 
-    uploadRange.offset(rowOffset, EVENT_LEAD).setValue(eventInfo[j][EVENT_LEAD]); 
+    uploadRange.offset(rowOffset, EVENT_PREP_TIME).setValue(eventInfo[j][EVENT_PREP_TIME]);
+    uploadRange.offset(rowOffset, EVENT_QUALITY).setValue(eventInfo[j][EVENT_QUALITY]);
+    uploadRange.offset(rowOffset, EVENT_NOTES).setValue(eventInfo[j][EVENT_NOTES]);
+    uploadRange.offset(rowOffset, EVENT_LEAD).setValue(eventInfo[j][EVENT_LEAD]);
     uc++;
     rowOffset++;
   }
   logOneCol("Uploaded " + uc + " events.");
-  
+
 }
 
 function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOfColumns, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
@@ -566,12 +566,12 @@ function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOf
   let chunkLastRow = chunkSize < totalNumberOfRows ? chunkSize : totalNumberOfRows;
   let chunkLength = chunkLastRow - chunkFirstRow + 1;
   while (chunkLength > 0) {
-    let scanRange = accountInfoSheet.getRange(chunkFirstRow,1, chunkLength, numberOfColumns);
+    let scanRange = accountInfoSheet.getRange(chunkFirstRow, 1, chunkLength, numberOfColumns);
     let accountInfo = scanRange.getValues();
-    
-                              
+
+
     load_account_info_worker_(accountInfo, chunkLength, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
-    
+
     chunkFirstRow = chunkLastRow + 1;
     chunkLastRow += chunkSize;
     chunkLength = chunkSize;
@@ -579,7 +579,7 @@ function load_account_info_chunks_(accountInfoSheet, totalNumberOfRows, numberOf
       chunkLastRow = totalNumberOfRows;
       chunkLength = chunkLastRow - chunkFirstRow + 1
     }
-  } 
+  }
 }
 
 function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType, accountType, accountNameIdx, accountIdIdx, emailIdx, altEmailIdx, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
@@ -592,85 +592,85 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
   // loggingEnabled there because we run this in two phases. Only want to publish logs on the second phase to avoid redundant info.
   // One global variable is updated (other than the one passed in as emailToAccountMap), and that is accountType. 
   // It allows us to track the type of each account we are processing.
-  
-   
+
+
   // This normally processes email domains (on stuff after the @ sign). However, one of the callers (for leads) will pass in a full email (<x>@<domain>). So, make
   // sure the logic is generic enough to handle that case. 
-  
+
   let accountLog = {};
-  
+
   // Build the email domain (or full email for leads) to account mapping  
   for (let j = 0; j < numberOfRows; j++) {
-  
+
     let id = accountInfo[j][accountIdIdx].trim();
 
     if (filter && filterType == FILTER_TYPE_ID && !filter[id]) {
       continue;
     }
-  
+
     let emailDomainString = accountInfo[j][emailIdx];
     let altDomainString = 0;
     if (altEmailIdx) {
-      altDomainString = accountInfo[j][altEmailIdx];  
-    }  
-  
+      altDomainString = accountInfo[j][altEmailIdx];
+    }
+
     if (!emailDomainString && !altDomainString) {
       if (loggingEnabled && accountType != LEAD_TYPE) logOneCol("NOTICE - " + accountInfo[j][accountNameIdx] + " has no email domain!");
       // Thousands of leads don't have an email. Don't try to log!!! Email domains are critical for accounts however.
       continue;
     }
-    
+
     let emailDomains = [];
     if (emailDomainString && typeof emailDomainString == "string") {
       emailDomains = emailDomainString.split(','); // Works if there is only one (no comma)
     }
-    if (altDomainString && typeof altDomainString == "string") {    
+    if (altDomainString && typeof altDomainString == "string") {
       let moreDomains = altDomainString.split(','); // 99% of the time, domains are comma separated, but not always
       if (moreDomains.length > 0) {
         emailDomains = emailDomains.concat(moreDomains);
       }
-    }   
-  
+    }
+
     let uniqueDomains = {};
-    
+
     for (let k = 0; k < emailDomains.length; k++) {
-    
-     
+
+
       // LATAM domains violate rules
       //let emailRegex = /[-\w]+\.[a-zA-Z]{2,3}$/;
       //let domain = emailRegex.exec(emailDomains[k].trim());
       let superDomain = emailDomains[k].trim(); // probably just one domain, but you never know
-      
+
       // Because sometimes Reps use spaces instead of commas to separate domains in
       // the salesforce field. Deal with it now.
       let potentiallyMoreDomains = superDomain.split(" ");
       for (let i = 0; i < potentiallyMoreDomains.length; i++) {
-      
+
         let domain = potentiallyMoreDomains[i].trim();
-        
+
         // FIXME are there other prefixes I don't know about? 
         if (domain.indexOf("www.") == 0) {
           domain = domain.substring(4);
         }
-        
+
         if (filter && filterType == FILTER_TYPE_DOMAIN && !filter[domain]) {
           continue;
         }
-        
+
         if (uniqueDomains[domain]) {
           continue; // Rep put this domain in twice!
         }
-        uniqueDomains[domain] = true; 
-        
+        uniqueDomains[domain] = true;
+
         if (accountLog[domain]) {
           //Logger.log("WARNING : Found account with a duplicate email domain - " + accountInfo[j][accountNameIdx] + ":" + domain);
-          
-          
+
+
           if (2 == phase) {
             // Don't report bad Salesforce data if invites don't reference it
-            
-            logFourCol("NOTICE - Multiple accounts for email domain!", "Domain: " + domain, "Rejected: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);  
-            
+
+            logFourCol("NOTICE - Multiple accounts for email domain!", "Domain: " + domain, "Rejected: " + accountInfo[j][accountNameIdx], "Selected: " + accountLog[domain]);
+
             // Remember the dup (for choice lists)
             // It is the case that an account with multiple domains could be primary on one domain, but not-primary on another.
             // Therefore, it is possible that an account was already put into the other queue already. Don't allow for duplicate accounts.
@@ -690,17 +690,17 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
           }
           continue; // Take the first
         }
-        
+
         accountLog[domain] = accountInfo[j][accountNameIdx];
-        emailToAccountMap[domain] = id;  
-        accountTypeMap[id] = accountType;  
+        emailToAccountMap[domain] = id;
+        accountTypeMap[id] = accountType;
         if (2 == phase) {
           // Remember the primary (for choice list)
           // It is the case that an account with multiple domains could be primary on one domain, but not-primary on another.
           // Therefore, it is possible that an account was already put into the other queue already. Don't allow for duplicate accounts.
           switch (accountType) {
             case INTERNAL_CUSTOMER_TYPE:
-            case EXTERNAL_CUSTOMER_TYPE:    
+            case EXTERNAL_CUSTOMER_TYPE:
               if (!duplicateAccountsG[accountInfo[j][accountNameIdx]])
                 primaryAccountsG[accountInfo[j][accountNameIdx]] = id;
               break;
@@ -719,17 +719,17 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
 
 function tester() { // DAK
   logStamp("Tester");
-  load_partner_info_(false, emailToPartnerMapG, accountTypeG,true);
+  load_partner_info_(false, emailToPartnerMapG, accountTypeG, true);
 }
 
 function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
   // Returns false on error 
   // Updates emailToCustomerMapG and accountTypeG
-  
+
   //
   // Load up our region's customers
   //
-  
+
   let targetedAccounts = null;
   if (!inRegionOnly) {
     targetedAccounts = loadFilter_(IN_PLAY_CUSTOMERS, FILTER_ACCOUNT_ID, false);
@@ -744,30 +744,30 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, ph
     if (loggingEnabled) logOneCol("WARNING - No in-region customers found! Perhaps you should refresh the In Region Customer tab.");
   }
   else {
-    
-    let scanRange = sheet.getRange(2,1, alr-1, alc);
+
+    let scanRange = sheet.getRange(2, 1, alr - 1, alc);
     let customerInfo = scanRange.getValues();
-    
+
     if (alc < CUSTOMER_COLUMNS) {
       logOneCol("ERROR: Imported In Region Customers was only " + alc + " fields wide. Not enough! Something is wrong.");
       return false;
     }
-    
+
     load_account_info_worker_(customerInfo, alr - 1, targetedAccounts, FILTER_TYPE_ID, INTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
   }
-  
+
   if (inRegionOnly) return true;
-  
+
   // 
   // Get the target list, accounts suspected to be out-of-region customers, to filter out what we need to save in memory.
   //
-  
+
   targetedAccounts = loadFilter_(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
-  
+
   //
   // Load up customers outside of our region, but only the ones that may be needed (in the targeted list)
   //
-  
+
   sheet = SpreadsheetApp.getActive().getSheetByName(ALL_CUSTOMERS);
   rangeData = sheet.getDataRange();
   alc = rangeData.getLastColumn();
@@ -777,10 +777,10 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, ph
     if (loggingEnabled) logOneCol("INFO - No out-region customers found! Perhaps you should run Activity > Import Missing Accounts.");
     return true;
   }
-  
+
   // This list could get massive. Do it in baby steps
   load_account_info_chunks_(sheet, alr, alc, targetedAccounts, FILTER_TYPE_ID, EXTERNAL_CUSTOMER_TYPE, CUSTOMER_NAME, CUSTOMER_ID, CUSTOMER_EMAIL_DOMAIN, CUSTOMER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
-  
+
   return true;
 }
 
@@ -792,7 +792,7 @@ function load_partner_info_(allPartners, emailToAccountMap, accountTypeMap, phas
   if (!allPartners) {
     targets = loadFilter_(IN_PLAY_PARTNERS, FILTER_ACCOUNT_ID, false);
   }
-  
+
   let sheet = SpreadsheetApp.getActive().getSheetByName(PARTNERS);
   let rangeData = sheet.getDataRange();
   let plc = rangeData.getLastColumn();
@@ -802,7 +802,7 @@ function load_partner_info_(allPartners, emailToAccountMap, accountTypeMap, phas
     logOneCol("WARNING : No Partners found! Perhaps you should refresh the partner tab.");
   }
   else {
-    load_account_info_chunks_(sheet, plr, plc, targets, FILTER_TYPE_ID, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);  
+    load_account_info_chunks_(sheet, plr, plc, targets, FILTER_TYPE_ID, PARTNER_TYPE, PARTNER_NAME, PARTNER_ID, PARTNER_EMAIL_DOMAIN, PARTNER_ALT_EMAIL_DOMAINS, emailToAccountMap, accountTypeMap, phase, loggingEnabled);
   }
   return true;
 }
@@ -813,23 +813,23 @@ function load_lead_info_(loggingEnabled) {
   // Get the target list, accounts suspected to only have leads, to filter out what we need to save in memory.
   // Updates emailToLeadMapG and accountTypeG
   //
-  
+
   let targetedLeads = loadFilter_(POTENTIAL_LEADS, FILTER_EMAIL_DOMAIN, false);
-  
+
   //
   // Import the targeted lead info
   //
-  
+
   let sheet = SpreadsheetApp.getActive().getSheetByName(LEADS);
   let rangeData = sheet.getDataRange();
   let lastColumn = rangeData.getLastColumn();
   let lastRow = rangeData.getLastRow();
-  
+
   if (lastColumn < LEAD_COLUMNS) {
     Logger.log("ERROR: " + LEADS + " does not have " + LEAD_COLUMNS + " fields.");
     return;
   }
-  
+
   load_account_info_chunks_(sheet, lastRow, lastColumn, targetedLeads, FILTER_TYPE_DOMAIN, LEAD_TYPE, LEAD_NAME, LEAD_ID, LEAD_EMAIL, 0, emailToLeadMapG, accountTypeG, 2, loggingEnabled)
 }
 
@@ -841,9 +841,9 @@ function loadFilter_(tabName, fieldNumber, truncate) {
   // Opportunties. They use the shorter 15 digit id to reference an account. 
   // So, when filtering a list of opportunities, we need to use a "truncated" list (15 digit account ids). 
   // So, truncate what will be an 18 digit id in fieldNumber down to 15.
-  
+
   let targets = {};
-  
+
   try {
     let sheet = SpreadsheetApp.getActive().getSheetByName(tabName);
     let rangeData = sheet.getDataRange();
@@ -853,9 +853,9 @@ function loadFilter_(tabName, fieldNumber, truncate) {
       // No external customers in this run
       return targets; // Still need to return the empty filter (its really a mask, so filter out everything)
     }
-    let scanRange = sheet.getRange(2,1, lr-1, lc);
-    let v = scanRange.getValues(); 
-    for (j = 0 ; j < lr - 1; j++) {
+    let scanRange = sheet.getRange(2, 1, lr - 1, lc);
+    let v = scanRange.getValues();
+    for (j = 0; j < lr - 1; j++) {
       if (truncate) {
         let k = v[j][fieldNumber]
         targets[k.substring(0, k.length - 3)] = true;
@@ -879,8 +879,8 @@ function printIt_() {
 }
 
 function findLead_(attendees) {
-  
-  for (let i=0; i<attendees.length; i++) {  
+
+  for (let i = 0; i < attendees.length; i++) {
     if (emailToLeadMapG[attendees[i]]) {
       return emailToLeadMapG[attendees[i]];
     }
@@ -888,22 +888,22 @@ function findLead_(attendees) {
   return null;
 }
 
-function load_tab_(sheetName, fromRow, minColumnCount) { 
-  
+function load_tab_(sheetName, fromRow, minColumnCount) {
+
   try {
     let sheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
     let rangeData = sheet.getDataRange();
     let lastColumn = rangeData.getLastColumn();
     let lastRow = rangeData.getLastRow();
-    
+
     if (lastColumn < minColumnCount) {
       Logger.log("ERROR: " + sheetName + " does not have " + minColumnCount + " fields.");
       return [];
     }
-    
+
     if (lastRow >= fromRow) {
-      let rowCount = lastRow-fromRow+1
-      let scanRange = sheet.getRange(fromRow,1, rowCount, lastColumn);
+      let rowCount = lastRow - fromRow + 1
+      let scanRange = sheet.getRange(fromRow, 1, rowCount, lastColumn);
       let inputArray = scanRange.getValues();
       return inputArray;
     }
@@ -911,42 +911,42 @@ function load_tab_(sheetName, fromRow, minColumnCount) {
   catch (e) {
     logOneCol("ERROR - load_tab_ issue on " + sheetName + ": " + e);
   }
-  
+
   return [];
 }
 
 function load_map_(tabName, firstRow, tabColumns, keyField, valueField, filter, filterField, existingMap) {
   let map = {};
   if (existingMap) map = existingMap;
-  
+
   try {
     let sheet = SpreadsheetApp.getActive().getSheetByName(tabName);
     let rangeData = sheet.getDataRange();
     let lastColumn = rangeData.getLastColumn();
     let lastRow = rangeData.getLastRow();
-    
+
     if (lastColumn < tabColumns) {
       Logger.log("ERROR: " + tabName + " does not have " + tabColumns + " fields.");
       return map;
     }
-    
+
     let chunkSize = 1000;
     let chunkFirstRow = firstRow;
     let chunkLastRow = chunkSize < lastRow ? chunkSize : lastRow;
     let chunkLength = chunkLastRow - chunkFirstRow + 1;
     while (chunkLength > 0) {
-      let scanRange = sheet.getRange(chunkFirstRow,1, chunkLength, lastColumn);
+      let scanRange = sheet.getRange(chunkFirstRow, 1, chunkLength, lastColumn);
       let info = scanRange.getValues();
-      
+
       for (let j = 0; j < chunkLength; j++) {
-        
+
         if (filter && !filter[info[j][filterField]]) {
           continue;
-        }   
+        }
         map[info[j][keyField]] = info[j][valueField];
-        
+
       }
-    
+
       chunkFirstRow = chunkLastRow + 1;
       chunkLastRow += chunkSize;
       chunkLength = chunkSize;
@@ -954,24 +954,24 @@ function load_map_(tabName, firstRow, tabColumns, keyField, valueField, filter, 
         chunkLastRow = lastRow;
         chunkLength = chunkLastRow - chunkFirstRow + 1
       }
-    } 
+    }
   }
   catch (e) {
     logOneCol("ERROR - load_map_ issue on " + tabName + ": " + e);
   }
-  
+
   return map;
 }
 
 function analyzeSubject_(text) {
-  
-  let rv = {prepTime : 0}
-  
+
+  let rv = { prepTime: 0 }
+
   let subject = text.trim();
   if (prepCalendarEntries[subject]) {
     rv.prepTime = prepCalendarEntries[subject];
     prepCalendarEntries[subject] = 0;
-  }   
+  }
   return rv;
 }
 
@@ -980,55 +980,686 @@ function generateLongId_(id) {
   // Transform a 15 character case sensitive Salesforce ID into the 
   // "long version", an 18 character case insensitive id.
   // This is Salesforce's algorithm.
-  
+
   let retVal = id;
-  
-  if(id.length == 15){
-    
-    let addon="";
-    for(let block=0;block<3; block++)
-    {
-      let loop=0;
-      for(let position=0;position<5;position++){
-        let current=id.charAt(block*5+position);
-        if(current>="A" && current<="Z")
-          loop+=1<<position;
+
+  if (id.length == 15) {
+
+    let addon = "";
+    for (let block = 0; block < 3; block++) {
+      let loop = 0;
+      for (let position = 0; position < 5; position++) {
+        let current = id.charAt(block * 5 + position);
+        if (current >= "A" && current <= "Z")
+          loop += 1 << position;
       }
-      addon+="ABCDEFGHIJKLMNOPQRSTUVWXYZ012345".charAt(loop);
+      addon += "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345".charAt(loop);
     }
-    retVal=(id+addon);
+    retVal = (id + addon);
   }
   return retVal;
 }
 
+function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeString) {
+
+  if (!statsOutputWorksheetIdG) {
+    // If we have no place to send it, don't bother collecting it
+    return;
+  }
+
+  // attendees is a comma separated string of meeting attendees.
+  // relatedTo will be null for leads
+
+  //let sId = staffEmailToIdMapG[inviteInfo[ASSIGNED_TO]];
+
+  // statsLedgerG Structure
+  //
+  // ledger
+  //  userId ...
+  //    generalCounts
+  //      op : count
+  //      op_new : count
+  //      customer : count
+  //      customer_new : count
+  //      partner : count
+  //.     partner_new : count
+  //      lead : count 
+  //.     lead_new : count
+  //    ops
+  //      opId ...
+  //        new_count : count
+  //        recurring_count : count
+  //        attendees
+  //          attendee ...
+  //            new_count : count
+  //            recurring_count : count
+  //    customers
+  //      accountId ...
+  //        new_count : count
+  //        recurring_count : count
+  //        attendees
+  //         attendee ...
+  //          new_count : count
+  //          recurring_count : count
+  //    partners
+  //      accountId ...
+  //        new_count : count
+  //        recurring_count : count
+  //        attendees
+  //         attendee ...
+  //           new_count : count
+  //           recurring_count : count
+  //    leads
+  //      attendee : ...
+  //           new_count : count
+  //           recurring_count : count
+
+  let attendees = attendeeString.split(",");
+
+  if (!statsLedgerG[assignedTo]) {
+    let meetingCounts = { op: 0, op_new: 0, customer: 0, customer_new : 0, partner: 0, partner_new: 0, lead: 0, lead_new : 0 };
+    statsLedgerG[assignedTo] = { generalCounts: meetingCounts, ops: {}, customers: {}, partners: {}, leads: {} };
+    // logOneCol("Collecting contact stats for " + assignedTo);
+  }
+
+  switch (eventType) {
+    case OP_EVENT:
+      statsLedgerG[assignedTo].generalCounts.op++;
+      if (!statsLedgerG[assignedTo].ops[relatedTo]) {
+        statsLedgerG[assignedTo].ops[relatedTo] = { new_count: 0, recurring_count: 0, attendees: {} };
+      }
+      if (isRecurring) {
+        statsLedgerG[assignedTo].ops[relatedTo].recurring_count++;
+      }
+      else {
+        statsLedgerG[assignedTo].generalCounts.op_new++;
+        statsLedgerG[assignedTo].ops[relatedTo].new_count++;
+      }
+      break;
+    case CUSTOMER_EVENT:
+      statsLedgerG[assignedTo].generalCounts.customer++;
+      if (!statsLedgerG[assignedTo].customers[relatedTo]) {
+        statsLedgerG[assignedTo].customers[relatedTo] = { new_count: 0, recurring_count: 0, attendees: {} }; // Object for all possible attendee counts
+      }
+      if (isRecurring) {
+        statsLedgerG[assignedTo].customers[relatedTo].recurring_count++;
+      }
+      else {
+        statsLedgerG[assignedTo].generalCounts.customer_new++;
+        statsLedgerG[assignedTo].customers[relatedTo].new_count++;
+      }
+      break;
+    case PARTNER_EVENT:
+      statsLedgerG[assignedTo].generalCounts.partner++;
+      if (!statsLedgerG[assignedTo].partners[relatedTo]) {
+        statsLedgerG[assignedTo].partners[relatedTo] = { new_count: 0, recurring_count: 0, attendees: {} }; // Object for all possible attendee counts
+      }
+      if (isRecurring) {
+        statsLedgerG[assignedTo].partners[relatedTo].recurring_count++;
+      }
+      else {
+        statsLedgerG[assignedTo].generalCounts.partner_new++;
+        statsLedgerG[assignedTo].partners[relatedTo].new_count++;
+      }
+      break;
+    case LEAD_EVENT:
+      statsLedgerG[assignedTo].generalCounts.lead++;
+      if (!isRecurring) {
+        statsLedgerG[assignedTo].generalCounts.lead_new++;
+      }
+      break;
+    default:
+      break;
+  }
+
+  for (let i = 0; i < attendees.length; i++) {
+    if (attendees[i].indexOf("hashicorp.com") == -1) {
+      switch (eventType) {
+        case OP_EVENT:       
+          incrementStat_(statsLedgerG[assignedTo].ops[relatedTo].attendees, attendees[i], isRecurring);
+          break;
+        case CUSTOMER_EVENT:         
+          incrementStat_(statsLedgerG[assignedTo].customers[relatedTo].attendees, attendees[i], isRecurring);
+          break;
+        case PARTNER_EVENT:       
+          incrementStat_(statsLedgerG[assignedTo].partners[relatedTo].attendees, attendees[i], isRecurring);
+          break;
+        case LEAD_EVENT:
+          incrementStat_(statsLedgerG[assignedTo].leads, attendees[i], isRecurring);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+}
+
+function printStats_() {
+
+  // Dump stats
+  // See collectStats method for statsLedgerG schema
+  //
+
+  if (!statsOutputWorksheetIdG) {
+    return;
+  }
+
+  let chartLedger = [];
+  let chartIndex = 0;
+  let minChartSpacing = 21; // Need 21 Rows to fit chart. Small datasets need to be spaced at least 21 rows
+
+  let worksheet = SpreadsheetApp.openById(statsOutputWorksheetIdG);
+  if (!worksheet) {
+    logOneCol("ERROR - Stats output worksheet id is not valid. Id: " + statsOutputWorksheetIdG);
+    return;
+  }
+
+  let sheet = worksheet.getSheetByName(MEETING);
+  //let sheet = SpreadsheetApp.getActive().getSheetByName(STATS);
+  if (!sheet) {
+    logOneCol("Error - could not find the " + MEETING + " tab for stats output in " + worksheet.getName());
+    return;
+  }
+
+  logOneCol("Logging stats to the " + MEETING + " tab in "+ worksheet.getName());
+  sheet.clearContents();
+  deleteCharts_(sheet);
+
+  let outputRange = sheet.getRange(MEETING_COUNTS_ORIGIN_ROW, MEETING_COUNTS_ORIGIN_COL);
+  let rowOffset = 0;
+
+  outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
+  outputRange.offset(rowOffset++, 0).setValue("                          Group Meetings");
+  outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
+  rowOffset++
+
+  // Calculate statistics
+  let totalMeetings = 0;
+  let totalNewMeetings = 0;
+  let userCount = 0;
+  let statistics = {};
+  for (user in statsLedgerG) {
+    userCount++;
+    statistics[user] = {ops : 0, customers : 0, partners : 0, new_meetings : 0, recurring_meetings : 0, attendees_new : 0, attendees_recurring : 0 };
+
+    totalMeetings = totalMeetings + statsLedgerG[user].generalCounts.op + statsLedgerG[user].generalCounts.customer +
+      statsLedgerG[user].generalCounts.partner + statsLedgerG[user].generalCounts.lead;
+    totalNewMeetings = totalNewMeetings + statsLedgerG[user].generalCounts.op_new + statsLedgerG[user].generalCounts.customer_new +
+      statsLedgerG[user].generalCounts.partner_new + statsLedgerG[user].generalCounts.lead_new;
+
+    for (op in statsLedgerG[user].ops) {
+      statistics[user].ops++;
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].ops[op].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].ops[op].recurring_count;
+      for (d in statsLedgerG[user].ops[op].attendees) {
+        if (statsLedgerG[user].ops[op].attendees[d].new_count > 0) {
+          statistics[user].attendees_new++;
+        }
+        if (statsLedgerG[user].ops[op].attendees[d].recurring_count > 0) {
+          statistics[user].attendees_recurring++;
+        }
+      }
+    }
+
+    for (account in statsLedgerG[user].customers) {
+      statistics[user].customers++;
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].customers[account].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].customers[account].recurring_count;
+      for (d in statsLedgerG[user].customers[account].attendees) {
+        if (statsLedgerG[user].customers[account].attendees[d].new_count > 0) {
+          statistics[user].attendees_new++;
+        }
+        if (statsLedgerG[user].customers[account].attendees[d].recurring_count > 0) {
+          statistics[user].attendees_recurring++;
+        }
+      }
+    }
+
+    for (account in statsLedgerG[user].partners) {
+      statistics[user].partners++;
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].partners[account].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].partners[account].recurring_count;
+      for (d in statsLedgerG[user].partners[account].attendees) {
+        if (statsLedgerG[user].partners[account].attendees[d].new_count > 0) {
+          statistics[user].attendees_new++;
+        }
+        if (statsLedgerG[user].partners[account].attendees[d].recurring_count > 0) {
+          statistics[user].attendees_recurring++;
+        }
+      }
+    }
+
+    for (lead in statsLedgerG[user].leads) {
+      // FIXME dak
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].leads[lead].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].leads[lead].recurring_count;
+
+      if (statsLedgerG[user].leads[lead].new_count > 0) {
+        statistics[user].attendees_new++;
+      }
+      if (statsLedgerG[user].leads[lead].recurring_count > 0) {
+        statistics[user].attendees_recurring++;
+      }
+
+    }
+
+  }
+
+  if (userCount == 0) return;
+
+  outputRange.offset(rowOffset++, 0).setValue("----------------- Statistics -----------------");
+  outputRange.offset(rowOffset++, 0).setValue("Total meeting count: " + totalMeetings);
+  outputRange.offset(rowOffset++, 0).setValue("Total new meeting count: " + totalNewMeetings);
+  outputRange.offset(rowOffset++, 0).setValue("Total recurring meeting count: " + (totalMeetings - totalNewMeetings));
+
+  let ave = Math.round(totalMeetings / userCount);
+  let aveN = Math.round(totalNewMeetings / userCount);
+  let aveR = Math.round((totalMeetings - totalNewMeetings) / userCount);
+
+  outputRange.offset(rowOffset++, 0).setValue("Average meeting count: " + ave);
+  outputRange.offset(rowOffset++, 0).setValue("Average new meeting count: " + aveN);
+  outputRange.offset(rowOffset++, 0).setValue("Average recurring meeting count: " + aveR);
+
+  let std = 0;
+  let stdN = 0;
+  let stdR = 0;
+  if (userCount > 1) {
+
+    // Calculate standard deviation
+    let squares = 0;
+    let squaresN = 0;
+    let squaresR = 0;
+    for (user in statsLedgerG) {
+
+      let t = statsLedgerG[user].generalCounts.op + statsLedgerG[user].generalCounts.customer +
+        statsLedgerG[user].generalCounts.partner + statsLedgerG[user].generalCounts.lead;
+      let tN = statsLedgerG[user].generalCounts.op_new + statsLedgerG[user].generalCounts.customer_new +
+        statsLedgerG[user].generalCounts.partner_new + statsLedgerG[user].generalCounts.lead_new;
+
+      let tR = t - tN;
+
+      squares = squares + ((t - ave) * (t - ave));
+      squaresN = squaresN + ((tN - aveN) * (tN - aveN));
+      squaresR = squaresR + ((tR - aveR) * (tR - aveR));
+
+    }
+    std = Math.round(Math.sqrt(squares / (userCount - 1)));
+    stdN = Math.round(Math.sqrt(squaresN / (userCount - 1)));
+    stdR = Math.round(Math.sqrt(squaresR / (userCount - 1)));
+    outputRange.offset(rowOffset++, 0).setValue("StdDev meeting count: " + std);
+    outputRange.offset(rowOffset++, 0).setValue("StdDev new meeting count: " + stdN);
+    outputRange.offset(rowOffset++, 0).setValue("StdDev recurring meeting count: " + stdR);
+  }
+
+  outputRange.offset(rowOffset++, 0).setValue("Total External Meeting Counts");
+  let outputFrameRowOffset = rowOffset;
+  chartLedger[chartIndex] = { title: "Total External Meeting Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
+  outputRange.offset(rowOffset, 1).setValue("Opportunity");
+  outputRange.offset(rowOffset, 2).setValue("Customer");
+  outputRange.offset(rowOffset, 3).setValue("Partner");
+  outputRange.offset(rowOffset, 4).setValue("Lead");
+  rowOffset++;
+  for (user in statsLedgerG) {
+    outputRange.offset(rowOffset, 0).setValue(user);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].generalCounts.op);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].generalCounts.customer);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].generalCounts.partner);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].generalCounts.lead);
+    rowOffset++;
+  }
+  chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+  chartIndex++
+
+  rowOffset++;
+  if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+    rowOffset = outputFrameRowOffset + minChartSpacing;
+  }
+
+  outputRange.offset(rowOffset++, 0).setValue("New External Meeting Counts");
+  outputFrameRowOffset = rowOffset;
+  chartLedger[chartIndex] = { title: "New External Meeting Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
+  outputRange.offset(rowOffset, 1).setValue("Opportunity");
+  outputRange.offset(rowOffset, 2).setValue("Customer");
+  outputRange.offset(rowOffset, 3).setValue("Partner");
+  outputRange.offset(rowOffset, 4).setValue("Lead");
+  rowOffset++;
+  for (user in statsLedgerG) {
+    outputRange.offset(rowOffset, 0).setValue(user);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].generalCounts.op_new);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].generalCounts.customer_new);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].generalCounts.partner_new);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].generalCounts.lead_new);
+    rowOffset++;
+  }
+  chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+  chartIndex++
+
+  rowOffset++;
+  if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+    rowOffset = outputFrameRowOffset + minChartSpacing;
+  }
+  outputRange.offset(rowOffset++, 0).setValue("Recurring External Meeting Counts");
+  outputFrameRowOffset = rowOffset;
+  chartLedger[chartIndex] = { title: "Recurring External Meeting Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
+  outputRange.offset(rowOffset, 1).setValue("Opportunity");
+  outputRange.offset(rowOffset, 2).setValue("Customer");
+  outputRange.offset(rowOffset, 3).setValue("Partner");
+  outputRange.offset(rowOffset, 4).setValue("Lead");
+  rowOffset++;
+  for (user in statsLedgerG) {
+    outputRange.offset(rowOffset, 0).setValue(user);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].generalCounts.op - statsLedgerG[user].generalCounts.op_new);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].generalCounts.customer - statsLedgerG[user].generalCounts.customer_new);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].generalCounts.partner - statsLedgerG[user].generalCounts.partner_new);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].generalCounts.lead - statsLedgerG[user].generalCounts.lead_new);
+    rowOffset++;
+  }
+  chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+  chartIndex++
+
+
+  if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+    rowOffset = outputFrameRowOffset + minChartSpacing;
+  }
+
+  outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
+  outputRange.offset(rowOffset++, 0).setValue("                       Staff Member Meeting Counts");
+  outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
+  rowOffset++
+
+  for (user in statsLedgerG) { // user is email
+
+    outputRange.offset(rowOffset++, 0).setValue(user + " Stats");
+    outputRange.offset(rowOffset++, 0).setValue("-----------------------");
+    outputRange.offset(rowOffset++, 0).setValue("Engaged Opportunities: " + statistics[user].ops);
+    outputRange.offset(rowOffset++, 0).setValue("Engaged Customers (with no op): " + statistics[user].customers);
+    outputRange.offset(rowOffset++, 0).setValue("Engaged Partners: " + statistics[user].partners);
+    let message = "";
+    if (statistics[user].new_meetings < aveN) {
+      if (aveN - statistics[user].new_meetings > stdN) {
+        message = "Number of new meetings: " + statistics[user].new_meetings + ", more than a standard deviation BELOW the mean of " + aveN;
+      }
+      else {
+        message = "Number of new meetings: " + statistics[user].new_meetings + ", which is BELOW the mean of " + aveN;
+      }
+    }
+    else {
+      if (statistics[user].new_meetings - aveN > stdN) {
+        message = "Number of new meetings: " + statistics[user].new_meetings + ", more than a standard deviation above than the mean of " + aveN;
+      }
+      else {
+        message = "Number of new meetings: " + statistics[user].new_meetings + ", which is above the mean of " + aveN;
+      }
+    }
+    outputRange.offset(rowOffset++, 0).setValue(message);
+    if (statistics[user].recurring_meetings < aveR) {
+      if (aveR - statistics[user].recurring_meetings > stdR) {
+        message = "Number of recurring meetings: " + statistics[user].recurring_meetings + ", more than a standard deviation BELOW the mean of " + aveR;
+      }
+      else {
+        message = "Number of recurring meetings: " + statistics[user].recurring_meetings + ", which is BELOW the mean of " + aveR;
+      }
+    }
+    else {
+      if (statistics[user].recurring_meetings - aveR > stdR) {
+        message = "Number of recurring meetings: " + statistics[user].recurring_meetings + ", more than a standard deviation above than the mean of " + aveR;
+      }
+      else {
+        message = "Number of recurring meetings: " + statistics[user].recurring_meetings + ", which is above the mean of " + aveR;
+      }
+    }
+    outputRange.offset(rowOffset++, 0).setValue(message);
+    outputRange.offset(rowOffset++, 0).setValue("Total number of contacts attending new meetings (moving the needle forward): " + statistics[user].attendees_new);
+    outputRange.offset(rowOffset++, 0).setValue("Total number of contacts attending recurring meetings (status calls): " + statistics[user].attendees_recurring);
+
+    rowOffset = rowOffset + 2;
+    outputRange.offset(rowOffset++, 0).setValue(user + " Event Counts");
+    outputFrameRowOffset = rowOffset;
+    chartLedger[chartIndex] = { title: user + " Event Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 6 };
+    outputRange.offset(rowOffset, 1).setValue("Opportunity");
+    outputRange.offset(rowOffset, 2).setValue("Customer");
+    outputRange.offset(rowOffset, 3).setValue("Partner");
+    outputRange.offset(rowOffset, 4).setValue("Lead");
+    outputRange.offset(rowOffset, 5).setValue("Recurring");
+    rowOffset++;
+    for (op in statsLedgerG[user].ops) {
+      outputRange.offset(rowOffset, 0).setValue(op);
+      outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].ops[op].new_count);
+      outputRange.offset(rowOffset, 2).setValue(0);
+      outputRange.offset(rowOffset, 3).setValue(0);
+      outputRange.offset(rowOffset, 4).setValue(0);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].ops[op].recurring_count);
+      rowOffset++;
+    }
+    for (a in statsLedgerG[user].customers) {
+      outputRange.offset(rowOffset, 0).setValue(a);
+      outputRange.offset(rowOffset, 1).setValue(0);
+      outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].customers[a].new_count);
+      outputRange.offset(rowOffset, 3).setValue(0);
+      outputRange.offset(rowOffset, 4).setValue(0);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].customers[a].recurring_count);
+      rowOffset++;
+    }
+    for (a in statsLedgerG[user].partners) {
+      outputRange.offset(rowOffset, 0).setValue(a);
+      outputRange.offset(rowOffset, 1).setValue(0);
+      outputRange.offset(rowOffset, 2).setValue(0);
+      outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].partners[a].new_count);
+      outputRange.offset(rowOffset, 4).setValue(0);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].partners[a].recurring_count);
+      rowOffset++;
+    }
+    for (l in statsLedgerG[user].leads) {
+      outputRange.offset(rowOffset, 0).setValue(l);
+      outputRange.offset(rowOffset, 1).setValue(0);
+      outputRange.offset(rowOffset, 2).setValue(0);
+      outputRange.offset(rowOffset, 3).setValue(0);
+      outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].leads[l].new_count);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].leads[l].recurring_count);
+      rowOffset++;
+    }
+    chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+    chartIndex++
+
+    rowOffset++;
+    if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+      rowOffset = outputFrameRowOffset + minChartSpacing;
+    }
+  }
+
+  outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
+  outputRange.offset(rowOffset++, 0).setValue("                         Contact Tracing");
+  outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
+  rowOffset++
+
+
+
+  for (user in statsLedgerG) {
+
+    outputRange.offset(rowOffset++, 0).setValue("-------------------  for " + user + "  -------------------");
+    rowOffset = rowOffset + 2;
+
+    outputRange.offset(rowOffset++, 1).setValue("-------------------  Opportunity Contact Counts  -------------------");
+    rowOffset = rowOffset + 2;
+
+    let maxFrameRows = 0;
+    let outputFrameColOffset = 1;
+    outputFrameRowOffset = rowOffset;
+
+    for (op in statsLedgerG[user].ops) {
+      outputRange.offset(rowOffset++, outputFrameColOffset).setValue(op + " (" + user + ")");
+      //chartLedger[chartIndex] = { title: user + " / " + op + " Contact Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
+      outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
+      outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
+      rowOffset++;
+      let contactArray = [];
+      for (a in statsLedgerG[user].ops[op].attendees) {
+        contactArray.push({ n: a, u: statsLedgerG[user].ops[op].attendees[a].new_count, r: statsLedgerG[user].ops[op].attendees[a].recurring_count })
+      }
+      contactArray.sort(compareContacts_);
+      for (let i = 0; i < contactArray.length; i++) {
+        outputRange.offset(rowOffset, outputFrameColOffset).setValue(contactArray[i].n);
+        outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contactArray[i].u);
+        outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contactArray[i].r);
+        rowOffset++;
+      }
+      //chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+      //chartIndex++
+      if (rowOffset - outputFrameRowOffset > maxFrameRows) {
+        maxFrameRows = rowOffset - outputFrameRowOffset;
+      }
+      rowOffset = outputFrameRowOffset
+      outputFrameColOffset = outputFrameColOffset + 5;
+    }
+
+    rowOffset = outputFrameRowOffset + maxFrameRows + 1;
+    outputFrameColOffset = 1;
+    maxFrameRows = 0;
+    outputRange.offset(rowOffset++, 1).setValue("------------------- Account Contact Counts (No Opportunity registered) -------------------");
+    rowOffset = rowOffset + 2;
+    outputFrameRowOffset = rowOffset; // In case nothing is in the next loop
+    for (account in statsLedgerG[user].customers) {
+      outputRange.offset(rowOffset++, outputFrameColOffset).setValue(user + " / " + account + " Contact Counts (No Op)");
+      //chartLedger[chartIndex] = { title: user + " / " + account + " Contact Counts (No Op)", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
+      outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
+      outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
+      rowOffset++;
+      let contactArray = [];
+      for (a in statsLedgerG[user].customers[account].attendees) {
+        contactArray.push({ n: a, u: statsLedgerG[user].customers[account].attendees[a].new_count, r: statsLedgerG[user].customers[account].attendees[a].recurring_count })
+      }
+      contactArray.sort(compareContacts_);
+      for (let i = 0; i < contactArray.length; i++) {
+        outputRange.offset(rowOffset, outputFrameColOffset).setValue(contactArray[i].n);
+        outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contactArray[i].u);
+        outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contactArray[i].r);
+        rowOffset++;
+      }
+
+      //chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+      //chartIndex++
+      if (rowOffset - outputFrameRowOffset > maxFrameRows) {
+        maxFrameRows = rowOffset - outputFrameRowOffset;
+      }
+      rowOffset = outputFrameRowOffset
+      outputFrameColOffset = outputFrameColOffset + 5;
+    }
+
+    rowOffset = outputFrameRowOffset + maxFrameRows + 1;
+    outputFrameColOffset = 1;
+    maxFrameRows = 0;
+    outputRange.offset(rowOffset++, 1).setValue("-------------------  Partner Contact Counts -------------------");
+    rowOffset = rowOffset + 2;
+    outputFrameRowOffset = rowOffset;
+    for (account in statsLedgerG[user].partners) {
+      outputRange.offset(rowOffset++, outputFrameColOffset).setValue(user + " / " + account + " Contact Counts (Partner)");
+      //chartLedger[chartIndex] = { title: user + " / " + account + " Contact Counts (Partner)", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
+      outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
+      outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
+      rowOffset++;
+      let contactArray = [];
+      for (a in statsLedgerG[user].partners[account].attendees) {
+        contactArray.push({ n: a, u: statsLedgerG[user].partners[account].attendees[a].new_count, r: statsLedgerG[user].partners[account].attendees[a].recurring_count })
+      }
+      contactArray.sort(compareContacts_);
+      for (let i = 0; i < contactArray.length; i++) {
+        outputRange.offset(rowOffset, outputFrameColOffset).setValue(contactArray[i].n);
+        outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contactArray[i].u);
+        outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contactArray[i].r);
+        rowOffset++;
+      }
+
+      //chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+      //chartIndex++
+      if (rowOffset - outputFrameRowOffset > maxFrameRows) {
+        maxFrameRows = rowOffset - outputFrameRowOffset;
+      }
+      rowOffset = outputFrameRowOffset
+      outputFrameColOffset = outputFrameColOffset + 5;
+    }
+
+    rowOffset = outputFrameRowOffset + maxFrameRows + 1;
+
+  }
+
+
+  //
+  // Build Charts
+  //
+  logOneCol("Generating charts in " + MEETING);
+  for (let ci = 0; ci < chartIndex; ci++) {
+
+    //Logger.log(JSON.stringify(chartLedger[ci]));
+
+    let dataRange = sheet.getRange(MEETING_COUNTS_ORIGIN_ROW + chartLedger[ci].rowOffset, MEETING_COUNTS_ORIGIN_COL + chartLedger[ci].colOffset,
+      chartLedger[ci].rowCount, chartLedger[ci].colCount);
+    makeStackedColumnChart(chartLedger[ci].title, sheet, dataRange, MEETING_COUNTS_ORIGIN_ROW + chartLedger[ci].rowOffset,
+      MEETING_COUNTS_ORIGIN_COL + chartLedger[ci].colOffset + chartLedger[ci].colCount); // spread out overlapping charts over 4 columns
+  }
+}
+
+function compareContacts_(a, b) {
+  // u is "new meeting count" for that contact
+  if (a.u > b.u) return -1;
+  if (a.u < b.u) return 1;
+  return 0;
+}
+
+function deleteCharts_(sheet) {
+  //sheet = SpreadsheetApp.getActive().getSheetByName(STATS);
+  var charts = sheet.getCharts();
+  for (var i in charts) {
+    sheet.removeChart(charts[i]);
+  }
+}
+
+function incrementStat_(obj, key, isRecurring) {
+  if (obj[key]) {
+    if (isRecurring) {
+      obj[key].recurring_count++;
+    }
+    else {
+      obj[key].new_count++;
+    }
+  }
+  else {
+    if (isRecurring) {
+      obj[key] = { new_count: 0, recurring_count: 1 };
+    }
+    else {
+      obj[key] = { new_count: 1, recurring_count: 0 };
+    }
+  }
+}
+
 function logStamp(title) {
-  
+
   let logSheet = SpreadsheetApp.getActive().getSheetByName(LOG_TAB);
   var logLastRow = logSheet.getLastRow();
-  AM_LOG = logSheet.getRange(logLastRow+2,1); // Leave an empty row divider
+  AM_LOG = logSheet.getRange(logLastRow + 2, 1); // Leave an empty row divider
   AM_LOG_ROW = 0;
-  
+
   AM_LOG.offset(AM_LOG_ROW, 0).setValue(title + " " + new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString());
-  AM_LOG.offset(AM_LOG_ROW+1, 0).setValue("---------------------------------------------------------------");
-  AM_LOG_ROW+=2; 
+  AM_LOG.offset(AM_LOG_ROW + 1, 0).setValue("---------------------------------------------------------------");
+  AM_LOG_ROW += 2;
 }
 
 function logOneCol(message) {
   AM_LOG.offset(AM_LOG_ROW, 0).setValue(message);
-  AM_LOG_ROW++;   
+  AM_LOG_ROW++;
 }
 
 function logTwoCol(one, two) {
   AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
   AM_LOG.offset(AM_LOG_ROW, 1).setValue(two);
-  AM_LOG_ROW++;   
+  AM_LOG_ROW++;
 }
 
 function logThreeCol(one, two, three) {
   AM_LOG.offset(AM_LOG_ROW, 0).setValue(one);
   AM_LOG.offset(AM_LOG_ROW, 1).setValue(two);
   AM_LOG.offset(AM_LOG_ROW, 2).setValue(three);
-  AM_LOG_ROW++;   
+  AM_LOG_ROW++;
 }
 
 function logFourCol(one, two, three, four) {
@@ -1036,5 +1667,5 @@ function logFourCol(one, two, three, four) {
   AM_LOG.offset(AM_LOG_ROW, 1).setValue(two);
   AM_LOG.offset(AM_LOG_ROW, 2).setValue(three);
   AM_LOG.offset(AM_LOG_ROW, 3).setValue(four);
-  AM_LOG_ROW++;    
+  AM_LOG_ROW++;
 }

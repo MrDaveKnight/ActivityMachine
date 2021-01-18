@@ -188,7 +188,8 @@ function build_se_events() {
     }
     staffNameToEmailMapG[staffInfo[j][STAFF_NAME].trim()] = staffInfo[j][STAFF_EMAIL].trim();
     
-    if (!staffInfo[j][STAFF_LONG_ID]) {
+    // If the long id is missing, or due to a config refresh is no longer the correct id ... (re)initialize
+    if (!staffInfo[j][STAFF_LONG_ID] || staffInfo[j][STAFF_LONG_ID].indexOf(staffInfo[j][STAFF_ID].trim()) == -1) {
       let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
       longIdCells.offset(j, STAFF_LONG_ID).setValue(longId);
       staffEmailToIdMapG[staffInfo[j][STAFF_EMAIL].trim()] = longId.trim();
@@ -553,6 +554,10 @@ function build_se_events() {
       // even if they are not going (and the UI indicates it; again, can't find a way to get that info out of the google calendar API.)
       continue;
     }
+    
+
+    
+    
     
     
     //
@@ -974,7 +979,7 @@ function build_se_events() {
         // TODO - find other leads for a company that weren't at the meeting so you can choose a "ghost lead" for all activity leading to an account?
         
       }
-      else {       
+      else {    
         logThreeCol("WARNING - Unable to find a customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
       }     
     }
@@ -990,7 +995,21 @@ function unveil_se_events() {
   //Copy events over to Review tab replacing account or opportunity ids with names 
   
   logStamp("Unveiling Events");
-    
+  logOneCol("This may take a while. For progress, go to the \"Review\" tab. You'll be able to see records appending to the list. Or, get a nice cup of hot coffee.");
+  inReviewInitialization = true;
+
+  //
+  // Load run parameters 
+  //
+
+  let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
+  let statsOutputIdRange = parms.getRange(28, 2); // Hardcoded to format of cells in RUN_PARMS!
+  let rangeValues = statsOutputIdRange.getValues();
+  statsOutputWorksheetIdG = rangeValues[0][0];
+  if (statsOutputWorksheetIdG) {
+    logOneCol("Processing statistics for this run.");
+  }
+
   //
   // Load Opportunity Info
   //
@@ -1005,7 +1024,7 @@ function unveil_se_events() {
   
   let staffNameById = {};
   
-  sheet = SpreadsheetApp.getActive().getSheetByName(STAFF);
+  let sheet = SpreadsheetApp.getActive().getSheetByName(STAFF);
   rangeData = sheet.getDataRange();
   let slc = rangeData.getLastColumn();
   let slr = rangeData.getLastRow();
@@ -1022,7 +1041,8 @@ function unveil_se_events() {
   // Build the user id to name mapping  
   for (var j = 0 ; j < slr - 1; j++) {
     
-    if (!staffInfo[j][STAFF_LONG_ID]) {
+    // If the long id missing, or due to a config refresh is no longer the correct id ... (re)initialize
+    if (!staffInfo[j][STAFF_LONG_ID] || staffInfo[j][STAFF_LONG_ID].indexOf(staffInfo[j][STAFF_ID].trim()) == -1) {
       let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
       longIdCells.offset(j,STAFF_LONG_ID).setValue(longId);
       staffNameById[longId.trim()] = staffInfo[j][STAFF_NAME].trim();
@@ -1062,6 +1082,8 @@ function unveil_se_events() {
   //
   // Copy events over, replacing account or opportunity ids with names, or lead ids with names
   //
+
+  logOneCol("Initialized");
   
   sheet = SpreadsheetApp.getActive().getSheetByName(EVENTS);
   rangeData = sheet.getDataRange();
@@ -1094,45 +1116,55 @@ function unveil_se_events() {
   PropertiesService.getScriptProperties().setProperty("reviewTouches", JSON.stringify(reviewRowWasTouchedArray));
   PropertiesService.getScriptProperties().setProperty("reviewTouchEnabled", "true");
   
-  for (j = 0 ; j < elr-1; j++) {
+  let currentAssignedTo = 0;
+  for (j = 0; j < elr - 1; j++) {
+
+    let assignedTo = staffNameById[eventInfo[j][EVENT_ASSIGNED_TO]];
+    if (assignedTo != currentAssignedTo) {
+      logOneCol("Processing " + assignedTo);
+      currentAssignedTo = assignedTo;
+    }
+  
     // Note that these types are in the Data Validation for the associated field on the Review tab
     let name = "General";
     let type = "General";
     if (opNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = opNameById[eventInfo[j][EVENT_RELATED_TO]];
-      type = "Opportunity";
+      type = OP_EVENT;
       cO++;
     }
     else if (partnerNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = partnerNameById[eventInfo[j][EVENT_RELATED_TO]];
-      type = "Partner";
+      type = PARTNER_EVENT;
       cP++;
     }
     else if (customerNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = customerNameById[eventInfo[j][EVENT_RELATED_TO]];
-      type = "Customer";
+      type = CUSTOMER_EVENT;
       cC++;
     } 
     else if (leadEmailById[eventInfo[j][EVENT_LEAD]]) {
       name = leadEmailById[eventInfo[j][EVENT_LEAD]];
-      type = "Lead";
+      type = LEAD_EVENT;
       cL++;
     }
     else {
       cG++;
     }
-    outputRange.offset(rowOffset, REVIEW_ASSIGNED_TO).setValue(staffNameById[eventInfo[j][EVENT_ASSIGNED_TO]]);
+    outputRange.offset(rowOffset, REVIEW_ASSIGNED_TO).setValue(assignedTo);
     outputRange.offset(rowOffset, REVIEW_EVENT_TYPE).setValue(type);
     outputRange.offset(rowOffset, REVIEW_ORIG_EVENT_TYPE).setValue(type);
-    if (type == "Opportunity" || type == "Customer" || type == "Partner") {
+    if (type == OP_EVENT || type == CUSTOMER_EVENT || type == PARTNER_EVENT) {
       outputRange.offset(rowOffset, REVIEW_RELATED_TO).setValue(name); 
       outputRange.offset(rowOffset, REVIEW_ORIG_RELATED_TO).setValue(name); 
       initValidation_(outputRange.offset(rowOffset, REVIEW_RELATED_TO), type);
+      collectStats_(assignedTo, type, eventInfo[j][EVENT_RECURRING], name, eventInfo[j][EVENT_ATTENDEES]);
     }
-    else if (type == "Lead") {
+    else if (type == LEAD_EVENT) {
       outputRange.offset(rowOffset, REVIEW_LEAD).setValue(name);
       outputRange.offset(rowOffset, REVIEW_ORIG_LEAD).setValue(name);
-      initValidation_(outputRange.offset(rowOffset, REVIEW_LEAD), type);
+      initValidation_(outputRange.offset(rowOffset, REVIEW_LEAD), type); 
+      collectStats_(assignedTo, LEAD_EVENT, eventInfo[j][EVENT_RECURRING], null, eventInfo[j][EVENT_ATTENDEES]);
     }     
     outputRange.offset(rowOffset, REVIEW_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
     outputRange.offset(rowOffset, REVIEW_ORIG_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
@@ -1167,7 +1199,6 @@ function unveil_se_events() {
     outputRange.offset(rowOffset, REVIEW_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
     outputRange.offset(rowOffset, REVIEW_ORIG_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
     
-    
     rowOffset++;
   }
   
@@ -1175,7 +1206,7 @@ function unveil_se_events() {
   // WARNING - This protection is hardcoded to the column format of unveiled events tab!
   // If the header changes, you may need to update this
   //
-  
+  /*
   var protection = sheet.protect().setDescription('Review data protection');
   var unprotected1 = sheet.getRange(2, 2, rowOffset, 3); 
   var unprotected2 = sheet.getRange(2, 8, rowOffset, 11); 
@@ -1188,6 +1219,7 @@ function unveil_se_events() {
   if (protection.canDomainEdit()) {
     protection.setDomainEdit(false);
   }
+  */
   
   logOneCol("Unveiled " + cO + " Opportunity events.");
   logOneCol("Unveiled " + cP + " Partner events.");
@@ -1196,8 +1228,11 @@ function unveil_se_events() {
   logOneCol("Unveiled " + cG + " General/Multi-customer events.");
   logOneCol("Unveiled a total of " + rowOffset + " events.");
   logOneCol("End time: " + new Date().toLocaleTimeString());
-  
+
+  inReviewInitialization = false;
   sheet.activate();
+
+  printStats_();
   
 }
 
@@ -1255,16 +1290,16 @@ function reconcile_se_events() {
     let lead = null;
     let updatedFields = null;
     switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
-      case "Opportunity":
+      case OP_EVENT:
         relatedTo = opIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
-      case "Partner":
+      case PARTNER_EVENT:
         relatedTo = partnerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
-      case "Customer":
+      case CUSTOMER_EVENT:
         relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
         break;
-      case "Lead":
+      case LEAD_EVENT:
         lead = leadIdByEmail[reviewInfo[j][REVIEW_LEAD]];
         break;
       case "General":
@@ -1466,7 +1501,6 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
     }
     
     
-    
     // Logger.log("Debug: Creating createAccountEvents_ for: " + account);
     
     outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
@@ -1484,6 +1518,8 @@ function createSpecialEvents_(outputTab, attendees, inviteInfo, productInventory
     outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
     outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue("None");
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
     
     outputTab.rowOffset++;
     
@@ -1542,6 +1578,8 @@ function createAccountEvents_(outputTab, attendees, attendeeLog, inviteInfo, pro
       outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
       outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(accountTypeNamesG[accountTypeG[account]]);
       outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
       
       outputTab.rowOffset++;
       eventCount++;
@@ -1600,11 +1638,14 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
     outputTab.range.offset(outputTab.rowOffset, EVENT_QUALITY).setValue(descriptionScan.quality);
     outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
     outputTab.range.offset(outputTab.rowOffset, EVENT_LEAD).setValue(lead);
-    outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue("Lead");
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(LEAD_EVENT);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
     
     
     outputTab.rowOffset++;
+
   }
   catch (e) {
     logOneCol("ERROR - createLeadEvent_ exception: " + e);
@@ -1695,6 +1736,8 @@ function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDef
     outputTab.range.offset(outputTab.rowOffset, EVENT_NOTES).setValue(descriptionScan.notes);
     outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(accountTypeNamesG[accountTypeG[accountId]]);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
     
     outputTab.rowOffset++;  
     
