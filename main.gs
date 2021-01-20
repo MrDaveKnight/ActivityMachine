@@ -15,20 +15,15 @@
 // 2. Generate SE Activities from those invites, saving them in a "staging" tab in the google sheet
 // 3. Upload SE Activities; moving staged SE Activities into the "Upload" tab for Zap upload
 // 4. Generate "unveiled" SE Activities with machine IDs replaced by names for easier review
-// 5. Import "missing" customers and leads (customers that are out-of-region, and leads for attendees without an account)
-// 6. Clear various tabs and logs
+// 5. Clear various tabs and logs
 //
 // A Zapier zap is configured to watch for SE Activities that appear in the Upload tab, and push them up 
-// into Salesforce. Two more zaps are configured to watch for "missing" domains and emails in order to import
-// out-of-region customers and potential leads
+// into Salesforce.
 // 
-// ** Remember to turn off the associated Zap(s) before you delete records from the Upload or "Missing" tabs. **
+// ** Remember to turn off the associated Zap(s) before you delete records from the Upload tab. **
 //
 // Information from Salesforce needed by the invite-to-event transform logic is stored in other google sheet tabs,
 // and imported via "Dataconnector for Salesforce".
-//
-// Config assumptions:
-// 1. Hashicorp doesn't show up in any customer, partner or lead lists.
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
@@ -136,7 +131,7 @@ const CALENDAR_HEADER = [["Calendar Address", "Summary/Title", "Location", "Star
 
 const UPLOAD_STAGE = "Upload (Zap)"
 const EVENTS = "Events"
-const EVENT_COLUMNS = 19; // If you add one, update this too
+const EVENT_COLUMNS = 23; // If you add one, update this too
 const EVENT_ASSIGNED_TO = 0;
 const EVENT_OP_STAGE = 1;
 const EVENT_MEETING_TYPE = 2;
@@ -156,9 +151,13 @@ const EVENT_NOTES = 14;
 const EVENT_ACCOUNT_TYPE = 15;
 const EVENT_PROCESS = 16;
 const EVENT_RECURRING = 17;
-const EVENT_ATTENDEES = 18;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Recurring", "Attendees"]]
-const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]]
+const EVENT_DEMO = 18;
+const EVENT_POV = 19;
+const EVENT_WORKSHOP = 20;
+const EVENT_DIVE = 21;
+const EVENT_ATTENDEES = 22;
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Recurring", "Demo", "POV", "Workshop", "Deep Dive", "Attendees"]];
+const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]];
 
 const EVENTS_UNVEILED = "Review"
 const REVIEW_COLUMNS = 18;
@@ -270,7 +269,7 @@ const NOMAD = "N";
 // Stats
 //
 
-var statsLedgerG = {}; // see the collectStats_ function in eutility.gs
+var statsLedgerG = { global: { agendaItems: { demo: 0, pov: 0, workshop: 0, deepdive: 0 } }, users : {} }; // see the collectStats_ function in eutility.gs
 var statsOutputWorksheetIdG = null;
 const MEETING = "Meetings";
 const MEETING_COUNTS_ORIGIN_ROW = 3;

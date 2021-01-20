@@ -1158,13 +1158,13 @@ function unveil_se_events() {
       outputRange.offset(rowOffset, REVIEW_RELATED_TO).setValue(name); 
       outputRange.offset(rowOffset, REVIEW_ORIG_RELATED_TO).setValue(name); 
       initValidation_(outputRange.offset(rowOffset, REVIEW_RELATED_TO), type);
-      collectStats_(assignedTo, type, eventInfo[j][EVENT_RECURRING], name, eventInfo[j][EVENT_ATTENDEES]);
+      collectStats_(assignedTo, type, eventInfo[j], name, eventInfo[j][EVENT_ATTENDEES]);
     }
     else if (type == LEAD_EVENT) {
       outputRange.offset(rowOffset, REVIEW_LEAD).setValue(name);
       outputRange.offset(rowOffset, REVIEW_ORIG_LEAD).setValue(name);
       initValidation_(outputRange.offset(rowOffset, REVIEW_LEAD), type); 
-      collectStats_(assignedTo, LEAD_EVENT, eventInfo[j][EVENT_RECURRING], null, eventInfo[j][EVENT_ATTENDEES]);
+      collectStats_(assignedTo, LEAD_EVENT, eventInfo[j], null, eventInfo[j][EVENT_ATTENDEES]);
     }     
     outputRange.offset(rowOffset, REVIEW_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
     outputRange.offset(rowOffset, REVIEW_ORIG_OP_STAGE).setValue(eventInfo[j][EVENT_OP_STAGE]);
@@ -1579,6 +1579,10 @@ function createAccountEvents_(outputTab, attendees, attendeeLog, inviteInfo, pro
       outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(accountTypeNamesG[accountTypeG[account]]);
       outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
       outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_DEMO).setValue(event.agendaItems.demo);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_POV).setValue(event.agendaItems.pov);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_WORKSHOP).setValue(event.agendaItems.workshop);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.dive);
       outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
       
       outputTab.rowOffset++;
@@ -1641,8 +1645,12 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
     outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(LEAD_EVENT);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
     outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DEMO).setValue(event.agendaItems.demo);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_POV).setValue(event.agendaItems.pov);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_WORKSHOP).setValue(event.agendaItems.workshop);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.dive);
     outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
-    
+
     
     outputTab.rowOffset++;
 
@@ -1737,8 +1745,12 @@ function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDef
     outputTab.range.offset(outputTab.rowOffset, EVENT_ACCOUNT_TYPE).setValue(accountTypeNamesG[accountTypeG[accountId]]);
     outputTab.range.offset(outputTab.rowOffset, EVENT_PROCESS).setValue(PROCESS_UPLOAD);
     outputTab.range.offset(outputTab.rowOffset, EVENT_RECURRING).setValue(inviteInfo[IS_RECURRING]);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DEMO).setValue(event.agendaItems.demo);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_POV).setValue(event.agendaItems.pov);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_WORKSHOP).setValue(event.agendaItems.workshop);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.dive);
     outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
-    
+
     outputTab.rowOffset++;  
     
   }

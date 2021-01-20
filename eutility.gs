@@ -1000,7 +1000,24 @@ function generateLongId_(id) {
   return retVal;
 }
 
-function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeString) {
+function incrementAgendaItemCounts_(ledger, eventInfo) {
+  // This must be keep in sync with the agendaItemsToTrack object in eheuristic.gs
+
+  if (eventInfo[EVENT_DEMO]) {
+    ledger.demo++;
+  }
+  if (eventInfo[EVENT_POV]) {
+    ledger.pov++;
+  }
+  if (eventInfo[EVENT_WORKSHOP]) {
+    ledger.workshop++;
+  }
+  if (eventInfo[EVENT_DIVE]) {
+    ledger.deepdive++;
+  }
+}
+
+function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeString) {
 
   if (!statsOutputWorksheetIdG) {
     // If we have no place to send it, don't bother collecting it
@@ -1015,20 +1032,37 @@ function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeSt
   // statsLedgerG Structure
   //
   // ledger
-  //  userId ...
+  //  global
+  //   agendaItems
+  //    demo : count
+  //    pov : count
+  //    workshop : count
+  //    deepdive : count
+  //  users
+  //   userId ...
   //    generalCounts
   //      op : count
   //      op_new : count
   //      customer : count
   //      customer_new : count
   //      partner : count
-  //.     partner_new : count
+  //      partner_new : count
   //      lead : count 
-  //.     lead_new : count
+  //      lead_new : count
+  //.     adendaItems
+  //        demo : count
+  //        pov : count
+  //        workshop : count
+  //        deepdive : count
   //    ops
   //      opId ...
   //        new_count : count
   //        recurring_count : count
+  //        agendaItems
+  //          demo : count
+  //          pov : count
+  //          workshop : count
+  //          deepdive : count
   //        attendees
   //          attendee ...
   //            new_count : count
@@ -1037,6 +1071,11 @@ function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeSt
   //      accountId ...
   //        new_count : count
   //        recurring_count : count
+  //        adendaItems
+  //          demo : count
+  //          pov : count
+  //          workshop : count
+  //          deepdive : count
   //        attendees
   //         attendee ...
   //          new_count : count
@@ -1045,6 +1084,11 @@ function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeSt
   //      accountId ...
   //        new_count : count
   //        recurring_count : count
+  //        adendaItems
+  //          demo : count
+  //          pov : count
+  //          workshop : count
+  //          deepdive : count
   //        attendees
   //         attendee ...
   //           new_count : count
@@ -1056,56 +1100,66 @@ function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeSt
 
   let attendees = attendeeString.split(",");
 
-  if (!statsLedgerG[assignedTo]) {
-    let meetingCounts = { op: 0, op_new: 0, customer: 0, customer_new : 0, partner: 0, partner_new: 0, lead: 0, lead_new : 0 };
-    statsLedgerG[assignedTo] = { generalCounts: meetingCounts, ops: {}, customers: {}, partners: {}, leads: {} };
+  if (!statsLedgerG.users[assignedTo]) {
+    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+    let meetingCounts = { op: 0, op_new: 0, customer: 0, customer_new : 0, partner: 0, partner_new: 0, lead: 0, lead_new : 0, agendaItems: agendaItems};
+    statsLedgerG.users[assignedTo] = { generalCounts: meetingCounts, ops: {}, customers: {}, partners: {}, leads: {} };
     // logOneCol("Collecting contact stats for " + assignedTo);
   }
 
+  incrementAgendaItemCounts_(statsLedgerG.global.agendaItems, eventInfo);
+  incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].generalCounts.agendaItems, eventInfo);
+
   switch (eventType) {
     case OP_EVENT:
-      statsLedgerG[assignedTo].generalCounts.op++;
-      if (!statsLedgerG[assignedTo].ops[relatedTo]) {
-        statsLedgerG[assignedTo].ops[relatedTo] = { new_count: 0, recurring_count: 0, attendees: {} };
+      statsLedgerG.users[assignedTo].generalCounts.op++;
+      if (!statsLedgerG.users[assignedTo].ops[relatedTo]) {
+        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+        statsLedgerG.users[assignedTo].ops[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} };
       }
-      if (isRecurring) {
-        statsLedgerG[assignedTo].ops[relatedTo].recurring_count++;
+      incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].ops[relatedTo].agendaItems, eventInfo);
+      if (eventInfo[EVENT_RECURRING]) {
+        statsLedgerG.users[assignedTo].ops[relatedTo].recurring_count++;
       }
       else {
-        statsLedgerG[assignedTo].generalCounts.op_new++;
-        statsLedgerG[assignedTo].ops[relatedTo].new_count++;
+        statsLedgerG.users[assignedTo].generalCounts.op_new++;
+        statsLedgerG.users[assignedTo].ops[relatedTo].new_count++;
       }
       break;
     case CUSTOMER_EVENT:
-      statsLedgerG[assignedTo].generalCounts.customer++;
-      if (!statsLedgerG[assignedTo].customers[relatedTo]) {
-        statsLedgerG[assignedTo].customers[relatedTo] = { new_count: 0, recurring_count: 0, attendees: {} }; // Object for all possible attendee counts
+      statsLedgerG.users[assignedTo].generalCounts.customer++;
+      if (!statsLedgerG.users[assignedTo].customers[relatedTo]) {
+        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+        statsLedgerG.users[assignedTo].customers[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} }; // Object for all possible attendee counts
       }
-      if (isRecurring) {
-        statsLedgerG[assignedTo].customers[relatedTo].recurring_count++;
+      incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].customers[relatedTo].agendaItems, eventInfo);
+      if (eventInfo[EVENT_RECURRING]) {
+        statsLedgerG.users[assignedTo].customers[relatedTo].recurring_count++;
       }
       else {
-        statsLedgerG[assignedTo].generalCounts.customer_new++;
-        statsLedgerG[assignedTo].customers[relatedTo].new_count++;
+        statsLedgerG.users[assignedTo].generalCounts.customer_new++;
+        statsLedgerG.users[assignedTo].customers[relatedTo].new_count++;
       }
       break;
     case PARTNER_EVENT:
-      statsLedgerG[assignedTo].generalCounts.partner++;
-      if (!statsLedgerG[assignedTo].partners[relatedTo]) {
-        statsLedgerG[assignedTo].partners[relatedTo] = { new_count: 0, recurring_count: 0, attendees: {} }; // Object for all possible attendee counts
+      statsLedgerG.users[assignedTo].generalCounts.partner++;
+      if (!statsLedgerG.users[assignedTo].partners[relatedTo]) {
+        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+        statsLedgerG.users[assignedTo].partners[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} }; // Object for all possible attendee counts
       }
-      if (isRecurring) {
-        statsLedgerG[assignedTo].partners[relatedTo].recurring_count++;
+      incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].partners[relatedTo].agendaItems, eventInfo);
+      if (eventInfo[EVENT_RECURRING]) {
+        statsLedgerG.users[assignedTo].partners[relatedTo].recurring_count++;
       }
       else {
-        statsLedgerG[assignedTo].generalCounts.partner_new++;
-        statsLedgerG[assignedTo].partners[relatedTo].new_count++;
+        statsLedgerG.users[assignedTo].generalCounts.partner_new++;
+        statsLedgerG.users[assignedTo].partners[relatedTo].new_count++;
       }
       break;
     case LEAD_EVENT:
-      statsLedgerG[assignedTo].generalCounts.lead++;
-      if (!isRecurring) {
-        statsLedgerG[assignedTo].generalCounts.lead_new++;
+      statsLedgerG.users[assignedTo].generalCounts.lead++;
+      if (!eventInfo[EVENT_RECURRING]) {
+        statsLedgerG.users[assignedTo].generalCounts.lead_new++;
       }
       break;
     default:
@@ -1116,16 +1170,16 @@ function collectStats_(assignedTo, eventType, isRecurring, relatedTo, attendeeSt
     if (attendees[i].indexOf("hashicorp.com") == -1) {
       switch (eventType) {
         case OP_EVENT:       
-          incrementStat_(statsLedgerG[assignedTo].ops[relatedTo].attendees, attendees[i], isRecurring);
+          incrementStat_(statsLedgerG.users[assignedTo].ops[relatedTo].attendees, attendees[i], eventInfo);
           break;
         case CUSTOMER_EVENT:         
-          incrementStat_(statsLedgerG[assignedTo].customers[relatedTo].attendees, attendees[i], isRecurring);
+          incrementStat_(statsLedgerG.users[assignedTo].customers[relatedTo].attendees, attendees[i], eventInfo);
           break;
         case PARTNER_EVENT:       
-          incrementStat_(statsLedgerG[assignedTo].partners[relatedTo].attendees, attendees[i], isRecurring);
+          incrementStat_(statsLedgerG.users[assignedTo].partners[relatedTo].attendees, attendees[i], eventInfo);
           break;
         case LEAD_EVENT:
-          incrementStat_(statsLedgerG[assignedTo].leads, attendees[i], isRecurring);
+          incrementStat_(statsLedgerG.users[assignedTo].leads, attendees[i], eventInfo);
           break;
         default:
           break;
@@ -1169,75 +1223,74 @@ function printStats_() {
   let rowOffset = 0;
 
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
-  outputRange.offset(rowOffset++, 0).setValue("                          Group Meetings");
+  outputRange.offset(rowOffset++, 0).setValue("                          Group Data");
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
-  rowOffset++
+  rowOffset++;
 
   // Calculate statistics
   let totalMeetings = 0;
   let totalNewMeetings = 0;
   let userCount = 0;
   let statistics = {};
-  for (user in statsLedgerG) {
+  for (user in statsLedgerG.users) {
     userCount++;
     statistics[user] = {ops : 0, customers : 0, partners : 0, new_meetings : 0, recurring_meetings : 0, attendees_new : 0, attendees_recurring : 0 };
+    totalMeetings = totalMeetings + statsLedgerG.users[user].generalCounts.op + statsLedgerG.users[user].generalCounts.customer +
+      statsLedgerG.users[user].generalCounts.partner + statsLedgerG.users[user].generalCounts.lead;
+    totalNewMeetings = totalNewMeetings + statsLedgerG.users[user].generalCounts.op_new + statsLedgerG.users[user].generalCounts.customer_new +
+      statsLedgerG.users[user].generalCounts.partner_new + statsLedgerG.users[user].generalCounts.lead_new;
 
-    totalMeetings = totalMeetings + statsLedgerG[user].generalCounts.op + statsLedgerG[user].generalCounts.customer +
-      statsLedgerG[user].generalCounts.partner + statsLedgerG[user].generalCounts.lead;
-    totalNewMeetings = totalNewMeetings + statsLedgerG[user].generalCounts.op_new + statsLedgerG[user].generalCounts.customer_new +
-      statsLedgerG[user].generalCounts.partner_new + statsLedgerG[user].generalCounts.lead_new;
-
-    for (op in statsLedgerG[user].ops) {
+    for (op in statsLedgerG.users[user].ops) {
       statistics[user].ops++;
-      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].ops[op].new_count;
-      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].ops[op].recurring_count;
-      for (d in statsLedgerG[user].ops[op].attendees) {
-        if (statsLedgerG[user].ops[op].attendees[d].new_count > 0) {
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG.users[user].ops[op].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG.users[user].ops[op].recurring_count;
+      for (d in statsLedgerG.users[user].ops[op].attendees) {
+        if (statsLedgerG.users[user].ops[op].attendees[d].new_count > 0) {
           statistics[user].attendees_new++;
         }
-        if (statsLedgerG[user].ops[op].attendees[d].recurring_count > 0) {
+        if (statsLedgerG.users[user].ops[op].attendees[d].recurring_count > 0) {
           statistics[user].attendees_recurring++;
         }
       }
     }
 
-    for (account in statsLedgerG[user].customers) {
+    for (account in statsLedgerG.users[user].customers) {
       statistics[user].customers++;
-      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].customers[account].new_count;
-      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].customers[account].recurring_count;
-      for (d in statsLedgerG[user].customers[account].attendees) {
-        if (statsLedgerG[user].customers[account].attendees[d].new_count > 0) {
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG.users[user].customers[account].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG.users[user].customers[account].recurring_count;
+      for (d in statsLedgerG.users[user].customers[account].attendees) {
+        if (statsLedgerG.users[user].customers[account].attendees[d].new_count > 0) {
           statistics[user].attendees_new++;
         }
-        if (statsLedgerG[user].customers[account].attendees[d].recurring_count > 0) {
+        if (statsLedgerG.users[user].customers[account].attendees[d].recurring_count > 0) {
           statistics[user].attendees_recurring++;
         }
       }
     }
 
-    for (account in statsLedgerG[user].partners) {
+    for (account in statsLedgerG.users[user].partners) {
       statistics[user].partners++;
-      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].partners[account].new_count;
-      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].partners[account].recurring_count;
-      for (d in statsLedgerG[user].partners[account].attendees) {
-        if (statsLedgerG[user].partners[account].attendees[d].new_count > 0) {
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG.users[user].partners[account].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG.users[user].partners[account].recurring_count;
+      for (d in statsLedgerG.users[user].partners[account].attendees) {
+        if (statsLedgerG.users[user].partners[account].attendees[d].new_count > 0) {
           statistics[user].attendees_new++;
         }
-        if (statsLedgerG[user].partners[account].attendees[d].recurring_count > 0) {
+        if (statsLedgerG.users[user].partners[account].attendees[d].recurring_count > 0) {
           statistics[user].attendees_recurring++;
         }
       }
     }
 
-    for (lead in statsLedgerG[user].leads) {
+    for (lead in statsLedgerG.users[user].leads) {
       // FIXME dak
-      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG[user].leads[lead].new_count;
-      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG[user].leads[lead].recurring_count;
+      statistics[user].new_meetings = statistics[user].new_meetings + statsLedgerG.users[user].leads[lead].new_count;
+      statistics[user].recurring_meetings = statistics[user].recurring_meetings + statsLedgerG.users[user].leads[lead].recurring_count;
 
-      if (statsLedgerG[user].leads[lead].new_count > 0) {
+      if (statsLedgerG.users[user].leads[lead].new_count > 0) {
         statistics[user].attendees_new++;
       }
-      if (statsLedgerG[user].leads[lead].recurring_count > 0) {
+      if (statsLedgerG.users[user].leads[lead].recurring_count > 0) {
         statistics[user].attendees_recurring++;
       }
 
@@ -1251,6 +1304,11 @@ function printStats_() {
   outputRange.offset(rowOffset++, 0).setValue("Total meeting count: " + totalMeetings);
   outputRange.offset(rowOffset++, 0).setValue("Total new meeting count: " + totalNewMeetings);
   outputRange.offset(rowOffset++, 0).setValue("Total recurring meeting count: " + (totalMeetings - totalNewMeetings));
+  outputRange.offset(rowOffset++, 0).setValue("Total demo count: " + statsLedgerG.global.agendaItems.demo);
+  outputRange.offset(rowOffset++, 0).setValue("Total pov count: " + statsLedgerG.global.agendaItems.pov);
+  outputRange.offset(rowOffset++, 0).setValue("Total workshop count: " + statsLedgerG.global.agendaItems.workshop);
+  outputRange.offset(rowOffset++, 0).setValue("Total deep dive count: " + statsLedgerG.global.agendaItems.deepdive);
+  
 
   let ave = Math.round(totalMeetings / userCount);
   let aveN = Math.round(totalNewMeetings / userCount);
@@ -1269,12 +1327,12 @@ function printStats_() {
     let squares = 0;
     let squaresN = 0;
     let squaresR = 0;
-    for (user in statsLedgerG) {
+    for (user in statsLedgerG.users) {
 
-      let t = statsLedgerG[user].generalCounts.op + statsLedgerG[user].generalCounts.customer +
-        statsLedgerG[user].generalCounts.partner + statsLedgerG[user].generalCounts.lead;
-      let tN = statsLedgerG[user].generalCounts.op_new + statsLedgerG[user].generalCounts.customer_new +
-        statsLedgerG[user].generalCounts.partner_new + statsLedgerG[user].generalCounts.lead_new;
+      let t = statsLedgerG.users[user].generalCounts.op + statsLedgerG.users[user].generalCounts.customer +
+        statsLedgerG.users[user].generalCounts.partner + statsLedgerG.users[user].generalCounts.lead;
+      let tN = statsLedgerG.users[user].generalCounts.op_new + statsLedgerG.users[user].generalCounts.customer_new +
+        statsLedgerG.users[user].generalCounts.partner_new + statsLedgerG.users[user].generalCounts.lead_new;
 
       let tR = t - tN;
 
@@ -1290,21 +1348,48 @@ function printStats_() {
     outputRange.offset(rowOffset++, 0).setValue("StdDev new meeting count: " + stdN);
     outputRange.offset(rowOffset++, 0).setValue("StdDev recurring meeting count: " + stdR);
   }
+  rowOffset++;
+  rowOffset++;
+
+  outputRange.offset(rowOffset++, 0).setValue("Aggregate Agenda Item Percentages");
+  let outputFrameRowOffset = rowOffset;
+  chartLedger[chartIndex] = { title: "Aggregate Agenda Item Percentages", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 2 };
+  outputRange.offset(rowOffset, 1).setValue("Percentage of Total Meetings");
+  rowOffset++;
+  outputRange.offset(rowOffset, 0).setValue("Demo");
+  outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.demo / totalMeetings).toFixed(1));
+  rowOffset++;
+  outputRange.offset(rowOffset, 0).setValue("Workshop");
+  outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.workshop / totalMeetings).toFixed(1));
+  rowOffset++;
+  outputRange.offset(rowOffset, 0).setValue("POV");
+  outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.pov / totalMeetings).toFixed(1));
+  rowOffset++;
+  outputRange.offset(rowOffset, 0).setValue("Deep Dive");
+  outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.deepdive / totalMeetings).toFixed(1));
+  rowOffset++;
+  chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+  chartIndex++
+
+  rowOffset++;
+  if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+    rowOffset = outputFrameRowOffset + minChartSpacing;
+  }
 
   outputRange.offset(rowOffset++, 0).setValue("Total External Meeting Counts");
-  let outputFrameRowOffset = rowOffset;
+  outputFrameRowOffset = rowOffset;
   chartLedger[chartIndex] = { title: "Total External Meeting Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
   outputRange.offset(rowOffset, 1).setValue("Opportunity");
   outputRange.offset(rowOffset, 2).setValue("Customer");
   outputRange.offset(rowOffset, 3).setValue("Partner");
   outputRange.offset(rowOffset, 4).setValue("Lead");
   rowOffset++;
-  for (user in statsLedgerG) {
+  for (user in statsLedgerG.users) {
     outputRange.offset(rowOffset, 0).setValue(user);
-    outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].generalCounts.op);
-    outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].generalCounts.customer);
-    outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].generalCounts.partner);
-    outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].generalCounts.lead);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].generalCounts.op);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].generalCounts.customer);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].generalCounts.partner);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].generalCounts.lead);
     rowOffset++;
   }
   chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
@@ -1323,12 +1408,12 @@ function printStats_() {
   outputRange.offset(rowOffset, 3).setValue("Partner");
   outputRange.offset(rowOffset, 4).setValue("Lead");
   rowOffset++;
-  for (user in statsLedgerG) {
+  for (user in statsLedgerG.users) {
     outputRange.offset(rowOffset, 0).setValue(user);
-    outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].generalCounts.op_new);
-    outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].generalCounts.customer_new);
-    outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].generalCounts.partner_new);
-    outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].generalCounts.lead_new);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].generalCounts.op_new);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].generalCounts.customer_new);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].generalCounts.partner_new);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].generalCounts.lead_new);
     rowOffset++;
   }
   chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
@@ -1338,6 +1423,7 @@ function printStats_() {
   if (rowOffset - outputFrameRowOffset < minChartSpacing) {
     rowOffset = outputFrameRowOffset + minChartSpacing;
   }
+
   outputRange.offset(rowOffset++, 0).setValue("Recurring External Meeting Counts");
   outputFrameRowOffset = rowOffset;
   chartLedger[chartIndex] = { title: "Recurring External Meeting Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
@@ -1346,17 +1432,40 @@ function printStats_() {
   outputRange.offset(rowOffset, 3).setValue("Partner");
   outputRange.offset(rowOffset, 4).setValue("Lead");
   rowOffset++;
-  for (user in statsLedgerG) {
+  for (user in statsLedgerG.users) {
     outputRange.offset(rowOffset, 0).setValue(user);
-    outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].generalCounts.op - statsLedgerG[user].generalCounts.op_new);
-    outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].generalCounts.customer - statsLedgerG[user].generalCounts.customer_new);
-    outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].generalCounts.partner - statsLedgerG[user].generalCounts.partner_new);
-    outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].generalCounts.lead - statsLedgerG[user].generalCounts.lead_new);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].generalCounts.op - statsLedgerG.users[user].generalCounts.op_new);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].generalCounts.customer - statsLedgerG.users[user].generalCounts.customer_new);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].generalCounts.partner - statsLedgerG.users[user].generalCounts.partner_new);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].generalCounts.lead - statsLedgerG.users[user].generalCounts.lead_new);
     rowOffset++;
   }
   chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
   chartIndex++
 
+
+  if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+    rowOffset = outputFrameRowOffset + minChartSpacing;
+  }
+
+ outputRange.offset(rowOffset++, 0).setValue("Agenda Item Counts");
+  outputFrameRowOffset = rowOffset;
+  chartLedger[chartIndex] = { title: "Agenda Item Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
+  outputRange.offset(rowOffset, 1).setValue("Demo");
+  outputRange.offset(rowOffset, 2).setValue("Workshop");
+  outputRange.offset(rowOffset, 3).setValue("POV");
+  outputRange.offset(rowOffset, 4).setValue("Deep Dive");
+  rowOffset++;
+  for (user in statsLedgerG.users) {
+    outputRange.offset(rowOffset, 0).setValue(user);
+    outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].generalCounts.agendaItems.demo);
+    outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].generalCounts.agendaItems.workshop);
+    outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].generalCounts.agendaItems.pov);
+    outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].generalCounts.agendaItems.deepdive);
+    rowOffset++;
+  }
+  chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+  chartIndex++
 
   if (rowOffset - outputFrameRowOffset < minChartSpacing) {
     rowOffset = outputFrameRowOffset + minChartSpacing;
@@ -1367,13 +1476,17 @@ function printStats_() {
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
   rowOffset++
 
-  for (user in statsLedgerG) { // user is email
+  for (user in statsLedgerG.users) { // user is email
 
     outputRange.offset(rowOffset++, 0).setValue(user + " Stats");
     outputRange.offset(rowOffset++, 0).setValue("-----------------------");
     outputRange.offset(rowOffset++, 0).setValue("Engaged Opportunities: " + statistics[user].ops);
     outputRange.offset(rowOffset++, 0).setValue("Engaged Customers (with no op): " + statistics[user].customers);
     outputRange.offset(rowOffset++, 0).setValue("Engaged Partners: " + statistics[user].partners);
+    outputRange.offset(rowOffset++, 0).setValue("Demos: " + statsLedgerG.users[user].generalCounts.agendaItems.demo);
+    outputRange.offset(rowOffset++, 0).setValue("Workshops: " + statsLedgerG.users[user].generalCounts.agendaItems.workshop);
+    outputRange.offset(rowOffset++, 0).setValue("POV Meetings: " + statsLedgerG.users[user].generalCounts.agendaItems.pov);
+    outputRange.offset(rowOffset++, 0).setValue("Deep Dives: " + statsLedgerG.users[user].generalCounts.agendaItems.deepdive);
     let message = "";
     if (statistics[user].new_meetings < aveN) {
       if (aveN - statistics[user].new_meetings > stdN) {
@@ -1422,40 +1535,81 @@ function printStats_() {
     outputRange.offset(rowOffset, 4).setValue("Lead");
     outputRange.offset(rowOffset, 5).setValue("Recurring");
     rowOffset++;
-    for (op in statsLedgerG[user].ops) {
+    for (op in statsLedgerG.users[user].ops) {
       outputRange.offset(rowOffset, 0).setValue(op);
-      outputRange.offset(rowOffset, 1).setValue(statsLedgerG[user].ops[op].new_count);
+      outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].ops[op].new_count);
       outputRange.offset(rowOffset, 2).setValue(0);
       outputRange.offset(rowOffset, 3).setValue(0);
       outputRange.offset(rowOffset, 4).setValue(0);
-      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].ops[op].recurring_count);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG.users[user].ops[op].recurring_count);
       rowOffset++;
     }
-    for (a in statsLedgerG[user].customers) {
+    for (a in statsLedgerG.users[user].customers) {
       outputRange.offset(rowOffset, 0).setValue(a);
       outputRange.offset(rowOffset, 1).setValue(0);
-      outputRange.offset(rowOffset, 2).setValue(statsLedgerG[user].customers[a].new_count);
+      outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].customers[a].new_count);
       outputRange.offset(rowOffset, 3).setValue(0);
       outputRange.offset(rowOffset, 4).setValue(0);
-      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].customers[a].recurring_count);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG.users[user].customers[a].recurring_count);
       rowOffset++;
     }
-    for (a in statsLedgerG[user].partners) {
+    for (a in statsLedgerG.users[user].partners) {
       outputRange.offset(rowOffset, 0).setValue(a);
       outputRange.offset(rowOffset, 1).setValue(0);
       outputRange.offset(rowOffset, 2).setValue(0);
-      outputRange.offset(rowOffset, 3).setValue(statsLedgerG[user].partners[a].new_count);
+      outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].partners[a].new_count);
       outputRange.offset(rowOffset, 4).setValue(0);
-      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].partners[a].recurring_count);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG.users[user].partners[a].recurring_count);
       rowOffset++;
     }
-    for (l in statsLedgerG[user].leads) {
+    for (l in statsLedgerG.users[user].leads) {
       outputRange.offset(rowOffset, 0).setValue(l);
       outputRange.offset(rowOffset, 1).setValue(0);
       outputRange.offset(rowOffset, 2).setValue(0);
       outputRange.offset(rowOffset, 3).setValue(0);
-      outputRange.offset(rowOffset, 4).setValue(statsLedgerG[user].leads[l].new_count);
-      outputRange.offset(rowOffset, 5).setValue(statsLedgerG[user].leads[l].recurring_count);
+      outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].leads[l].new_count);
+      outputRange.offset(rowOffset, 5).setValue(statsLedgerG.users[user].leads[l].recurring_count);
+      rowOffset++;
+    }
+    chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
+    chartIndex++
+
+    rowOffset++;
+    if (rowOffset - outputFrameRowOffset < minChartSpacing) {
+      rowOffset = outputFrameRowOffset + minChartSpacing;
+    }
+
+    rowOffset = rowOffset + 2;
+    outputRange.offset(rowOffset++, 0).setValue(user + " Agenda Item Counts");
+    outputFrameRowOffset = rowOffset;
+    chartLedger[chartIndex] = { title: user + " Agenda Item Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
+    outputRange.offset(rowOffset, 1).setValue("Demos");
+    outputRange.offset(rowOffset, 2).setValue("Workshops");
+    outputRange.offset(rowOffset, 3).setValue("POVs");
+    outputRange.offset(rowOffset, 4).setValue("Deep Dives");
+    rowOffset++;
+    for (op in statsLedgerG.users[user].ops) {
+      outputRange.offset(rowOffset, 0).setValue(op);
+      outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].ops[op].agendaItems.demo);
+      outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].ops[op].agendaItems.workshop);
+      outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].ops[op].agendaItems.pov);
+      outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].ops[op].agendaItems.deepdive);
+      rowOffset++;
+    }
+    for (a in statsLedgerG.users[user].customers) {
+      outputRange.offset(rowOffset, 0).setValue(a);
+      outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].customers[a].agendaItems.demo);
+      outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].customers[a].agendaItems.workshop);
+      outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].customers[a].agendaItems.pov);
+      outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].customers[a].agendaItems.deepdive);
+      rowOffset++;
+    }
+    for (a in statsLedgerG.users[user].partners) {
+      outputRange.offset(rowOffset, 0).setValue(a);
+      outputRange.offset(rowOffset, 1).setValue(statsLedgerG.users[user].partners[a].agendaItems.demo);
+      outputRange.offset(rowOffset, 2).setValue(statsLedgerG.users[user].partners[a].agendaItems.workshop);
+      outputRange.offset(rowOffset, 3).setValue(statsLedgerG.users[user].partners[a].agendaItems.pov);
+      outputRange.offset(rowOffset, 4).setValue(statsLedgerG.users[user].partners[a].agendaItems.deepdive);
       rowOffset++;
     }
     chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
@@ -1474,7 +1628,7 @@ function printStats_() {
 
 
 
-  for (user in statsLedgerG) {
+  for (user in statsLedgerG.users) {
 
     outputRange.offset(rowOffset++, 0).setValue("-------------------  for " + user + "  -------------------");
     rowOffset = rowOffset + 2;
@@ -1486,15 +1640,15 @@ function printStats_() {
     let outputFrameColOffset = 1;
     outputFrameRowOffset = rowOffset;
 
-    for (op in statsLedgerG[user].ops) {
+    for (op in statsLedgerG.users[user].ops) {
       outputRange.offset(rowOffset++, outputFrameColOffset).setValue(op + " (" + user + ")");
       //chartLedger[chartIndex] = { title: user + " / " + op + " Contact Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
       outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
       outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
       rowOffset++;
       let contactArray = [];
-      for (a in statsLedgerG[user].ops[op].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG[user].ops[op].attendees[a].new_count, r: statsLedgerG[user].ops[op].attendees[a].recurring_count })
+      for (a in statsLedgerG.users[user].ops[op].attendees) {
+        contactArray.push({ n: a, u: statsLedgerG.users[user].ops[op].attendees[a].new_count, r: statsLedgerG.users[user].ops[op].attendees[a].recurring_count })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
@@ -1518,15 +1672,15 @@ function printStats_() {
     outputRange.offset(rowOffset++, 1).setValue("------------------- Account Contact Counts (No Opportunity registered) -------------------");
     rowOffset = rowOffset + 2;
     outputFrameRowOffset = rowOffset; // In case nothing is in the next loop
-    for (account in statsLedgerG[user].customers) {
+    for (account in statsLedgerG.users[user].customers) {
       outputRange.offset(rowOffset++, outputFrameColOffset).setValue(user + " / " + account + " Contact Counts (No Op)");
       //chartLedger[chartIndex] = { title: user + " / " + account + " Contact Counts (No Op)", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
       outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
       outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
       rowOffset++;
       let contactArray = [];
-      for (a in statsLedgerG[user].customers[account].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG[user].customers[account].attendees[a].new_count, r: statsLedgerG[user].customers[account].attendees[a].recurring_count })
+      for (a in statsLedgerG.users[user].customers[account].attendees) {
+        contactArray.push({ n: a, u: statsLedgerG.users[user].customers[account].attendees[a].new_count, r: statsLedgerG.users[user].customers[account].attendees[a].recurring_count })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
@@ -1551,15 +1705,15 @@ function printStats_() {
     outputRange.offset(rowOffset++, 1).setValue("-------------------  Partner Contact Counts -------------------");
     rowOffset = rowOffset + 2;
     outputFrameRowOffset = rowOffset;
-    for (account in statsLedgerG[user].partners) {
+    for (account in statsLedgerG.users[user].partners) {
       outputRange.offset(rowOffset++, outputFrameColOffset).setValue(user + " / " + account + " Contact Counts (Partner)");
       //chartLedger[chartIndex] = { title: user + " / " + account + " Contact Counts (Partner)", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
       outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
       outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
       rowOffset++;
       let contactArray = [];
-      for (a in statsLedgerG[user].partners[account].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG[user].partners[account].attendees[a].new_count, r: statsLedgerG[user].partners[account].attendees[a].recurring_count })
+      for (a in statsLedgerG.users[user].partners[account].attendees) {
+        contactArray.push({ n: a, u: statsLedgerG.users[user].partners[account].attendees[a].new_count, r: statsLedgerG.users[user].partners[account].attendees[a].recurring_count })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
@@ -1613,9 +1767,9 @@ function deleteCharts_(sheet) {
   }
 }
 
-function incrementStat_(obj, key, isRecurring) {
+function incrementStat_(obj, key, eventInfo) {
   if (obj[key]) {
-    if (isRecurring) {
+    if (eventInfo[EVENT_RECURRING]) {
       obj[key].recurring_count++;
     }
     else {
@@ -1623,7 +1777,7 @@ function incrementStat_(obj, key, isRecurring) {
     }
   }
   else {
-    if (isRecurring) {
+    if (eventInfo[EVENT_RECURRING]) {
       obj[key] = { new_count: 0, recurring_count: 1 };
     }
     else {

@@ -44,20 +44,21 @@ validStagesByMeeting["Training" + STAGE_N] = true;
 
 // Overrides to make sure the Salesforce API doesn't reject our Meeting-Type:Op-Stage selections
 var defaultStageForMeeting = {
-  Demo : STAGE_D,
-  "Product Deep Dive" : STAGE_V,
-  "Standard Workshop" : STAGE_V,
-  "Health Check" : STAGE_V,
-  "Product Overview" : STAGE_D,
-  "Controlled POV" : STAGE_V,
-  Discovery : STAGE_D,
-  "Technical Office Hours" : STAGE_D,
-  "Happy Hour" : STAGE_V,
-  Shadow : STAGE_D,
-  Pilot : STAGE_SP,
-  "Product Roadmap" : STAGE_V,
-  "Customer Business Review" : STAGE_C,
-  Training : STAGE_C};
+  Demo: STAGE_D,
+  "Product Deep Dive": STAGE_V,
+  "Standard Workshop": STAGE_V,
+  "Health Check": STAGE_V,
+  "Product Overview": STAGE_D,
+  "Controlled POV": STAGE_V,
+  Discovery: STAGE_D,
+  "Technical Office Hours": STAGE_D,
+  "Happy Hour": STAGE_V,
+  Shadow: STAGE_D,
+  Pilot: STAGE_SP,
+  "Product Roadmap": STAGE_V,
+  "Customer Business Review": STAGE_C,
+  Training: STAGE_C
+};
 
 /* Don't think I need to use this for UI data validation choices, at least not yet.
 var stageValidation = {
@@ -79,110 +80,113 @@ var stageValidation = {
 
 
 
- 
+
 
 var discoveryMap = [
   // Although Salesforce says it will accept "Support" with Discovery & Qual stage,
   // not so much in practice as of May 2020. Moved the following from Support to PoV:
   // troubleshoot, support and issue.
   // Look for Discovery stuff first if we are in discovery stage
-  {meeting : "Pilot", regex : /pilot/, stage : STAGE_SP},
-  {meeting : "Controlled POV", regex : /implementation/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /troubleshoot/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /support/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /issue/, stage : STAGE_V},
-  {meeting : "Shadow", regex : /shadow/, stage : STAGE_D},
-  {meeting : "Happy Hour", regex : /happy hour/, stage : STAGE_D},
-  {meeting : "Happy Hour", regex : /lunch/, stage : STAGE_D},
-  {meeting : "Happy Hour", regex : /coffee/, stage : STAGE_D},
-  {meeting : "Happy Hour", regex : /dinner/, stage : STAGE_D},
-  {meeting : "Happy Hour", regex : /drinks/, stage : STAGE_D},
-  {meeting : "Technical Office Hours", regex : /training/, stage : STAGE_D},
-  {meeting : "Technical Office Hours", regex : /setup/, stage : STAGE_D},
-  {meeting : "Technical Office Hours", regex : /setup/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /planning/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /discovery/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /discussion/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /touchpoint/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /introduction/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /sync/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /review/, stage : STAGE_D},
-  {meeting : "Product Overview", regex : /presentation/, stage : STAGE_D},
-  {meeting : "Product Overview", regex : /pitch/, stage : STAGE_D},
-  {meeting : "Product Overview", regex : /briefing/, stage : STAGE_D},
-  {meeting : "Product Overview", regex : /architecture/, stage : STAGE_D},
-  {meeting : "Product Overview", regex : /overview/, stage : STAGE_D},
-  {meeting : "Product Overview", regex : /whiteboard/, stage : STAGE_D},
-  {meeting : "Controlled POV", regex : /pov/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /poc/, stage : STAGE_V},
-  {meeting : "Product Overview", regex : /roadmap/, stage : STAGE_D},
-  {meeting : "Health Check", regex : /health check/, stage : STAGE_V},
-  {meeting : "Standard Workshop", regex : /workshop/, stage : STAGE_V},
-  {meeting : "Product Deep Dive", regex : /deep dive/, stage : STAGE_V},
-  {meeting : "Demo", regex : /demo/, stage : STAGE_D}]; // want demo to take priority over POV
+  { key: "", meeting: "Pilot", regex: /pilot/, stage: STAGE_SP },
+  { key: "pov", meeting: "Controlled POV", regex: /implementation/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /troubleshoot/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /support/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /issue/, stage: STAGE_V },
+  { key: "", meeting: "Shadow", regex: /shadow/, stage: STAGE_D },
+  { key: "", meeting: "Happy Hour", regex: /happy hour/, stage: STAGE_D },
+  { key: "", meeting: "Happy Hour", regex: /lunch/, stage: STAGE_D },
+  { key: "", meeting: "Happy Hour", regex: /coffee/, stage: STAGE_D },
+  { key: "", meeting: "Happy Hour", regex: /dinner/, stage: STAGE_D },
+  { key: "", meeting: "Happy Hour", regex: /drinks/, stage: STAGE_D },
+  { key: "", meeting: "Technical Office Hours", regex: /training/, stage: STAGE_D },
+  { key: "", meeting: "Technical Office Hours", regex: /setup/, stage: STAGE_D },
+  { key: "", meeting: "Technical Office Hours", regex: /setup/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /planning/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /discovery/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /discussion/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /touchpoint/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /introduction/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /sync/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /review/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /presentation/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /pitch/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /briefing/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /architecture/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /overview/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /whiteboard/, stage: STAGE_D },
+  { key: "pov", meeting: "Controlled POV", regex: /pov/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /poc/, stage: STAGE_V },
+  { key: "", meeting: "Product Overview", regex: /roadmap/, stage: STAGE_D },
+  { key: "", meeting: "Health Check", regex: /health check/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /workshop/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /deep dive/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /deepdive/, stage: STAGE_V },
+  { key: "demo", meeting: "Demo", regex: /demo/, stage: STAGE_D }]; // want demo to take priority over POV
 
 var validationMap = [
-  {meeting : "Pilot", regex : /pilot/, stage : STAGE_SP},
-  {meeting : "Shadow", regex : /shadow/, stage : STAGE_V},
-  {meeting : "Happy Hour", regex : /happy hour/, stage : STAGE_V},
-  {meeting : "Happy Hour", regex : /lunch/, stage : STAGE_V},
-  {meeting : "Happy Hour", regex : /coffee/, stage : STAGE_V},
-  {meeting : "Happy Hour", regex : /dinner/, stage : STAGE_V},
-  {meeting : "Happy Hour", regex : /drinks/, stage : STAGE_V},
-  {meeting : "Product Overview", regex : /presentation/, stage : STAGE_V},
-  {meeting : "Product Overview", regex : /pitch/, stage : STAGE_V},
-  {meeting : "Product Overview", regex : /briefing/, stage : STAGE_V},
-  {meeting : "Product Overview", regex : /overview/, stage : STAGE_V},
-  {meeting : "Product Overview", regex : /whiteboard/, stage : STAGE_V},
-  {meeting : "Discovery", regex : /discovery/, stage : STAGE_D},
-  {meeting : "Discovery", regex : /introduction/, stage : STAGE_D},
-  {meeting : "Product Roadmap", regex : /roadmap/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /training/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /sync/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /setup/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /discussion/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /touchpoint/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /review/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /support/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /troubleshoot/, stage : STAGE_V},
-  {meeting : "Technical Office Hours", regex : /issue/, stage : STAGE_V},
-  {meeting : "Health Check", regex : /health check/, stage : STAGE_V},
-  {meeting : "Standard Workshop", regex : /workshop/, stage : STAGE_V},
-  {meeting : "Product Deep Dive", regex : /deep dive/, stage : STAGE_V},
-  {meeting : "Product Deep Dive", regex : /architecture/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /implementation/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /pov/, stage : STAGE_V},
-  {meeting : "Controlled POV", regex : /poc/, stage : STAGE_V},
-  {meeting : "Demo", regex : /demo/, stage : STAGE_D}]; 
+  { key: "", meeting: "Pilot", regex: /pilot/, stage: STAGE_SP },
+  { key: "", meeting: "Shadow", regex: /shadow/, stage: STAGE_V },
+  { key: "", meeting: "Happy Hour", regex: /happy hour/, stage: STAGE_V },
+  { key: "", meeting: "Happy Hour", regex: /lunch/, stage: STAGE_V },
+  { key: "", meeting: "Happy Hour", regex: /coffee/, stage: STAGE_V },
+  { key: "", meeting: "Happy Hour", regex: /dinner/, stage: STAGE_V },
+  { key: "", meeting: "Happy Hour", regex: /drinks/, stage: STAGE_V },
+  { key: "", meeting: "Product Overview", regex: /presentation/, stage: STAGE_V },
+  { key: "", meeting: "Product Overview", regex: /pitch/, stage: STAGE_V },
+  { key: "", meeting: "Product Overview", regex: /briefing/, stage: STAGE_V },
+  { key: "", meeting: "Product Overview", regex: /overview/, stage: STAGE_V },
+  { key: "", meeting: "Product Overview", regex: /whiteboard/, stage: STAGE_V },
+  { key: "", meeting: "Discovery", regex: /discovery/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /introduction/, stage: STAGE_D },
+  { key: "", meeting: "Product Roadmap", regex: /roadmap/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /training/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /sync/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /setup/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /discussion/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /touchpoint/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /review/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /support/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /troubleshoot/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /issue/, stage: STAGE_V },
+  { key: "", meeting: "Health Check", regex: /health check/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /workshop/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /deep dive/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /deepdive/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /architecture/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /implementation/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /pov/, stage: STAGE_V },
+  { key: "pov", meeting: "Controlled POV", regex: /poc/, stage: STAGE_V },
+  { key: "demo", meeting: "Demo", regex: /demo/, stage: STAGE_D }];
 
-var  closedMap = [
-  {meeting : "Shadow", regex : /shadow/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /happy hour/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /presentation/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /pitch/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /briefing/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /overview/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /kick/, stage : STAGE_C},  // kick-offs Cadence  
-  {meeting : "Customer Business Review", regex : /cadence/, stage : STAGE_C}, 
-  {meeting : "Customer Business Review", regex : /touchpoint/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /coffee/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /discussion/, stage : STAGE_C},
-  {meeting : "Discovery", regex : /discovery/, stage : "None"}, // Have to push stage to None for Discovery
-  {meeting : "Product Roadmap", regex : /roadmap/, stage : STAGE_C},
-  {meeting : "Training", regex : /training/, stage : STAGE_C},
-  {meeting : "Training", regex : /sync/, stage : STAGE_C},
-  {meeting : "Training", regex : /setup/, stage : STAGE_C},
-  {meeting : "Training", regex : /workshop/, stage : STAGE_C},
-  {meeting : "Training", regex : /deep dive/, stage : STAGE_C},
-  {meeting : "Training", regex : /pov/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /health check/, stage : STAGE_C},
-  {meeting : "Customer Business Review", regex : /demo/, stage : STAGE_C},
-  {meeting : "", regex : /support/, stage : STAGE_C},
-  {meeting : "", regex : /implementation/, stage : STAGE_C},
-  {meeting : "", regex : /troubleshoot/, stage : STAGE_C},
-  {meeting : "", regex : /help/, stage : STAGE_C},
-  {meeting : "", regex : /issue/, stage : STAGE_C},
-  {meeting : "", regex : /pilot/, stage : STAGE_C}];
+var closedMap = [
+  { key: "", meeting: "Shadow", regex: /shadow/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /happy hour/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /presentation/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /pitch/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /briefing/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /overview/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /kick/, stage: STAGE_C },  // kick-offs Cadence  
+  { key: "", meeting: "Customer Business Review", regex: /cadence/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /touchpoint/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /coffee/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /discussion/, stage: STAGE_C },
+  { key: "", meeting: "Discovery", regex: /discovery/, stage: "None" }, // Have to push stage to None for Discovery
+  { key: "", meeting: "Product Roadmap", regex: /roadmap/, stage: STAGE_C },
+  { key: "", meeting: "Training", regex: /training/, stage: STAGE_C },
+  { key: "", meeting: "Training", regex: /sync/, stage: STAGE_C },
+  { key: "", meeting: "Training", regex: /setup/, stage: STAGE_C },
+  { key: "workshop", meeting: "Training", regex: /workshop/, stage: STAGE_C },
+  { key: "deepdive", meeting: "Training", regex: /deep dive/, stage: STAGE_C },
+  { key: "deepdive", meeting: "Training", regex: /deepdive/, stage: STAGE_C },
+  { key: "pov", meeting: "Training", regex: /pov/, stage: STAGE_C },
+  { key: "", meeting: "Customer Business Review", regex: /health check/, stage: STAGE_C },
+  { key: "demo", meeting: "Customer Business Review", regex: /demo/, stage: STAGE_C },
+  { key: "", meeting: "", regex: /support/, stage: STAGE_C },
+  { key: "", meeting: "", regex: /implementation/, stage: STAGE_C },
+  { key: "", meeting: "", regex: /troubleshoot/, stage: STAGE_C },
+  { key: "", meeting: "", regex: /help/, stage: STAGE_C },
+  { key: "", meeting: "", regex: /issue/, stage: STAGE_C },
+  { key: "", meeting: "", regex: /pilot/, stage: STAGE_C }];
 // This is suppossed to work, but doesn't as of May 2020
 /*
 {meeting : "Implementation", regex : /support/, stage : STAGE_C},
@@ -193,6 +197,19 @@ var  closedMap = [
 {meeting : "Implementation", regex : /pilot/, stage : STAGE_C}];
 */
 
+
+// WARNING - these keys below are included dynamically in 
+// the results of the lookForMeetingType_ function as the agendaItems attribute.
+// Those results in turn are read and used by other functions.
+// So ... if you delete one, go find where it is used and remove that too.
+// Also,
+// Key : Value below must match key : meeting in the maps above
+var agendaItemsToTrack = {
+  demo: "Demo",
+  pov: "Controlled POV",
+  workshop: "Standard Workshop",
+  deepdive: "Product Deep Dive"
+}
 
 /*      
 var validStagesForMeetings = {
@@ -217,14 +234,14 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
   rv.stats.hashi = 0; // Number of hashicorp attendees
   rv.stats.others = 0; // Number of unidentified attendees
 
-  
+
   for (var j = 0; j < attendees.length; j++) {
-  
-    var domain = attendees[j].substring(attendees[j].indexOf("@")+1).trim();    
+
+    var domain = attendees[j].substring(attendees[j].indexOf("@") + 1).trim();
     var accountId = "";
     var type = "hashi";
     if (domain == "gmail.com") continue; // Thanks to Fernando for putting gmail as the domain for a prospect called "Freelance"
-    
+
     if (domain == "hashicorp.com") {
       rv.stats.hashi++;
     }
@@ -240,7 +257,7 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
       else {
         type = "others";
         accountId = domain;
-      }    
+      }
       rv.stats[type]++;
       if (!rv[type][accountId]) {
         rv[type][accountId] = 1;
@@ -253,20 +270,20 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
       }
     }
   }
-  
+
   return rv;
 }
 
 
 
 function lookForProducts_(text) {
-  
+
   let returnValue = {
-    hasTerraform : false,
-    hasVault : false,
-    hasConsul : false,
-    hasNomad : false,
-    count : function () {
+    hasTerraform: false,
+    hasVault: false,
+    hasConsul: false,
+    hasNomad: false,
+    count: function () {
       let retval = 0;
       if (this.hasTerraform) retval++;
       if (this.hasVault) retval++;
@@ -274,7 +291,7 @@ function lookForProducts_(text) {
       if (this.hasConsul) retval++;
       return retval;
     },
-    has : function (product) {
+    has: function (product) {
       let retVal = false;
       switch (product) {
         case "Terraform":
@@ -293,7 +310,7 @@ function lookForProducts_(text) {
           retVal = false;
       }
     },
-    getOne : function () {
+    getOne: function () {
       let retval = "N/A";
       if (this.hasTerraform) { retval = "Terraform"; }
       else if (this.hasVault) { retval = "Vault"; }
@@ -302,24 +319,24 @@ function lookForProducts_(text) {
       return retval;
     }
   }
-  
+
   if (!text) return returnValue;
   var x = text.toLowerCase();
-  
+
   returnValue.hasTerraform = x.indexOf("terraform") != -1 || x.indexOf("tf cloud") != -1;
   if (!returnValue.hasTerraform) {
     let regex = RegExp("p?tf[ce]");
     returnValue.hasTerraform = regex.test(x);
   }
-  
+
   returnValue.hasVault = x.indexOf("vault") != -1 || x.indexOf("secret") != -1 || x.indexOf("pki") != -1 || x.indexOf("pam") != -1;
-  
+
   returnValue.hasConsul = x.indexOf("consul") != -1 || x.indexOf("service discovery") != -1 || x.indexOf("service mesh") != -1;
-  
+
   returnValue.hasNomad = x.indexOf("nomad") != -1 || x.indexOf("orchestration") != -1;
-  
+
   return returnValue;
-  
+
 }
 
 function lookForMeetingType_(stage, text) {
@@ -329,77 +346,105 @@ function lookForMeetingType_(stage, text) {
   // Search from most difficult to least difficult (bottom up).
   // More design info in build_se_events comments.
   // Returns the detected meeting type and required stage.
-  
+  //
+  // v1.2.2 enhancement - it will now scan for and record a variety of meeting events,
+  // in addition to making the ultimate determination of what the meeting as a whole is for.
+  // For example, if it sees a demo, it will remember that, but continue to look for other things
+  // like workshop, or POV.
+
   let map = [];
   let rv = {};
-  
+
+  // Specific agenda items to scan for
+  let itemList = [];
+  let itemLog = {};
+  for (a in agendaItemsToTrack) {
+    itemList.push(agendaItemsToTrack[a]);
+    itemLog[a] = false; // default to an item not being present
+  }
+  // items will look like this ["Demo", "Controlled POV", "Standard Workshop", ...];
+
   if (stage == STAGE_D) {
-    
-    
-     
+
+
+
     // To detect default meeting type sections, set meeting: to "" (empty string is --None-- in SF)
     if (MEETINGS_HAVE_DEFAULT) {
-      rv = { stage : STAGE_D, meeting : "Discovery"}; 
+      rv = { stage: STAGE_D, meeting: "Discovery" };
     }
     else {
-      rv = { stage : STAGE_D, meeting : ""};
+      rv = { stage: STAGE_D, meeting: "" };
     }
-    
+
     map = discoveryMap;
 
   }
   else if (stage == STAGE_V) {
-    
-      
+
+
     // To detect default meeting type sections, set meeting: to "" (empty string is --None-- in SF)
     if (MEETINGS_HAVE_DEFAULT) {
-      rv = { stage : STAGE_V, meeting : "Technical Office Hours"}; 
+      rv = { stage: STAGE_V, meeting: "Technical Office Hours" };
     }
     else {
-      rv = { stage : STAGE_V, meeting : ""};
+      rv = { stage: STAGE_V, meeting: "" };
     }
-    
+
     map = validationMap;
-   
+
   }
   else if (stage == STAGE_C) {
-    
+
     // Salesforce will not accept Implementation or Support in Closed/Won stage. 
     // For now we will use "--None--" to indicate Post-Sales activity!
     if (MEETINGS_HAVE_DEFAULT) {
-      rv = { stage : STAGE_C, meeting : ""}; // For now this means post-sales
+      rv = { stage: STAGE_C, meeting: "" }; // For now this means post-sales
     }
     else {
-      rv = { stage : STAGE_C, meeting : ""};
+      rv = { stage: STAGE_C, meeting: "" };
     }
-    
+
     // Salesforce will not accept Implementation or Support in Closed/Won stage. 
     // For now we will use "--None--" to indicate Post-Sales activity!
     map = closedMap;
-    
+
   }
   else {
-    rv = { stage : "Closed/Lost", meeting : ""};
+    rv = { stage: "Closed/Lost", meeting: "" };
     return rv;
   }
-  
+
   let x = text.toLowerCase();
-  
-  for (i = map.length - 1; i >= 0; i--) { 
+  let typeIdentified = false;
+  for (i = map.length - 1; i >= 0; i--) {
     if (map[i].regex.test(x)) {
-      rv.stage = map[i].stage;
-      rv.meeting = map[i].meeting;
-      break;
+      if (!typeIdentified) {
+        // First hit defines the meeting type
+        rv.stage = map[i].stage;
+        rv.meeting = map[i].meeting;
+        typeIdentified = true;
+      }
+      for (l = 0; l < itemList.length; l++) {
+        if (itemList[l] == map[i].meeting) {
+          itemLog[map[i].key] = true;
+          delete itemList[l];
+          break;
+        }
+      }
+      if (itemList.length == 0) {
+        break;
+      }
     }
   }
-  
+
+  rv.agendaItems = itemLog;
   return rv;
-  
+
 }
 
 function isLocationRemote_(text) {
-  
-  let retVal = false; 
+
+  let retVal = false;
   let t = text.toLowerCase();
   retVal = t.indexOf("zoom") != -1 || t.indexOf("webex") != -1 || t.indexOf("remote") != -1 || t.indexOf("microsoft teams") != -1;
   return retVal;
@@ -407,10 +452,10 @@ function isLocationRemote_(text) {
 
 function filterAndAnalyzeDescription_(text) {
 
-  let rv = {hasTeleconference : false, filteredText : text, prepTime : 0, quality : "", notes : ""}
-  
+  let rv = { hasTeleconference: false, filteredText: text, prepTime: 0, quality: "", notes: "" }
+
   if (!text) return rv;
-  
+
   // 
   // For the most part, assume everything after a Zoom, Webex, getclockwise, Microsoft Team Meeting
   // intros, ... to the end is garbage. (No one will add important info below all that, intentionally at least)
@@ -432,23 +477,23 @@ function filterAndAnalyzeDescription_(text) {
       }
     }
   }
-  
+
   // Process Notes tag
-  regex = /[Nn][Oo][Tt][Ee][Ss] *: *\S+/; 
+  regex = /[Nn][Oo][Tt][Ee][Ss] *: *\S+/;
   let notesArray = text.match(regex);
   if (notesArray && notesArray[0]) {
     let i = notesArray[0].indexOf(':');
-    let n = notesArray[0].substring(i+1);
+    let n = notesArray[0].substring(i + 1);
     let t = n.indexOf('<');
     if (t != -1) {
       // URLs can't have a HTML tag, i.e. a < (or a > for that matter)
-      n = n.substring(0,t); // prune off the tag
+      n = n.substring(0, t); // prune off the tag
     }
     rv.notes = n.trim();
   }
-  
+
   // Process Quality tag
-  regex = /[Qq][Uu][Aa][Ll][Ii][Tt][Yy] *: *[0-9]/; 
+  regex = /[Qq][Uu][Aa][Ll][Ii][Tt][Yy] *: *[0-9]/;
   let qualityArray = text.match(regex);
   if (qualityArray && qualityArray[0]) {
     let kv = qualityArray[0].split(':');
@@ -456,7 +501,7 @@ function filterAndAnalyzeDescription_(text) {
     if (rv.quality < 1) rv.quality = 1;
     else if (rv.quality > 5) rv.quality = 5;
   }
-  
+
   if (text.indexOf("\─\─\─\─\─\─\─\─\─\─[\s\S]*Join Zoom Meeting") != -1) {
     regex = /\─\─\─\─\─\─\─\─\─\─[\s\S]*Join Zoom Meeting[\s\S]*\─\─\─\─\─\─\─\─\─\─/;
     rv.hasTeleconference = true;
@@ -473,7 +518,7 @@ function filterAndAnalyzeDescription_(text) {
     regex = /Do not delete or change any of the following text.[\s\S]*/;
     rv.hasTeleconference = true;
   }
-  else if (text.indexOf("Microsoft Teams") != -1) { 
+  else if (text.indexOf("Microsoft Teams") != -1) {
     regex = new RegExp(/Microsoft Teams Meeting[\s\S]*/, "gi");
     rv.hasTeleconference = true;
   }
@@ -481,11 +526,11 @@ function filterAndAnalyzeDescription_(text) {
     regex = /getclockwise.com[\s\S]*/;
     rv.hasTeleconference = true;
   }
-  
+
   if (rv.hasTeleconference) {
     text = text.replace(regex, "");
   }
-  
+
   if (text.indexOf("zoom.us") != -1) {
     rv.hasTeleconference = true;
   }
@@ -497,14 +542,14 @@ function isRepPresent_(createdBy, attendees) {
   if (staffEmailToRoleMapG[createdBy] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMapG[createdBy]) != -1) {
     return true;
   }
-  
+
   for (let j = 0; j < attendees.length; j++) {
-    let attendeeEmail = attendees[j].trim();    
+    let attendeeEmail = attendees[j].trim();
     if (staffEmailToRoleMapG[attendeeEmail] && STAFF_ROLE_REPS.indexOf(staffEmailToRoleMapG[attendeeEmail]) != -1) {
       return true;
     }
   }
-  
+
   return false;
 }
 
