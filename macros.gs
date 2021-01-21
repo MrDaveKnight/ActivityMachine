@@ -16,9 +16,3 @@ function makeStackedColumnChart(title, sheet, dataRange, chartRow, chartColumn) 
   sheet.insertChart(chart);
 };
 
-
-
-function delete1() {
-  var spreadsheet = SpreadsheetApp.getActive();
-  spreadsheet.getRange('A1').activate();
-};

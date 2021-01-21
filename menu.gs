@@ -756,8 +756,6 @@ function handleEventTypeChange_(cell, value) {
 }
 
 function initValidation_(cell, type) {
-
-  return; // dak fixme!!!
   
   let validationSheet = null;
   let validationRange = null;

@@ -1067,11 +1067,16 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //          attendee ...
   //            new_count : count
   //            recurring_count : count
+  //            agendaItems
+  //              demo : count
+  //              pov : count
+  //              workshop : count
+  //              deepdive : count
   //    customers
   //      accountId ...
   //        new_count : count
   //        recurring_count : count
-  //        adendaItems
+  //        agendaItems
   //          demo : count
   //          pov : count
   //          workshop : count
@@ -1080,6 +1085,11 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //         attendee ...
   //          new_count : count
   //          recurring_count : count
+  //          agendaItems
+  //              demo : count
+  //              pov : count
+  //              workshop : count
+  //              deepdive : count
   //    partners
   //      accountId ...
   //        new_count : count
@@ -1093,10 +1103,16 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //         attendee ...
   //           new_count : count
   //           recurring_count : count
+  //           agendaItems
+  //              demo : count
+  //              pov : count
+  //              workshop : count
+  //              deepdive : count
   //    leads
   //      attendee : ...
   //           new_count : count
   //           recurring_count : count
+
 
   let attendees = attendeeString.split(",");
 
@@ -1639,31 +1655,24 @@ function printStats_() {
     let maxFrameRows = 0;
     let outputFrameColOffset = 1;
     outputFrameRowOffset = rowOffset;
-
     for (op in statsLedgerG.users[user].ops) {
-      outputRange.offset(rowOffset++, outputFrameColOffset).setValue(op + " (" + user + ")");
-      //chartLedger[chartIndex] = { title: user + " / " + op + " Contact Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
-      outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
-      outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
-      rowOffset++;
+      printContactHeader_(outputRange, rowOffset, outputFrameColOffset, user, op);
+      rowOffset = rowOffset + 2;
       let contactArray = [];
       for (a in statsLedgerG.users[user].ops[op].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG.users[user].ops[op].attendees[a].new_count, r: statsLedgerG.users[user].ops[op].attendees[a].recurring_count })
+        contactArray.push({ n: a, u: statsLedgerG.users[user].ops[op].attendees[a].new_count, 
+        r: statsLedgerG.users[user].ops[op].attendees[a].recurring_count, ai: statsLedgerG.users[user].ops[op].attendees[a].agendaItems })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
-        outputRange.offset(rowOffset, outputFrameColOffset).setValue(contactArray[i].n);
-        outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contactArray[i].u);
-        outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contactArray[i].r);
+        printContactStats_(outputRange, rowOffset, outputFrameColOffset, contactArray[i]);
         rowOffset++;
       }
-      //chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
-      //chartIndex++
       if (rowOffset - outputFrameRowOffset > maxFrameRows) {
         maxFrameRows = rowOffset - outputFrameRowOffset;
       }
       rowOffset = outputFrameRowOffset
-      outputFrameColOffset = outputFrameColOffset + 5;
+      outputFrameColOffset = outputFrameColOffset + 9;
     }
 
     rowOffset = outputFrameRowOffset + maxFrameRows + 1;
@@ -1673,30 +1682,23 @@ function printStats_() {
     rowOffset = rowOffset + 2;
     outputFrameRowOffset = rowOffset; // In case nothing is in the next loop
     for (account in statsLedgerG.users[user].customers) {
-      outputRange.offset(rowOffset++, outputFrameColOffset).setValue(user + " / " + account + " Contact Counts (No Op)");
-      //chartLedger[chartIndex] = { title: user + " / " + account + " Contact Counts (No Op)", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
-      outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
-      outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
-      rowOffset++;
+      printContactHeader_(outputRange, rowOffset, outputFrameColOffset, user, account);
+      rowOffset = rowOffset + 2;
       let contactArray = [];
       for (a in statsLedgerG.users[user].customers[account].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG.users[user].customers[account].attendees[a].new_count, r: statsLedgerG.users[user].customers[account].attendees[a].recurring_count })
+        contactArray.push({ n: a, u: statsLedgerG.users[user].customers[account].attendees[a].new_count, 
+        r: statsLedgerG.users[user].customers[account].attendees[a].recurring_count, ai: statsLedgerG.users[user].customers[account].attendees[a].agendaItems })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
-        outputRange.offset(rowOffset, outputFrameColOffset).setValue(contactArray[i].n);
-        outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contactArray[i].u);
-        outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contactArray[i].r);
+        printContactStats_(outputRange, rowOffset, outputFrameColOffset, contactArray[i]);
         rowOffset++;
       }
-
-      //chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
-      //chartIndex++
       if (rowOffset - outputFrameRowOffset > maxFrameRows) {
         maxFrameRows = rowOffset - outputFrameRowOffset;
       }
       rowOffset = outputFrameRowOffset
-      outputFrameColOffset = outputFrameColOffset + 5;
+      outputFrameColOffset = outputFrameColOffset + 9;
     }
 
     rowOffset = outputFrameRowOffset + maxFrameRows + 1;
@@ -1706,30 +1708,24 @@ function printStats_() {
     rowOffset = rowOffset + 2;
     outputFrameRowOffset = rowOffset;
     for (account in statsLedgerG.users[user].partners) {
-      outputRange.offset(rowOffset++, outputFrameColOffset).setValue(user + " / " + account + " Contact Counts (Partner)");
-      //chartLedger[chartIndex] = { title: user + " / " + account + " Contact Counts (Partner)", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 3 };
-      outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New");
-      outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
-      rowOffset++;
+      printContactHeader_(outputRange, rowOffset, outputFrameColOffset, user, account);
+      rowOffset = rowOffset + 2;
       let contactArray = [];
       for (a in statsLedgerG.users[user].partners[account].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG.users[user].partners[account].attendees[a].new_count, r: statsLedgerG.users[user].partners[account].attendees[a].recurring_count })
+        contactArray.push({ n: a, u: statsLedgerG.users[user].partners[account].attendees[a].new_count, 
+        r: statsLedgerG.users[user].partners[account].attendees[a].recurring_count, ai: statsLedgerG.users[user].partners[account].attendees[a].agendaItems })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
-        outputRange.offset(rowOffset, outputFrameColOffset).setValue(contactArray[i].n);
-        outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contactArray[i].u);
-        outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contactArray[i].r);
+        printContactStats_(outputRange, rowOffset, outputFrameColOffset, contactArray[i]);
         rowOffset++;
       }
 
-      //chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
-      //chartIndex++
       if (rowOffset - outputFrameRowOffset > maxFrameRows) {
         maxFrameRows = rowOffset - outputFrameRowOffset;
       }
       rowOffset = outputFrameRowOffset
-      outputFrameColOffset = outputFrameColOffset + 5;
+      outputFrameColOffset = outputFrameColOffset + 9;
     }
 
     rowOffset = outputFrameRowOffset + maxFrameRows + 1;
@@ -1777,14 +1773,37 @@ function incrementStat_(obj, key, eventInfo) {
     }
   }
   else {
+    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
     if (eventInfo[EVENT_RECURRING]) {
-      obj[key] = { new_count: 0, recurring_count: 1 };
+      obj[key] = { new_count: 0, recurring_count: 1, agendaItems: agendaItems};
     }
     else {
-      obj[key] = { new_count: 1, recurring_count: 0 };
+      obj[key] = { new_count: 1, recurring_count: 0, agendaItems: agendaItems};
     }
   }
+  incrementAgendaItemCounts_(obj[key].agendaItems, eventInfo);
 }
+
+function printContactHeader_(outputRange, rowOffset, outputFrameColOffset, user, relatedTo) {
+  outputRange.offset(rowOffset++, outputFrameColOffset).setValue(relatedTo + " (" + user + ")");
+  outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue("New Meeting");
+  outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue("Recurring");
+  outputRange.offset(rowOffset, outputFrameColOffset + 3).setValue("Demo");
+  outputRange.offset(rowOffset, outputFrameColOffset + 4).setValue("POV");
+  outputRange.offset(rowOffset, outputFrameColOffset + 5).setValue("Workshop");
+  outputRange.offset(rowOffset, outputFrameColOffset + 6).setValue("Deepdive");
+}
+
+function printContactStats_(outputRange, rowOffset, outputFrameColOffset, contact) {
+  outputRange.offset(rowOffset, outputFrameColOffset).setValue(contact.n);
+  outputRange.offset(rowOffset, outputFrameColOffset + 1).setValue(contact.u);
+  outputRange.offset(rowOffset, outputFrameColOffset + 2).setValue(contact.r);
+  outputRange.offset(rowOffset, outputFrameColOffset + 3).setValue(contact.ai.demo);
+  outputRange.offset(rowOffset, outputFrameColOffset + 4).setValue(contact.ai.pov);
+  outputRange.offset(rowOffset, outputFrameColOffset + 5).setValue(contact.ai.workshop);
+  outputRange.offset(rowOffset, outputFrameColOffset + 6).setValue(contact.ai.deepdive);
+}
+
 
 function logStamp(title) {
 

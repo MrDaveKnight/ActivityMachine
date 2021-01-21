@@ -1719,8 +1719,7 @@ function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDef
     inviteInfo[ASSIGNED_TO] == accountTeamByOpG[opId].rep
     repAttended = "Yes";
     */
-    
-    
+  
     let event = lookForMeetingType_(opStage, inviteInfo[SUBJECT] + " " + descriptionScan.filteredText);
     
     outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);

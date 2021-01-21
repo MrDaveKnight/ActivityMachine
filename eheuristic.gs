@@ -88,10 +88,10 @@ var discoveryMap = [
   // troubleshoot, support and issue.
   // Look for Discovery stuff first if we are in discovery stage
   { key: "", meeting: "Pilot", regex: /pilot/, stage: STAGE_SP },
-  { key: "pov", meeting: "Controlled POV", regex: /implementation/, stage: STAGE_V },
-  { key: "pov", meeting: "Controlled POV", regex: /troubleshoot/, stage: STAGE_V },
-  { key: "pov", meeting: "Controlled POV", regex: /support/, stage: STAGE_V },
-  { key: "pov", meeting: "Controlled POV", regex: /issue/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /implementation/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /troubleshoot/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /support/, stage: STAGE_V },
+  { key: "", meeting: "Technical Office Hours", regex: /issue/, stage: STAGE_V },
   { key: "", meeting: "Shadow", regex: /shadow/, stage: STAGE_D },
   { key: "", meeting: "Happy Hour", regex: /happy hour/, stage: STAGE_D },
   { key: "", meeting: "Happy Hour", regex: /lunch/, stage: STAGE_D },
@@ -153,7 +153,7 @@ var validationMap = [
   { key: "deepdive", meeting: "Product Deep Dive", regex: /deep dive/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /deepdive/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /architecture/, stage: STAGE_V },
-  { key: "pov", meeting: "Controlled POV", regex: /implementation/, stage: STAGE_V },
+  { key: "pov", meeting: "Technical Office Hours", regex: /implementation/, stage: STAGE_V },
   { key: "pov", meeting: "Controlled POV", regex: /pov/, stage: STAGE_V },
   { key: "pov", meeting: "Controlled POV", regex: /poc/, stage: STAGE_V },
   { key: "demo", meeting: "Demo", regex: /demo/, stage: STAGE_D }];
@@ -179,6 +179,7 @@ var closedMap = [
   { key: "deepdive", meeting: "Training", regex: /deep dive/, stage: STAGE_C },
   { key: "deepdive", meeting: "Training", regex: /deepdive/, stage: STAGE_C },
   { key: "pov", meeting: "Training", regex: /pov/, stage: STAGE_C },
+  { key: "pov", meeting: "Training", regex: /poc/, stage: STAGE_C },
   { key: "", meeting: "Customer Business Review", regex: /health check/, stage: STAGE_C },
   { key: "demo", meeting: "Customer Business Review", regex: /demo/, stage: STAGE_C },
   { key: "", meeting: "", regex: /support/, stage: STAGE_C },
@@ -203,13 +204,8 @@ var closedMap = [
 // Those results in turn are read and used by other functions.
 // So ... if you delete one, go find where it is used and remove that too.
 // Also,
-// Key : Value below must match key : meeting in the maps above
-var agendaItemsToTrack = {
-  demo: "Demo",
-  pov: "Controlled POV",
-  workshop: "Standard Workshop",
-  deepdive: "Product Deep Dive"
-}
+// Agenda items to track must match key the maps above
+var agendaItemsToTrack = ["demo", "pov", "workshop", "deepdive"];
 
 /*      
 var validStagesForMeetings = {
@@ -356,11 +352,11 @@ function lookForMeetingType_(stage, text) {
   let rv = {};
 
   // Specific agenda items to scan for
-  let itemList = [];
+  let itemList = {};
   let itemLog = {};
-  for (a in agendaItemsToTrack) {
-    itemList.push(agendaItemsToTrack[a]);
-    itemLog[a] = false; // default to an item not being present
+  for (a = 0; a < agendaItemsToTrack.length; a++) {
+    itemList[agendaItemsToTrack[a]] = true;
+    itemLog[agendaItemsToTrack[a]] = false; // default to an item not being present
   }
   // items will look like this ["Demo", "Controlled POV", "Standard Workshop", ...];
 
@@ -413,7 +409,7 @@ function lookForMeetingType_(stage, text) {
     rv = { stage: "Closed/Lost", meeting: "" };
     return rv;
   }
-
+  
   let x = text.toLowerCase();
   let typeIdentified = false;
   for (i = map.length - 1; i >= 0; i--) {
@@ -424,14 +420,14 @@ function lookForMeetingType_(stage, text) {
         rv.meeting = map[i].meeting;
         typeIdentified = true;
       }
-      for (l = 0; l < itemList.length; l++) {
-        if (itemList[l] == map[i].meeting) {
-          itemLog[map[i].key] = true;
-          delete itemList[l];
+      for (item in itemList) {
+        if (item == map[i].key) {
+          itemLog[item] = true;
+          delete itemList[item];
           break;
         }
       }
-      if (itemList.length == 0) {
+      if (Object.keys(itemList).length == 0) {
         break;
       }
     }
