@@ -117,10 +117,10 @@ var discoveryMap = [
   { key: "pov", meeting: "Controlled POV", regex: /pov/, stage: STAGE_V },
   { key: "pov", meeting: "Controlled POV", regex: /poc/, stage: STAGE_V },
   { key: "", meeting: "Product Overview", regex: /roadmap/, stage: STAGE_D },
-  { key: "", meeting: "Health Check", regex: /health check/, stage: STAGE_V },
+  { key: "", meeting: "Health Check", regex: /health.?check/, stage: STAGE_V },
   { key: "workshop", meeting: "Standard Workshop", regex: /workshop/, stage: STAGE_V },
-  { key: "deepdive", meeting: "Product Deep Dive", regex: /deep dive/, stage: STAGE_V },
-  { key: "deepdive", meeting: "Product Deep Dive", regex: /deepdive/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /technical.?review/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /deep.?dive/, stage: STAGE_V },
   { key: "demo", meeting: "Demo", regex: /demo/, stage: STAGE_D }]; // want demo to take priority over POV
 
 var validationMap = [
@@ -150,9 +150,9 @@ var validationMap = [
   { key: "", meeting: "Technical Office Hours", regex: /issue/, stage: STAGE_V },
   { key: "", meeting: "Health Check", regex: /health check/, stage: STAGE_V },
   { key: "workshop", meeting: "Standard Workshop", regex: /workshop/, stage: STAGE_V },
-  { key: "deepdive", meeting: "Product Deep Dive", regex: /deep dive/, stage: STAGE_V },
-  { key: "deepdive", meeting: "Product Deep Dive", regex: /deepdive/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /architecture/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /technical.?review/, stage: STAGE_V },
+  { key: "deepdive", meeting: "Product Deep Dive", regex: /deep.?dive/, stage: STAGE_V },
   { key: "pov", meeting: "Technical Office Hours", regex: /implementation/, stage: STAGE_V },
   { key: "pov", meeting: "Controlled POV", regex: /pov/, stage: STAGE_V },
   { key: "pov", meeting: "Controlled POV", regex: /poc/, stage: STAGE_V },
@@ -176,10 +176,12 @@ var closedMap = [
   { key: "", meeting: "Training", regex: /sync/, stage: STAGE_C },
   { key: "", meeting: "Training", regex: /setup/, stage: STAGE_C },
   { key: "workshop", meeting: "Training", regex: /workshop/, stage: STAGE_C },
-  { key: "deepdive", meeting: "Training", regex: /deep dive/, stage: STAGE_C },
-  { key: "deepdive", meeting: "Training", regex: /deepdive/, stage: STAGE_C },
+  { key: "deepdive", meeting: "Training", regex: /deep.?dive/, stage: STAGE_C },
   { key: "pov", meeting: "Training", regex: /pov/, stage: STAGE_C },
   { key: "pov", meeting: "Training", regex: /poc/, stage: STAGE_C },
+  { key: "deepdive", meeting: "Training", regex: /architecture/, stage: STAGE_C },
+  { key: "deepdive", meeting: "Training", regex: /technical.?review/, stage: STAGE_C },
+  { key: "deepdive", meeting: "Training", regex: /deep.?dive/, stage: STAGE_C },
   { key: "", meeting: "Customer Business Review", regex: /health check/, stage: STAGE_C },
   { key: "demo", meeting: "Customer Business Review", regex: /demo/, stage: STAGE_C },
   { key: "", meeting: "", regex: /support/, stage: STAGE_C },
@@ -358,7 +360,6 @@ function lookForMeetingType_(stage, text) {
     itemList[agendaItemsToTrack[a]] = true;
     itemLog[agendaItemsToTrack[a]] = false; // default to an item not being present
   }
-  // items will look like this ["Demo", "Controlled POV", "Standard Workshop", ...];
 
   if (stage == STAGE_D) {
 

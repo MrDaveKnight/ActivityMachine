@@ -1582,7 +1582,7 @@ function createAccountEvents_(outputTab, attendees, attendeeLog, inviteInfo, pro
       outputTab.range.offset(outputTab.rowOffset, EVENT_DEMO).setValue(event.agendaItems.demo);
       outputTab.range.offset(outputTab.rowOffset, EVENT_POV).setValue(event.agendaItems.pov);
       outputTab.range.offset(outputTab.rowOffset, EVENT_WORKSHOP).setValue(event.agendaItems.workshop);
-      outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.dive);
+      outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.deepdive);
       outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
       
       outputTab.rowOffset++;
@@ -1648,7 +1648,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
     outputTab.range.offset(outputTab.rowOffset, EVENT_DEMO).setValue(event.agendaItems.demo);
     outputTab.range.offset(outputTab.rowOffset, EVENT_POV).setValue(event.agendaItems.pov);
     outputTab.range.offset(outputTab.rowOffset, EVENT_WORKSHOP).setValue(event.agendaItems.workshop);
-    outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.dive);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.deepdive);
     outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
 
     
@@ -1747,7 +1747,7 @@ function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDef
     outputTab.range.offset(outputTab.rowOffset, EVENT_DEMO).setValue(event.agendaItems.demo);
     outputTab.range.offset(outputTab.rowOffset, EVENT_POV).setValue(event.agendaItems.pov);
     outputTab.range.offset(outputTab.rowOffset, EVENT_WORKSHOP).setValue(event.agendaItems.workshop);
-    outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.dive);
+    outputTab.range.offset(outputTab.rowOffset, EVENT_DIVE).setValue(event.agendaItems.deepdive);
     outputTab.range.offset(outputTab.rowOffset, EVENT_ATTENDEES).setValue(attendees.toString());
 
     outputTab.rowOffset++;  
