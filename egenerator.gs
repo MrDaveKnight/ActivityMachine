@@ -474,11 +474,11 @@ function build_se_events() {
   //
   
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS); 
-  let overrideRange = parms.getRange(5,7,16,5); // Hardcoded to format of cells in RUN_PARMS!
+  let overrideRange = parms.getRange(OVERRIDE_FRAME_ROW, OVERRIDE_FRAME_COL, OVERRIDE_FRAME_ROWS, OVERRIDE_FRAME_COLS); 
   let overrides = overrideRange.getValues();
-  let specialRange = parms.getRange(31,7,16,3); // Hardcoded to format of cells in RUN_PARMS!
+  let specialRange = parms.getRange(SPECIAL_FRAME_ROW, SPECIAL_FRAME_COL, SPECIAL_FRAME_ROWS, SPECIAL_FRAME_COLS); 
   let specials = specialRange.getValues();
-  let bogusRange = parms.getRange(53,7,16,2); // Hardcoded to format of cells in RUN_PARMS!
+  let bogusRange = parms.getRange(BOGUS_FRAME_ROW, BOGUS_FRAME_COL, BOGUS_FRAME_ROWS, BOGUS_FRAME_COLS); 
   let bogusStuff = bogusRange.getValues();
   
   // 
@@ -995,7 +995,7 @@ function unveil_se_events() {
   //Copy events over to Review tab replacing account or opportunity ids with names 
   
   logStamp("Unveiling Events");
-  logOneCol("This may take a while. For progress, go to the \"Review\" tab. You'll be able to see records appending to the list. Or, get a nice cup of hot coffee.");
+  logOneCol("This may take a while. For granular progress, go to the \"Review\" tab. You'll be able to see records appending to the list. Or, get a nice cup of hot coffee.");
   inReviewInitialization = true;
 
   //
@@ -1003,10 +1003,10 @@ function unveil_se_events() {
   //
 
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
-  let statsOutputIdRange = parms.getRange(28, 2); // Hardcoded to format of cells in RUN_PARMS!
+  let statsOutputIdRange = parms.getRange(STATS_FRAME_ROW, STATS_FRAME_COL); 
   let rangeValues = statsOutputIdRange.getValues();
-  statsOutputWorksheetIdG = rangeValues[0][0];
-  if (statsOutputWorksheetIdG) {
+  statsOutputWorksheetUrlG = rangeValues[0][0];
+  if (statsOutputWorksheetUrlG) {
     logOneCol("Processing statistics for this run.");
   }
 
@@ -1556,7 +1556,7 @@ function createAccountEvents_(outputTab, attendees, attendeeLog, inviteInfo, pro
       repAttended = "Yes"; 
     }
     
-    let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
+    let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText, inviteInfo[IS_RECURRING]); // There is no lead gen stage
     
     for (account in attendeeLog) {
       
@@ -1619,7 +1619,7 @@ function createLeadEvent_(outputTab, lead, attendees, inviteInfo, productInvento
       repAttended = "Yes"; 
     }
     
-    let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText); // There is no lead gen stage
+    let event = lookForMeetingType_("Discovery & Qualification", inviteInfo[SUBJECT] + " " + descriptionScan.filteredText, inviteInfo[IS_RECURRING]); // There is no lead gen stage
     if (event.meeting != "Happy Hour" && event.meeting != "Demo") { // "Happy Hour", (short) "Demo" or "Discovery" are acceptable for leads. We better not be doing anything more 
       event.meeting = "Discovery";
     }
@@ -1720,7 +1720,7 @@ function createOpEvent_(outputTab, accountId, opId, attendees, inviteInfo, isDef
     repAttended = "Yes";
     */
   
-    let event = lookForMeetingType_(opStage, inviteInfo[SUBJECT] + " " + descriptionScan.filteredText);
+    let event = lookForMeetingType_(opStage, inviteInfo[SUBJECT] + " " + descriptionScan.filteredText, inviteInfo[IS_RECURRING]);
     
     outputTab.range.offset(outputTab.rowOffset, EVENT_ASSIGNED_TO).setValue(assignedTo);
     outputTab.range.offset(outputTab.rowOffset, EVENT_OP_STAGE).setValue(event.stage);

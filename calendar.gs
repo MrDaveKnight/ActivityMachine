@@ -9,10 +9,10 @@ function import_calendars() {
   let importCursor = {sheet : sheet, row : 2}; // Drop to row below the header we kept during the clear
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
   
-  let dateRange = parms.getRange(3,2,2,1); // Hardcoded to format in RUN_PARMS
+  let dateRange = parms.getRange(DATE_FRAME_ROW,DATE_FRAME_COL,2,1); 
   let dates = dateRange.getValues();
   
-  let calendarRange = parms.getRange(3,5,25,1); // Hardcoded to format in RUN_PARMS
+  let calendarRange = parms.getRange(CAL_FRAME_ROW,5,CAL_FRAME_ROWS,1); 
   let calendars = calendarRange.getValues();
   
   let inviteCount = 0;

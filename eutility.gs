@@ -199,7 +199,7 @@ function createDataLoadFilters() {
   //
 
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
-  let overrideRange = parms.getRange(5, 7, 16, 5); // Hardcoded to format of cells in RUN_PARMS!
+  let overrideRange = parms.getRange(OVERRIDE_FRAME_ROW, OVERRIDE_FRAME_COL, OVERRIDE_FRAME_ROWS, OVERRIDE_FRAME_COLS); 
   let overrides = overrideRange.getValues();
   for (let row in overrides) {
     if (overrides[row][1]) {
@@ -1019,7 +1019,7 @@ function incrementAgendaItemCounts_(ledger, eventInfo) {
 
 function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeString) {
 
-  if (!statsOutputWorksheetIdG) {
+  if (!statsOutputWorksheetUrlG) {
     // If we have no place to send it, don't bother collecting it
     return;
   }
@@ -1210,17 +1210,25 @@ function printStats_() {
   // See collectStats method for statsLedgerG schema
   //
 
-  if (!statsOutputWorksheetIdG) {
+  if (!statsOutputWorksheetUrlG) {
     return;
   }
+
+  let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
+  let dateRange = parms.getRange(DATE_FRAME_ROW, DATE_FRAME_COL, 2, 1); 
+  let dates = dateRange.getValues();
+
+  let statsOutputIdRange = parms.getRange(STATS_FRAME_ROW, STATS_FRAME_COL); 
+  let rangeValues = statsOutputIdRange.getValues();
+  statsOutputWorksheetUrlG = rangeValues[0][0];
 
   let chartLedger = [];
   let chartIndex = 0;
   let minChartSpacing = 21; // Need 21 Rows to fit chart. Small datasets need to be spaced at least 21 rows
 
-  let worksheet = SpreadsheetApp.openById(statsOutputWorksheetIdG);
+  let worksheet = SpreadsheetApp.openByUrl(statsOutputWorksheetUrlG);
   if (!worksheet) {
-    logOneCol("ERROR - Stats output worksheet id is not valid. Id: " + statsOutputWorksheetIdG);
+    logOneCol("ERROR - Stats output worksheet URL is not valid: " + statsOutputWorksheetUrlG);
     return;
   }
 
@@ -1238,8 +1246,17 @@ function printStats_() {
   let outputRange = sheet.getRange(MEETING_COUNTS_ORIGIN_ROW, MEETING_COUNTS_ORIGIN_COL);
   let rowOffset = 0;
 
+  let from = Utilities.formatDate(new Date(dates[0][0]), "GMT", "MM/dd/yyyy");
+  let to = Utilities.formatDate(new Date(dates[1][0]), "GMT", "MM/dd/yyyy");
+  let when = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString()
+  outputRange.offset(rowOffset++, 0).setValue("#################################################");
+  outputRange.offset(rowOffset++, 0).setValue("## Event Statistics from " + from + " to " + to + "              ##");
+  outputRange.offset(rowOffset++, 0).setValue("## Run executed at " + when + "                         ##");
+    outputRange.offset(rowOffset++, 0).setValue("#################################################");
+  
+  rowOffset = rowOffset + 3;
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
-  outputRange.offset(rowOffset++, 0).setValue("                          Group Data");
+  outputRange.offset(rowOffset++, 0).setValue("                               Group Data");
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
   rowOffset++;
 
@@ -1488,7 +1505,7 @@ function printStats_() {
   }
 
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
-  outputRange.offset(rowOffset++, 0).setValue("                       Staff Member Meeting Counts");
+  outputRange.offset(rowOffset++, 0).setValue("                     Staff Member Meeting Counts");
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
   rowOffset++
 
@@ -1638,7 +1655,7 @@ function printStats_() {
   }
 
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
-  outputRange.offset(rowOffset++, 0).setValue("                         Contact Tracing");
+  outputRange.offset(rowOffset++, 0).setValue("                             Contact Tracing");
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
   rowOffset++
 
@@ -1736,7 +1753,7 @@ function printStats_() {
   //
   // Build Charts
   //
-  logOneCol("Generating charts in " + MEETING);
+  logOneCol("Generating charts in the " + MEETING + " tab of the stats output sheet");
   for (let ci = 0; ci < chartIndex; ci++) {
 
     //Logger.log(JSON.stringify(chartLedger[ci]));

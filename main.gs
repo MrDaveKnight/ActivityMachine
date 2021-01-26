@@ -42,6 +42,27 @@ const MEETINGS_HAVE_DEFAULT=true;
 const RUN_PARMS = "Run Settings"
 const CHOICES = "Choices"
 
+// Locations of input frames in the runtime settings tab
+const DATE_FRAME_ROW = 3; // top left corner
+const DATE_FRAME_COL = 2;
+const CAL_FRAME_ROW = 3; // top left corner
+const CAL_FRAME_COL = 5;
+const CAL_FRAME_ROWS = 25;
+const OVERRIDE_FRAME_ROW = 5;
+const OVERRIDE_FRAME_COL = 7;
+const OVERRIDE_FRAME_ROWS = 16;
+const OVERRIDE_FRAME_COLS = 5; 
+const SPECIAL_FRAME_ROW = 31;
+const SPECIAL_FRAME_COL = 7;
+const SPECIAL_FRAME_ROWS = 16;
+const SPECIAL_FRAME_COLS = 3; 
+const BOGUS_FRAME_ROW = 53;
+const BOGUS_FRAME_COL = 7;
+const BOGUS_FRAME_ROWS = 16;
+const BOGUS_FRAME_COLS = 2; 
+const STATS_FRAME_ROW = 28;
+const STATS_FRAME_COL = 2;
+
 // Event types
 const OP_EVENT = "Opportunity";
 const CUSTOMER_EVENT = "Customer";
@@ -270,7 +291,7 @@ const NOMAD = "N";
 //
 
 var statsLedgerG = { global: { agendaItems: { demo: 0, pov: 0, workshop: 0, deepdive: 0 } }, users : {} }; // see the collectStats_ function in eutility.gs
-var statsOutputWorksheetIdG = null;
+var statsOutputWorksheetUrlG = null;
 const MEETING = "Meetings";
 const MEETING_COUNTS_ORIGIN_ROW = 3;
 const MEETING_COUNTS_ORIGIN_COL = 2;

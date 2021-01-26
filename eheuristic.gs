@@ -108,6 +108,7 @@ var discoveryMap = [
   { key: "", meeting: "Discovery", regex: /introduction/, stage: STAGE_D },
   { key: "", meeting: "Discovery", regex: /sync/, stage: STAGE_D },
   { key: "", meeting: "Discovery", regex: /review/, stage: STAGE_D },
+  { key: "", meeting: "Discovery", regex: /workshop/, stage: STAGE_D }, // workshop for discovery and solutioning
   { key: "", meeting: "Product Overview", regex: /presentation/, stage: STAGE_D },
   { key: "", meeting: "Product Overview", regex: /pitch/, stage: STAGE_D },
   { key: "", meeting: "Product Overview", regex: /briefing/, stage: STAGE_D },
@@ -118,7 +119,10 @@ var discoveryMap = [
   { key: "pov", meeting: "Controlled POV", regex: /poc/, stage: STAGE_V },
   { key: "", meeting: "Product Overview", regex: /roadmap/, stage: STAGE_D },
   { key: "", meeting: "Health Check", regex: /health.?check/, stage: STAGE_V },
-  { key: "workshop", meeting: "Standard Workshop", regex: /workshop/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /\/workshops\//, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /hands.?on/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /\slab/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /instruqt/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /technical.?review/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /deep.?dive/, stage: STAGE_V },
   { key: "demo", meeting: "Demo", regex: /demo/, stage: STAGE_D }]; // want demo to take priority over POV
@@ -138,6 +142,7 @@ var validationMap = [
   { key: "", meeting: "Product Overview", regex: /whiteboard/, stage: STAGE_V },
   { key: "", meeting: "Discovery", regex: /discovery/, stage: STAGE_D },
   { key: "", meeting: "Discovery", regex: /introduction/, stage: STAGE_D },
+  { key: "", meeting: "Product Overview", regex: /workshop/, stage: STAGE_V }, // workshop for discovery and solutioning
   { key: "", meeting: "Product Roadmap", regex: /roadmap/, stage: STAGE_V },
   { key: "", meeting: "Technical Office Hours", regex: /training/, stage: STAGE_V },
   { key: "", meeting: "Technical Office Hours", regex: /sync/, stage: STAGE_V },
@@ -149,7 +154,10 @@ var validationMap = [
   { key: "", meeting: "Technical Office Hours", regex: /troubleshoot/, stage: STAGE_V },
   { key: "", meeting: "Technical Office Hours", regex: /issue/, stage: STAGE_V },
   { key: "", meeting: "Health Check", regex: /health check/, stage: STAGE_V },
-  { key: "workshop", meeting: "Standard Workshop", regex: /workshop/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /\/workshops\//, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /hands.?on/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /\slab/, stage: STAGE_V },
+  { key: "workshop", meeting: "Standard Workshop", regex: /instruqt/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /architecture/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /technical.?review/, stage: STAGE_V },
   { key: "deepdive", meeting: "Product Deep Dive", regex: /deep.?dive/, stage: STAGE_V },
@@ -175,7 +183,11 @@ var closedMap = [
   { key: "", meeting: "Training", regex: /training/, stage: STAGE_C },
   { key: "", meeting: "Training", regex: /sync/, stage: STAGE_C },
   { key: "", meeting: "Training", regex: /setup/, stage: STAGE_C },
-  { key: "workshop", meeting: "Training", regex: /workshop/, stage: STAGE_C },
+  { key: "", meeting: "Training", regex: /workshop/, stage: STAGE_C },
+  { key: "workshop", meeting: "Training", regex: /\/workshops\//, stage: STAGE_C },
+  { key: "workshop", meeting: "Training", regex: /hands.?on/, stage: STAGE_C },
+  { key: "workshop", meeting: "Training", regex: /\slab/, stage: STAGE_C },
+  { key: "workshop", meeting: "Training", regex: /instruqt/, stage: STAGE_C },
   { key: "deepdive", meeting: "Training", regex: /deep.?dive/, stage: STAGE_C },
   { key: "pov", meeting: "Training", regex: /pov/, stage: STAGE_C },
   { key: "pov", meeting: "Training", regex: /poc/, stage: STAGE_C },
@@ -337,7 +349,7 @@ function lookForProducts_(text) {
 
 }
 
-function lookForMeetingType_(stage, text) {
+function lookForMeetingType_(stage, text, isRecurring) {
   // Try to figure out what type of meeting we were in by scanning the text for keywords.
   // Note that not all types we might find are allowed in the curent opportunity stage.
   // When that happens, switch the stage so we can report on the indentified meeting type.
@@ -345,10 +357,10 @@ function lookForMeetingType_(stage, text) {
   // More design info in build_se_events comments.
   // Returns the detected meeting type and required stage.
   //
-  // v1.2.2 enhancement - it will now scan for and record a variety of meeting events,
+  // v1.2.2 enhancement - it will now scan for and record a variety of meeting agenda items,
   // in addition to making the ultimate determination of what the meeting as a whole is for.
   // For example, if it sees a demo, it will remember that, but continue to look for other things
-  // like workshop, or POV.
+  // like workshop, or POV. However, do not count agenda items in recurring meetings.
 
   let map = [];
   let rv = {};
@@ -357,7 +369,7 @@ function lookForMeetingType_(stage, text) {
   let itemList = {};
   let itemLog = {};
   for (a = 0; a < agendaItemsToTrack.length; a++) {
-    itemList[agendaItemsToTrack[a]] = true;
+    if (!isRecurring) itemList[agendaItemsToTrack[a]] = true; // Do not count agenda items in recurring meetings.
     itemLog[agendaItemsToTrack[a]] = false; // default to an item not being present
   }
 
