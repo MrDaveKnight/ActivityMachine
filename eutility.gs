@@ -1235,11 +1235,15 @@ function printStats_() {
   let sheet = worksheet.getSheetByName(MEETING);
   //let sheet = SpreadsheetApp.getActive().getSheetByName(STATS);
   if (!sheet) {
-    logOneCol("Error - could not find the " + MEETING + " tab for stats output in " + worksheet.getName());
-    return;
+    sheet = worksheet.getSheets()[0];
+    if (!sheet) {
+      logOneCol("Error - could not find a tab for stats output in " + worksheet.getName());
+      return;
+    }
   }
+  let tabName = sheet.getName();
 
-  logOneCol("Logging stats to the " + MEETING + " tab in "+ worksheet.getName());
+  logOneCol("Logging stats to " + tabName + " in "+ worksheet.getName());
   sheet.clearContents();
   deleteCharts_(sheet);
 
@@ -1250,10 +1254,10 @@ function printStats_() {
   let to = Utilities.formatDate(new Date(dates[1][0]), "GMT", "MM/dd/yyyy");
   let when = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString()
   outputRange.offset(rowOffset++, 0).setValue("#################################################");
-  outputRange.offset(rowOffset++, 0).setValue("## Event Statistics from " + from + " to " + to + "              ##");
-  outputRange.offset(rowOffset++, 0).setValue("## Run executed at " + when + "                         ##");
-    outputRange.offset(rowOffset++, 0).setValue("#################################################");
-  
+  outputRange.offset(rowOffset++, 0).setValue("## ----- Event Statistics from " + from + " to " + to + " ----- ##");
+  outputRange.offset(rowOffset++, 0).setValue("## ----- Run executed at " + when + " --------------- ##");
+  outputRange.offset(rowOffset++, 0).setValue("#################################################");
+
   rowOffset = rowOffset + 3;
   outputRange.offset(rowOffset++, 0).setValue("------------------------------------------------------------------------");
   outputRange.offset(rowOffset++, 0).setValue("                               Group Data");
