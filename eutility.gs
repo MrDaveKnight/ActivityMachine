@@ -1204,6 +1204,53 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   }
 }
 
+function loadMeetingMap_(map, propertiesTab) {
+
+  // We do not want people using their own properties because we want consistent results, so
+  // I'm going to hardcode a bunch of stuff in here to at least make it a little difficult to change
+  // stuff.
+
+  // Assets there is a map to load.
+  // Initialize the map
+
+  let activityMachineProperties = "https://docs.google.com/spreadsheets/d/1BrNyxuUdl9aKNwGfAwtcQbGckOA4YUMrfyojGhAiIos/edit#gid=602540278";
+  let worksheet = SpreadsheetApp.openByUrl(activityMachineProperties);
+  if (!worksheet) {
+    logOneCol("ERROR - Activity Machine's organization wide properties not found!");
+    return false;
+  }
+
+  let sheet = worksheet.getSheetByName(propertiesTab);
+
+  if (!sheet) {
+    logOneCol("Error - could not find the " + propertiesTab + " tab in the Activity Machine properties");
+    return false;
+  }
+
+  let rangeData = sheet.getDataRange();
+  let lc = rangeData.getLastColumn();
+  let lr = rangeData.getLastRow();
+  if (lr < 2) {
+    // No in region customers (that's odd)
+    logOneCol("ERROR - Found an empty " + propertiesTab);
+    return false;
+  }
+
+  if (lc < 4) {
+    logOneCol("ERROR: " + propertiesTab + " is missing some columns.");
+    return false;
+  }
+
+  let mapRange = sheet.getRange(2, 1, lr - 1, lc);
+  let mappings = mapRange.getValues();
+
+  for (i = 0; i < lr - 1; i++) {
+    let m = { key: mappings[i][0], meeting: mappings[i][1], regex: new RegExp(mappings[i][2]), stage: mappings[i][3] };
+    map.push(m);
+  }
+  return true;
+}
+
 function printStats_() {
 
   // Dump stats

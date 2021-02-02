@@ -79,8 +79,9 @@ var stageValidation = {
   */
 
 
-
-
+var discoveryMapS = null; // Singleton
+var validationMapS = null;
+var closedMapS = null;
 
 var discoveryMap = [
   // Although Salesforce says it will accept "Support" with Discovery & Qual stage,
@@ -362,7 +363,7 @@ function lookForMeetingType_(stage, text, isRecurring) {
   // For example, if it sees a demo, it will remember that, but continue to look for other things
   // like workshop, or POV. However, do not count agenda items in recurring meetings.
 
-  let map = [];
+  let map = []; // will be an array
   let rv = {};
 
   // Specific agenda items to scan for
@@ -375,8 +376,6 @@ function lookForMeetingType_(stage, text, isRecurring) {
 
   if (stage == STAGE_D) {
 
-
-
     // To detect default meeting type sections, set meeting: to "" (empty string is --None-- in SF)
     if (MEETINGS_HAVE_DEFAULT) {
       rv = { stage: STAGE_D, meeting: "Discovery" };
@@ -384,8 +383,13 @@ function lookForMeetingType_(stage, text, isRecurring) {
     else {
       rv = { stage: STAGE_D, meeting: "" };
     }
-
-    map = discoveryMap;
+    if (!discoveryMapS) {
+      discoveryMapS = [];
+      if (!loadMeetingMap_(discoveryMapS, "Discovery Map")) {
+        return rv; // ABORT! Function will log errors.
+      }
+    }
+    map = discoveryMapS;
 
   }
   else if (stage == STAGE_V) {
@@ -398,8 +402,13 @@ function lookForMeetingType_(stage, text, isRecurring) {
     else {
       rv = { stage: STAGE_V, meeting: "" };
     }
-
-    map = validationMap;
+    if (!validationMapS) {
+      validationMapS = [];
+      if (!loadMeetingMap_(validationMapS, "Validation Map")) { 
+        return rv; // ABORT! Function will log errors.
+      }
+    }
+    map = validationMapS;
 
   }
   else if (stage == STAGE_C) {
@@ -415,8 +424,13 @@ function lookForMeetingType_(stage, text, isRecurring) {
 
     // Salesforce will not accept Implementation or Support in Closed/Won stage. 
     // For now we will use "--None--" to indicate Post-Sales activity!
-    map = closedMap;
-
+    if (!closedMapS) {
+      closedMapS = [];
+      if (!loadMeetingMap_(closedMapS, "Closed Map")) { 
+        return rv; // ABORT! Function will log errors.
+      }
+    }
+    map = closedMapS;
   }
   else {
     rv = { stage: "Closed/Lost", meeting: "" };
