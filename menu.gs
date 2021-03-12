@@ -105,7 +105,7 @@ function menuItem3_() {
   }
   
   let result = ui.alert('Please confirm', 
-                        'You want to run all pre-upload event processing? This will execute the following stages in order...\n\n1. Import Calendars\n2. Generate Events\n3. Unveil Events.' +
+                        'You want to run all pre-upload event processing? This will execute the following stages in order...\n\n1. Import Calendars\n2. Generate Events\n3. Prep Review Events.' +
                         '\n\nThis will clear out all invite and event data including the Review tab!\n\nAre you sure you want to do all that?',
                         ui.ButtonSet.YES_NO);
   
@@ -186,7 +186,7 @@ function menuItem7_() {
   }
   
   let result = ui.alert('Please confirm', 
-                        'You want to run Generate Events and Unveil Events?' +
+                        'You want to run Generate Events and Prep Review Events?' +
                         '\n\nThis will clear out all event data including the Review tab!\n\nAre you sure you want to do all that?',
                         ui.ButtonSet.YES_NO);
   
@@ -272,8 +272,8 @@ function menuItem10_() {
   }
   
   
-  let result = ui.alert('Please confirm the event "unveiling"', 
-                        'This will overwrite what is currently in the Review tab with events that have their reference-id fields replaced with names for accounts, partners, opportunities and users. You will loose any updates currently in the Review tab!\n\nYou want to continue anyway?',
+  let result = ui.alert('Please confirm the event prep', 
+                        'This will overwrite what is currently in the Review tab. The reference-id fields in each event for the accounts, partners, opportunities and users fields will be replaced with human readable names. You will loose any updates currently in the Review tab!\n\nYou want to continue anyway?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {  
@@ -452,15 +452,15 @@ function menuItem22_() {
 function menuItem23_() {
   
   let ui = SpreadsheetApp.getUi();
-  ui.alert("Unveil Events\n\nThis takes each record in the 'Events' tab, replacing the Salesforce IDs in user, customer, partner, lead and opportunity reference fields with the corresponding names that people can understand, and writes those 'unveiled' records into the 'Review' tab. " +
-           "It will clear whatever is currently in the 'Review' tab before performing the ID to name expansion. These unveiled records are easier to manually review prior to upload.");
+  ui.alert("Prep Review Events\n\nThis takes each record in the 'Events' tab, replacing the Salesforce IDs in the user, customer, partner, lead and opportunity reference fields with the corresponding names that people can understand, and writes those transformed records into the 'Review' tab. " +
+           "It will clear whatever is currently in the 'Review' tab before performing the ID to name transform. These records are easier to manually review prior to upload.");
   
 }
 
 function menuItem24_() {
   
   let ui = SpreadsheetApp.getUi();
-  ui.alert("Process Events\n\nExecute the three pre-upload event processing stages in order:\n\n1. Import Calendars\n2. Generate Events\n3. Unveil Events.\n\nMay take a couple minutes to complete, so go get some coffee.");
+  ui.alert("Process Events\n\nExecute the three pre-upload event processing stages in order:\n\n1. Import Calendars\n2. Generate Events\n3. Prep Review Events.\n\nMay take a couple minutes to complete, so go get some coffee.");
   
 }
 
