@@ -993,6 +993,7 @@ function build_se_events() {
 
 function unveil_se_events() {
   //Copy events over to Review tab replacing account or opportunity ids with names 
+  // Also collects activity statistics if a stats output URL is provided in Run Settings. Ref the collectStats_ function.
   
   logStamp("Unveiling Events");
   logOneCol("This may take a while. For granular progress, go to the \"Review\" tab. You'll be able to see records appending to the list. Or, get a nice cup of hot coffee.");

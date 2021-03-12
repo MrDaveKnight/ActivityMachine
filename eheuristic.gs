@@ -334,7 +334,8 @@ function lookForProducts_(text) {
   if (!text) return returnValue;
   var x = text.toLowerCase();
 
-  returnValue.hasTerraform = x.indexOf("terraform") != -1 || x.indexOf("tf cloud") != -1;
+  // For now, only Terraform really integrates with ServiceNow, so we'll use it
+  returnValue.hasTerraform = x.indexOf("terraform") != -1 || x.indexOf("tf cloud") != -1 || x.indexOf("snow") != -1 || x.indexOf("servicenow") != -1;
   if (!returnValue.hasTerraform) {
     let regex = RegExp("p?tf[ce]");
     returnValue.hasTerraform = regex.test(x);

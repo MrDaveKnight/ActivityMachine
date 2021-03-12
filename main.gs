@@ -27,8 +27,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.3.0";
-const GAS_VERSION = 130; 
+const GAS_VERSION_STRING = "1.4.0";
+const GAS_VERSION = 140; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
@@ -290,7 +290,7 @@ const NOMAD = "N";
 // Stats
 //
 
-var statsLedgerG = { global: { agendaItems: { demo: 0, pov: 0, workshop: 0, deepdive: 0 } }, users : {} }; // see the collectStats_ function in eutility.gs
+var statsLedgerG = { global: { agendaItems: { demo: 0, pov: 0, workshop: 0, deepdive: 0, nada : 0 } }, users : {} }; // see the collectStats_ function in eutility.gs
 var statsOutputWorksheetUrlG = null;
 const MEETING = "Meetings";
 const MEETING_COUNTS_ORIGIN_ROW = 3;

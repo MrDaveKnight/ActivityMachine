@@ -1003,17 +1003,25 @@ function generateLongId_(id) {
 function incrementAgendaItemCounts_(ledger, eventInfo) {
   // This must be keep in sync with the agendaItemsToTrack object in eheuristic.gs
 
+  let nothing = true;
   if (eventInfo[EVENT_DEMO]) {
     ledger.demo++;
+    nothing = false;
   }
   if (eventInfo[EVENT_POV]) {
     ledger.pov++;
+    nothing = false;
   }
   if (eventInfo[EVENT_WORKSHOP]) {
     ledger.workshop++;
+    nothing = false;
   }
   if (eventInfo[EVENT_DIVE]) {
     ledger.deepdive++;
+    nothing = false;
+  }
+  if (nothing) {
+    ledger.nada++;
   }
 }
 
@@ -1038,6 +1046,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //    pov : count
   //    workshop : count
   //    deepdive : count
+  //.   nada : count // Count of meetings that had none of the tracked agenda items
   //  users
   //   userId ...
   //    generalCounts
@@ -1054,6 +1063,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //        pov : count
   //        workshop : count
   //        deepdive : count
+  //.       nada : count
   //    ops
   //      opId ...
   //        new_count : count
@@ -1063,6 +1073,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //          pov : count
   //          workshop : count
   //          deepdive : count
+  //.         nada : count
   //        attendees
   //          attendee ...
   //            new_count : count
@@ -1072,6 +1083,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //              pov : count
   //              workshop : count
   //              deepdive : count
+  //.             nada : count
   //    customers
   //      accountId ...
   //        new_count : count
@@ -1081,6 +1093,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //          pov : count
   //          workshop : count
   //          deepdive : count
+  //          nada : count
   //        attendees
   //         attendee ...
   //          new_count : count
@@ -1090,6 +1103,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //              pov : count
   //              workshop : count
   //              deepdive : count
+  //.             nada : count
   //    partners
   //      accountId ...
   //        new_count : count
@@ -1099,6 +1113,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //          pov : count
   //          workshop : count
   //          deepdive : count
+  //.             nada : count
   //        attendees
   //         attendee ...
   //           new_count : count
@@ -1108,6 +1123,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //              pov : count
   //              workshop : count
   //              deepdive : count
+  //.             nada : count
   //    leads
   //      attendee : ...
   //           new_count : count
@@ -1117,7 +1133,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   let attendees = attendeeString.split(",");
 
   if (!statsLedgerG.users[assignedTo]) {
-    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0};
     let meetingCounts = { op: 0, op_new: 0, customer: 0, customer_new : 0, partner: 0, partner_new: 0, lead: 0, lead_new : 0, agendaItems: agendaItems};
     statsLedgerG.users[assignedTo] = { generalCounts: meetingCounts, ops: {}, customers: {}, partners: {}, leads: {} };
     // logOneCol("Collecting contact stats for " + assignedTo);
@@ -1130,7 +1146,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
     case OP_EVENT:
       statsLedgerG.users[assignedTo].generalCounts.op++;
       if (!statsLedgerG.users[assignedTo].ops[relatedTo]) {
-        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
         statsLedgerG.users[assignedTo].ops[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} };
       }
       incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].ops[relatedTo].agendaItems, eventInfo);
@@ -1145,7 +1161,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
     case CUSTOMER_EVENT:
       statsLedgerG.users[assignedTo].generalCounts.customer++;
       if (!statsLedgerG.users[assignedTo].customers[relatedTo]) {
-        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
         statsLedgerG.users[assignedTo].customers[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} }; // Object for all possible attendee counts
       }
       incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].customers[relatedTo].agendaItems, eventInfo);
@@ -1160,7 +1176,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
     case PARTNER_EVENT:
       statsLedgerG.users[assignedTo].generalCounts.partner++;
       if (!statsLedgerG.users[assignedTo].partners[relatedTo]) {
-        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
         statsLedgerG.users[assignedTo].partners[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} }; // Object for all possible attendee counts
       }
       incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].partners[relatedTo].agendaItems, eventInfo);
@@ -1392,6 +1408,7 @@ function printStats_() {
   outputRange.offset(rowOffset++, 0).setValue("Total pov count: " + statsLedgerG.global.agendaItems.pov);
   outputRange.offset(rowOffset++, 0).setValue("Total workshop count: " + statsLedgerG.global.agendaItems.workshop);
   outputRange.offset(rowOffset++, 0).setValue("Total deep dive count: " + statsLedgerG.global.agendaItems.deepdive);
+  outputRange.offset(rowOffset++, 0).setValue("Total meeting count with no tracked agenda item: " + statsLedgerG.global.agendaItems.nada);
   
 
   let ave = Math.round(totalMeetings / userCount);
@@ -1451,6 +1468,9 @@ function printStats_() {
   rowOffset++;
   outputRange.offset(rowOffset, 0).setValue("Deep Dive");
   outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.deepdive / totalMeetings).toFixed(1));
+  rowOffset++;
+  outputRange.offset(rowOffset, 0).setValue("Everything Else");
+  outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.nada / totalMeetings).toFixed(1));
   rowOffset++;
   chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
   chartIndex++
@@ -1571,6 +1591,7 @@ function printStats_() {
     outputRange.offset(rowOffset++, 0).setValue("Workshops: " + statsLedgerG.users[user].generalCounts.agendaItems.workshop);
     outputRange.offset(rowOffset++, 0).setValue("POV Meetings: " + statsLedgerG.users[user].generalCounts.agendaItems.pov);
     outputRange.offset(rowOffset++, 0).setValue("Deep Dives: " + statsLedgerG.users[user].generalCounts.agendaItems.deepdive);
+    outputRange.offset(rowOffset++, 0).setValue("Everything Else: " + statsLedgerG.users[user].generalCounts.agendaItems.nada);
     let message = "";
     if (statistics[user].new_meetings < aveN) {
       if (aveN - statistics[user].new_meetings > stdN) {
@@ -1841,7 +1862,7 @@ function incrementStat_(obj, key, eventInfo) {
     }
   }
   else {
-    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0 };
+    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
     if (eventInfo[EVENT_RECURRING]) {
       obj[key] = { new_count: 0, recurring_count: 1, agendaItems: agendaItems};
     }
@@ -1860,6 +1881,7 @@ function printContactHeader_(outputRange, rowOffset, outputFrameColOffset, user,
   outputRange.offset(rowOffset, outputFrameColOffset + 4).setValue("POV");
   outputRange.offset(rowOffset, outputFrameColOffset + 5).setValue("Workshop");
   outputRange.offset(rowOffset, outputFrameColOffset + 6).setValue("Deepdive");
+  outputRange.offset(rowOffset, outputFrameColOffset + 7).setValue("Everything Else");
 }
 
 function printContactStats_(outputRange, rowOffset, outputFrameColOffset, contact) {
@@ -1870,6 +1892,7 @@ function printContactStats_(outputRange, rowOffset, outputFrameColOffset, contac
   outputRange.offset(rowOffset, outputFrameColOffset + 4).setValue(contact.ai.pov);
   outputRange.offset(rowOffset, outputFrameColOffset + 5).setValue(contact.ai.workshop);
   outputRange.offset(rowOffset, outputFrameColOffset + 6).setValue(contact.ai.deepdive);
+  outputRange.offset(rowOffset, outputFrameColOffset + 7).setValue(contact.ai.nada);
 }
 
 
