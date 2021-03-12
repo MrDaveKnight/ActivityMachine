@@ -14,7 +14,7 @@
 // 1. Import google calendar invites into the google sheet
 // 2. Generate SE Activities from those invites, saving them in a "staging" tab in the google sheet
 // 3. Upload SE Activities; moving staged SE Activities into the "Upload" tab for Zap upload
-// 4. Generate "unveiled" SE Activities with machine IDs replaced by names for easier review
+// 4. Generate "Reviewable" SE Activities with machine IDs replaced by names that someone can actually understand
 // 5. Clear various tabs and logs
 //
 // A Zapier zap is configured to watch for SE Activities that appear in the Upload tab, and push them up 
@@ -320,9 +320,9 @@ function onOpen() {
           .addSeparator()
           .addItem('Generate Events', 'menuItem2_')
           .addSeparator()
-          .addItem('Unveil Events', 'menuItem10_')
+          .addItem('Prep Review Events', 'menuItem10_')
           .addSeparator()
-          .addItem('Generate & Unveil Events', 'menuItem7_'))
+          .addItem('Generate & Prep Events', 'menuItem7_'))
       .addSeparator()
       .addItem('Reconcile Events', 'menuItem13_')
       .addSeparator()
@@ -350,7 +350,7 @@ function onOpen() {
                   .addSeparator()
                   .addItem('Generate Events', 'menuItem22_')
                   .addSeparator()
-                  .addItem('Unveil Events', 'menuItem23_')
+                  .addItem('Prep Review Events', 'menuItem23_')
                   .addSeparator()
                   .addItem('Reconcile Events', 'menuItem26_')
                   .addSeparator()
