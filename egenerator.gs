@@ -1215,11 +1215,12 @@ function unveil_se_events() {
   // WARNING - This protection is hardcoded to the column format of unveiled events tab!
   // If the header changes, you may need to update this
   //
-  /*
+  
   var protection = sheet.protect().setDescription('Review data protection');
   var unprotected1 = sheet.getRange(2, 2, rowOffset, 3); 
-  var unprotected2 = sheet.getRange(2, 8, rowOffset, 11); 
-  protection.setUnprotectedRanges([unprotected1, unprotected2]);
+  var unprotected2 = sheet.getRange(2, 8, rowOffset, 9); 
+  var unprotected3 = sheet.getRange(2, 18, rowOffset, 1);
+  protection.setUnprotectedRanges([unprotected1, unprotected2, unprotected3]);
   // Ensure the current user is an editor before removing others. Otherwise, if the user's edit
   // permission comes from a group, the script will throw an exception upon removing the group.
   var me = Session.getEffectiveUser();
@@ -1228,7 +1229,7 @@ function unveil_se_events() {
   if (protection.canDomainEdit()) {
     protection.setDomainEdit(false);
   }
-  */
+
   
   logOneCol("Unveiled " + cO + " Opportunity events.");
   logOneCol("Unveiled " + cP + " Partner events.");

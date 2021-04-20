@@ -27,8 +27,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.5.0";
-const GAS_VERSION = 150; 
+const GAS_VERSION_STRING = "1.5.1";
+const GAS_VERSION = 151; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
@@ -202,7 +202,7 @@ const REVIEW_ACCOUNT_TYPE = 16;
 const REVIEW_PROCESS = 17;
 const REVIEW_RECORD_LINK = 18;
 const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Record"]]
-// There are field protections setup in unveil_se_events that are hardcoded to this header. If you change this, make sure the protections in unveil_se_events are correct or updated.
+// There are field protections setup in unveil_se_events that are hardcoded to this header. If you change this, make sure the protections in unveil_se_events are correct or updated. Search for "Review data protection"
 
 // Record original values for highlighting changes by the reviewers
 // No header. Not meant to be seen by a user
