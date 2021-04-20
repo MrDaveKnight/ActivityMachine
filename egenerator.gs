@@ -1223,12 +1223,15 @@ function unveil_se_events() {
   protection.setUnprotectedRanges([unprotected1, unprotected2, unprotected3]);
   // Ensure the current user is an editor before removing others. Otherwise, if the user's edit
   // permission comes from a group, the script will throw an exception upon removing the group.
+
+  /*
   var me = Session.getEffectiveUser();
   protection.addEditor(me);
   protection.removeEditors(protection.getEditors());
   if (protection.canDomainEdit()) {
     protection.setDomainEdit(false);
   }
+  */
 
   
   logOneCol("Unveiled " + cO + " Opportunity events.");
