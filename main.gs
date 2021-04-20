@@ -27,8 +27,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.4.0";
-const GAS_VERSION = 140; 
+const GAS_VERSION_STRING = "1.5.0";
+const GAS_VERSION = 150; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
@@ -181,7 +181,7 @@ const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Rela
 const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]];
 
 const EVENTS_UNVEILED = "Review"
-const REVIEW_COLUMNS = 18;
+const REVIEW_COLUMNS = 19;
 const REVIEW_ASSIGNED_TO = 0;
 const REVIEW_EVENT_TYPE = 1; // Must be before REVIEW_RELATED_TO and REVIEW_LEAD or you will break the menu
 const REVIEW_RELATED_TO = 2; // Opportunity ID or Account ID
@@ -200,7 +200,8 @@ const REVIEW_LEAD = 14;
 const REVIEW_NOTES = 15;
 const REVIEW_ACCOUNT_TYPE = 16;
 const REVIEW_PROCESS = 17;
-const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process"]]
+const REVIEW_RECORD_LINK = 18;
+const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Record"]]
 // There are field protections setup in unveil_se_events that are hardcoded to this header. If you change this, make sure the protections in unveil_se_events are correct or updated.
 
 // Record original values for highlighting changes by the reviewers
@@ -320,7 +321,7 @@ function onOpen() {
           .addSeparator()
           .addItem('Generate Events', 'menuItem2_')
           .addSeparator()
-          .addItem('Prep Review Events', 'menuItem10_')
+          .addItem('Prep Review Events & Stats', 'menuItem10_')
           .addSeparator()
           .addItem('Generate & Prep Events', 'menuItem7_'))
       .addSeparator()

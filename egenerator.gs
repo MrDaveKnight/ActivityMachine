@@ -1129,9 +1129,12 @@ function unveil_se_events() {
     // Note that these types are in the Data Validation for the associated field on the Review tab
     let name = "General";
     let type = "General";
+    let hyperlinkType = "Account";
+    let hyperlinkId = eventInfo[j][EVENT_RELATED_TO];
     if (opNameById[eventInfo[j][EVENT_RELATED_TO]]) {
       name = opNameById[eventInfo[j][EVENT_RELATED_TO]];
       type = OP_EVENT;
+      hyperlinkType = "Opportunity";
       cO++;
     }
     else if (partnerNameById[eventInfo[j][EVENT_RELATED_TO]]) {
@@ -1147,6 +1150,8 @@ function unveil_se_events() {
     else if (leadEmailById[eventInfo[j][EVENT_LEAD]]) {
       name = leadEmailById[eventInfo[j][EVENT_LEAD]];
       type = LEAD_EVENT;
+      hyperlinkType = "Lead";
+      hyperlinkId = eventInfo[j][EVENT_LEAD];
       cL++;
     }
     else {
@@ -1199,7 +1204,10 @@ function unveil_se_events() {
     //outputRange.offset(rowOffset, REVIEW_ORIG_ACCOUNT_TYPE).setValue(eventInfo[j][EVENT_ACCOUNT_TYPE]);   
     outputRange.offset(rowOffset, REVIEW_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
     outputRange.offset(rowOffset, REVIEW_ORIG_PROCESS).setValue(eventInfo[j][EVENT_PROCESS]);
-    
+
+    outputRange.offset(rowOffset, REVIEW_RECORD_LINK).setFormula('=HYPERLINK("https://hashicorp.lightning.force.com/lightning/r/' +
+      hyperlinkType + '/' + hyperlinkId + '/view", "Record")');
+
     rowOffset++;
   }
   
@@ -1248,20 +1256,27 @@ function reconcile_se_events() {
   // OP_ACCOUT_ID field in OPPORTUNITIES is short (15 digit), so TRUNCATE the long (18 digit) account ids! The true bool is to enable truncation.
   let targetedAccounts = loadFilter_(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, true); 
   let opIdByName = load_map_(OPPORTUNITIES, 2, OP_COLUMNS, OP_NAME, OP_ID, targetedAccounts, OP_ACCOUNT_ID, null);
-  
+
+  // Load the original opportunity choice list in case opportunity names changed since that choice was made. We need
+  // to be able to find the old name that they picked since it's not in the updated opportunities list. That's all this
+  // list will be used for. 
+  let opIdByNameOrig = load_map_(CHOICE_OP, 2, 2, CHOICE_OP_NAME, CHOICE_OP_ID, null, null, null); // no filter or existingMap
+
   //
   // Load Partner Info
   //
 
   let targetedPartners = loadFilter_(CHOICE_PARTNER, CHOICE_PARTNER_ID, false);
   let partnerIdByName = load_map_(PARTNERS, 2, PARTNER_COLUMNS, PARTNER_NAME, PARTNER_ID, targetedPartners, PARTNER_ID, null);
-  
+  let partnerIdByNameOrig = load_map_(CHOICE_PARTNER, 2, 2, CHOICE_PARTNER_NAME, CHOICE_PARTNER_ID, null, null, null);
+
   //
   // Load All Customer Info
   //
   
   let inPlayCustomers = loadFilter_(CHOICE_ACCOUNT, CHOICE_ACCOUNT_ID, false);  
   let customerIdByName = load_map_(ALL_CUSTOMERS, 2, CUSTOMER_COLUMNS, CUSTOMER_NAME, CUSTOMER_ID, inPlayCustomers, CUSTOMER_ID, null);
+  let customerIdByNameOrig = load_map_(CHOICE_ACCOUNT, 2, 2, CHOICE_ACCOUNT_NAME, CHOICE_ACCOUNT_ID, null, null, null);
   
   //
   // Load Leads
@@ -1293,12 +1308,24 @@ function reconcile_se_events() {
     switch (reviewInfo[j][REVIEW_EVENT_TYPE]) {
       case OP_EVENT:
         relatedTo = opIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        if (!relatedTo) {
+          relatedTo = opIdByNameOrig[reviewInfo[j][REVIEW_RELATED_TO]];
+          logOneCol("NOTICE - The \"" + reviewInfo[j][REVIEW_RELATED_TO] + "\" opportunity (" + relatedTo + ") had a name change.");
+        }
         break;
       case PARTNER_EVENT:
         relatedTo = partnerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        if (!relatedTo) {
+          relatedTo = partnerIdByNameOrig[reviewInfo[j][REVIEW_RELATED_TO]];
+          logOneCol("NOTICE - The partner \"" + reviewInfo[j][REVIEW_RELATED_TO] + "\" (" + relatedTo + ") changed names.");
+        }
         break;
       case CUSTOMER_EVENT:
         relatedTo = customerIdByName[reviewInfo[j][REVIEW_RELATED_TO]];
+        if (!relatedTo) {
+          relatedTo = customerIdByNameOrig[reviewInfo[j][REVIEW_RELATED_TO]];
+          logOneCol("NOTICE - The customer \"" + reviewInfo[j][REVIEW_RELATED_TO] + "\" (" + relatedTo + ") changed names.");
+        }
         break;
       case LEAD_EVENT:
         lead = leadIdByEmail[reviewInfo[j][REVIEW_LEAD]];

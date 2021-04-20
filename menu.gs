@@ -106,7 +106,8 @@ function menuItem3_() {
   
   let result = ui.alert('Please confirm', 
                         'You want to run all pre-upload event processing? This will execute the following stages in order...\n\n1. Import Calendars\n2. Generate Events\n3. Prep Review Events.' +
-                        '\n\nThis will clear out all invite and event data including the Review tab!\n\nAre you sure you want to do all that?',
+                        '\n\nThis will clear out all invite and event data including the Review tab!' +
+                        '\n\nNOTE - after review, you MUST execute the Reconcile command in order to get your updates back into the Events tab prior to upload to Salesforce\n\nAre you sure you want to do all that?',
                         ui.ButtonSet.YES_NO);
   
   if (result == ui.Button.YES) {
@@ -452,8 +453,8 @@ function menuItem22_() {
 function menuItem23_() {
   
   let ui = SpreadsheetApp.getUi();
-  ui.alert("Prep Review Events\n\nThis takes each record in the 'Events' tab, replacing the Salesforce IDs in the user, customer, partner, lead and opportunity reference fields with the corresponding names that people can understand, and writes those transformed records into the 'Review' tab. " +
-           "It will clear whatever is currently in the 'Review' tab before performing the ID to name transform. These records are easier to manually review prior to upload.");
+  ui.alert("Prep Review Events & Stats\n\nThis takes each record in the 'Events' tab, replacing the Salesforce IDs in the user, customer, partner, lead and opportunity reference fields with the corresponding names that people can understand, and writes those transformed records into the 'Review' tab. " +
+           "It will clear whatever is currently in the 'Review' tab before performing the ID to name transform. These records are easier to manually review prior to upload.\n\nIn addition, it will collect and plot statistics if the output URL is provided on the Run Settings tab in the \"Stats Worksheet ID\" cell (B28).");
   
 }
 

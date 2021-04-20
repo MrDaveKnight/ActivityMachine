@@ -1003,6 +1003,8 @@ function generateLongId_(id) {
 function incrementAgendaItemCounts_(ledger, eventInfo) {
   // This must be keep in sync with the agendaItemsToTrack object in eheuristic.gs
 
+  if (!eventInfo[EVENT_RECURRING]) return;
+
   let nothing = true;
   if (eventInfo[EVENT_DEMO]) {
     ledger.demo++;
@@ -1469,7 +1471,7 @@ function printStats_() {
   outputRange.offset(rowOffset, 0).setValue("Deep Dive");
   outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.deepdive / totalMeetings).toFixed(1));
   rowOffset++;
-  outputRange.offset(rowOffset, 0).setValue("Everything Else");
+  outputRange.offset(rowOffset, 0).setValue("None of the Above");
   outputRange.offset(rowOffset, 1).setValue((100 * statsLedgerG.global.agendaItems.nada / totalMeetings).toFixed(1));
   rowOffset++;
   chartLedger[chartIndex].rowCount = rowOffset - chartLedger[chartIndex].rowOffset;
@@ -1591,7 +1593,7 @@ function printStats_() {
     outputRange.offset(rowOffset++, 0).setValue("Workshops: " + statsLedgerG.users[user].generalCounts.agendaItems.workshop);
     outputRange.offset(rowOffset++, 0).setValue("POV Meetings: " + statsLedgerG.users[user].generalCounts.agendaItems.pov);
     outputRange.offset(rowOffset++, 0).setValue("Deep Dives: " + statsLedgerG.users[user].generalCounts.agendaItems.deepdive);
-    outputRange.offset(rowOffset++, 0).setValue("Everything Else: " + statsLedgerG.users[user].generalCounts.agendaItems.nada);
+    outputRange.offset(rowOffset++, 0).setValue("None of the Above: " + statsLedgerG.users[user].generalCounts.agendaItems.nada);
     let message = "";
     if (statistics[user].new_meetings < aveN) {
       if (aveN - statistics[user].new_meetings > stdN) {
@@ -1881,7 +1883,7 @@ function printContactHeader_(outputRange, rowOffset, outputFrameColOffset, user,
   outputRange.offset(rowOffset, outputFrameColOffset + 4).setValue("POV");
   outputRange.offset(rowOffset, outputFrameColOffset + 5).setValue("Workshop");
   outputRange.offset(rowOffset, outputFrameColOffset + 6).setValue("Deepdive");
-  outputRange.offset(rowOffset, outputFrameColOffset + 7).setValue("Everything Else");
+  outputRange.offset(rowOffset, outputFrameColOffset + 7).setValue("None of the Above");
 }
 
 function printContactStats_(outputRange, rowOffset, outputFrameColOffset, contact) {
@@ -1894,6 +1896,24 @@ function printContactStats_(outputRange, rowOffset, outputFrameColOffset, contac
   outputRange.offset(rowOffset, outputFrameColOffset + 6).setValue(contact.ai.deepdive);
   outputRange.offset(rowOffset, outputFrameColOffset + 7).setValue(contact.ai.nada);
 }
+
+function makeStackedColumnChart(title, sheet, dataRange, chartRow, chartColumn) {
+  // dataRange = spreadsheet.getRange('B2:F14')
+  let chart = sheet.newChart()
+  .asColumnChart()
+  .addRange(dataRange)
+  .setMergeStrategy(Charts.ChartMergeStrategy.MERGE_COLUMNS)
+  .setTransposeRowsAndColumns(false)
+  .setNumHeaders(1)
+  .setHiddenDimensionStrategy(Charts.ChartHiddenDimensionStrategy.IGNORE_BOTH)
+  .setOption('useFirstColumnAsDomain', true)
+  .setOption('isStacked', 'absolute')
+  .setOption('title', title)
+  .setXAxisTitle('')
+  .setPosition(chartRow, chartColumn, 0, 0)
+  .build();
+  sheet.insertChart(chart);
+};
 
 
 function logStamp(title) {

@@ -1,30 +1,31 @@
 {
   "timeZone": "America/Mexico_City",
-  "dependencies": {},
+  "dependencies": {
+  },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
   "sheets": {
-    "macros": [
-      {
-        "menuName": "clearcolor",
-        "functionName": "clearcolor"
-      },
-      {
-        "menuName": "Chart 1",
-        "functionName": "Chart11"
-      },
-      {
-        "menuName": "chart",
-        "functionName": "chart"
-      },
-      {
-        "menuName": "chart2",
-        "functionName": "chart2"
-      },
-      {
-        "menuName": "delete",
-        "functionName": "delete1"
-      }
-    ]
+    "macros": [{
+      "menuName": "clearcolor",
+      "functionName": "clearcolor"
+    }, {
+      "menuName": "Chart 1",
+      "functionName": "Chart11"
+    }, {
+      "menuName": "chart",
+      "functionName": "chart"
+    }, {
+      "menuName": "chart2",
+      "functionName": "chart2"
+    }, {
+      "menuName": "delete",
+      "functionName": "delete1"
+    }, {
+      "menuName": "Hyperlink",
+      "functionName": "Hyperlink"
+    }, {
+      "menuName": "Link2",
+      "functionName": "Link2"
+    }]
   }
 }
