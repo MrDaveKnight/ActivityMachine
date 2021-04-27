@@ -27,8 +27,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.5.1";
-const GAS_VERSION = 151; 
+const GAS_VERSION_STRING = "1.6.0";
+const GAS_VERSION = 160; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
@@ -56,6 +56,10 @@ const SPECIAL_FRAME_ROW = 31;
 const SPECIAL_FRAME_COL = 7;
 const SPECIAL_FRAME_ROWS = 16;
 const SPECIAL_FRAME_COLS = 3; 
+const ALIAS_FRAME_ROW = 31;
+const ALIAS_FRAME_COL = 11;
+const ALIAS_FRAME_ROWS = 11;
+const ALIAS_FRAME_COLS = 2; 
 const BOGUS_FRAME_ROW = 53;
 const BOGUS_FRAME_COL = 7;
 const BOGUS_FRAME_ROWS = 16;
@@ -68,12 +72,13 @@ const OP_EVENT = "Opportunity";
 const CUSTOMER_EVENT = "Customer";
 const PARTNER_EVENT = "Partner";
 const LEAD_EVENT = "Lead";
+const GENERAL_EVENT = "General"; // For special events
 
 // Filter tables to help us deal with massive amounts of Salesforce records
 const MISSING_DOMAINS = "Missing Domains";
-const MISSING_CUSTOMERS = "Missing Customers";
+const OUT_REGION_CUSTOMERS = "Missing Customers"; // Really out-of-region customers for a run (don't want to change tab name)
 const POTENTIAL_LEADS = "Lead Accounts";
-const IN_PLAY_CUSTOMERS = "In Play Customers";
+const IN_PLAY_CUSTOMERS = "In Play Customers"; // Both in-region and out-region customers with meeting attendees
 const IN_PLAY_PARTNERS = "In Play Partners";
 const FILTER_EMAIL_DOMAIN = 0; // This is actually the full email of the lead (need to change name)
 const FILTER_ACCOUNT_ID = 0;
@@ -271,6 +276,7 @@ var primaryOpByCustomerG = {};
 var primaryProductByOpG = {};
 var stageMilestonesByOpG = {};
 var accountTeamByOpG = {};
+var inRegionCustomersG = {}; // name:id for Special Event account lookups (no email invites)
 
 // Review tab choice list trackers - account name:id
 var duplicateAccountsG = {}; // All non-primary accounts that share a domain with the primary

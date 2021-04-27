@@ -228,6 +228,44 @@ var validStagesForMeetings = {
 }
 */
 
+function makeNameScanner_(names, aliases) {
+  // names is an object of name:ID key/value pairs
+  // aliases is an object of name:alias
+  let hitCache = {}; // for performance, remember names we have found to try first on subsequent calls
+  function scan_(text) {
+    let retVal = { name: null, id: null };
+    for (name in hitCache) { // name is account name.
+      let regex = RegExp(hitCache[name].search_string); // search_string could be the account name or alias
+      if (regex.test(text)) {
+        retVal.name = name;
+        retVal.id = hitCache[name].id;
+        return retVal;
+      }
+    }
+    for (name in names) {
+      let regex = RegExp(name);
+      if (regex.test(text)) {
+        hitCache[name] = {search_string: name, id: names[name]};
+        retVal.name = name;
+        retVal.id = names[name];
+        return retVal;
+      }
+      if (aliases[name]) {
+        regex = RegExp(aliases[name]);
+        if (regex.test(text)) {
+          hitCache[name] = {search_string: aliases[name], id: names[name]};
+          retVal.name = name;
+          retVal.id = names[name];
+          return retVal;
+        }
+      }
+    }
+    return null;
+  }
+  return scan_;
+}
+
+
 function lookForAccounts_(attendees, customerMap, partnerMap) {
 
   // Scan email domains of attendees looking for accounts.
@@ -405,7 +443,7 @@ function lookForMeetingType_(stage, text, isRecurring) {
     }
     if (!validationMapS) {
       validationMapS = [];
-      if (!loadMeetingMap_(validationMapS, "Validation Map")) { 
+      if (!loadMeetingMap_(validationMapS, "Validation Map")) {
         return rv; // ABORT! Function will log errors.
       }
     }
@@ -427,7 +465,7 @@ function lookForMeetingType_(stage, text, isRecurring) {
     // For now we will use "--None--" to indicate Post-Sales activity!
     if (!closedMapS) {
       closedMapS = [];
-      if (!loadMeetingMap_(closedMapS, "Closed Map")) { 
+      if (!loadMeetingMap_(closedMapS, "Closed Map")) {
         return rv; // ABORT! Function will log errors.
       }
     }
@@ -437,7 +475,7 @@ function lookForMeetingType_(stage, text, isRecurring) {
     rv = { stage: "Closed/Lost", meeting: "" };
     return rv;
   }
-  
+
   let x = text.toLowerCase();
   let typeIdentified = false;
   for (i = map.length - 1; i >= 0; i--) {

@@ -15,7 +15,7 @@ function createDataLoadFilters() {
   //
 
   let partnerMap = {}; // domain to account
-  let customerMap = {};
+  let customerMap = {}; // domain to account
   let typeMap = {}; // account to account type
   // These maps will be UNFILTERED (every record will be in them. Not a problem for in-region customers, but the partner list is pretty big.
   // We only need these full lists temporarily in this function, so we are not using the global emailToCustomerMapG and emailToPartnerMapG variables.
@@ -37,7 +37,7 @@ function createDataLoadFilters() {
   // At this point, all the "known" accounts are stored in the accountType object. 
 
   clearTab_(MISSING_DOMAINS, [['Email']]);
-  clearTab_(MISSING_CUSTOMERS, [['Account Id']]);
+  clearTab_(OUT_REGION_CUSTOMERS, [['Account Id']]);
   clearTab_(POTENTIAL_LEADS, [['Email']]);
   clearTab_(IN_PLAY_CUSTOMERS, [['Account Id']]);
   clearTab_(IN_PLAY_PARTNERS, [['Account Id']]);
@@ -60,10 +60,10 @@ function createDataLoadFilters() {
   let missingDomainCursor = { range: missingOutputRange, rowOffset: 0 };
 
   // Set missing customer id output cursor
-  sheet = SpreadsheetApp.getActive().getSheetByName(MISSING_CUSTOMERS);
+  sheet = SpreadsheetApp.getActive().getSheetByName(OUT_REGION_CUSTOMERS);
   lr = sheet.getLastRow();
-  let missingCustomerRange = sheet.getRange(lr + 1, 1);
-  let missingCustomerCursor = { range: missingCustomerRange, rowOffset: 0 };
+  let outRegionCustomerRange = sheet.getRange(lr + 1, 1);
+  let outRegionCustomerCursor = { range: outRegionCustomerRange, rowOffset: 0 };
 
   // Set lead output cursor
   sheet = SpreadsheetApp.getActive().getSheetByName(POTENTIAL_LEADS);
@@ -186,8 +186,8 @@ function createDataLoadFilters() {
     for (account in typeMap) {
 
       if (typeMap[account] == EXTERNAL_CUSTOMER_TYPE) {
-        missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(account);
-        missingCustomerCursor.rowOffset++;
+        outRegionCustomerCursor.range.offset(outRegionCustomerCursor.rowOffset, 0).setValue(account);
+        outRegionCustomerCursor.rowOffset++;
         inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(account);
         inPlayCustomerCursor.rowOffset++;
       }
@@ -199,7 +199,7 @@ function createDataLoadFilters() {
   //
 
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
-  let overrideRange = parms.getRange(OVERRIDE_FRAME_ROW, OVERRIDE_FRAME_COL, OVERRIDE_FRAME_ROWS, OVERRIDE_FRAME_COLS); 
+  let overrideRange = parms.getRange(OVERRIDE_FRAME_ROW, OVERRIDE_FRAME_COL, OVERRIDE_FRAME_ROWS, OVERRIDE_FRAME_COLS);
   let overrides = overrideRange.getValues();
   for (let row in overrides) {
     if (overrides[row][1]) {
@@ -225,8 +225,8 @@ function createDataLoadFilters() {
           if (!loggedCustomers[overrideAccountId]) {
 
             loggedCustomers[overrideAccountId] = true;  // Must use short id! Will be used to filter opportunities. 
-            missingCustomerCursor.range.offset(missingCustomerCursor.rowOffset, 0).setValue(overrideAccountId);
-            missingCustomerCursor.rowOffset++;
+            outRegionCustomerCursor.range.offset(outRegionCustomerCursor.rowOffset, 0).setValue(overrideAccountId);
+            outRegionCustomerCursor.rowOffset++;
             inPlayCustomerCursor.range.offset(inPlayCustomerCursor.rowOffset, FILTER_ACCOUNT_ID).setValue(overrideAccountId);
             inPlayCustomerCursor.rowOffset++;
           }
@@ -237,7 +237,9 @@ function createDataLoadFilters() {
 
   logOneCol("Identified " + inPlayCustomerCursor.rowOffset + " customers in the current calendar invite set.");
   logOneCol("Identified " + inPlayPartnerCursor.rowOffset + " partners in the current calendar invite set.");
-  logOneCol("Identified " + missingCustomerCursor.rowOffset + " potential out-of-region customers.");
+  logOneCol("Identified " + outRegionCustomerCursor.rowOffset + " potential out-of-region customers.");
+  // Why do I say "potential"? I think I found all "missing" domains in the customer list, and it wasn't
+  // in the in-region customer list, so it my be out-of-region!
   logOneCol("Identified " + leadCursor.rowOffset + " potential lead emails.");
 
 
@@ -592,6 +594,8 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
   // loggingEnabled there because we run this in two phases. Only want to publish logs on the second phase to avoid redundant info.
   // One global variable is updated (other than the one passed in as emailToAccountMap), and that is accountType. 
   // It allows us to track the type of each account we are processing.
+  //
+  // v1.5.2 - updates the global inRegionCustomersG map
 
 
   // This normally processes email domains (on stuff after the @ sign). However, one of the callers (for leads) will pass in a full email (<x>@<domain>). So, make
@@ -603,6 +607,13 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
   for (let j = 0; j < numberOfRows; j++) {
 
     let id = accountInfo[j][accountIdIdx].trim();
+
+    // Added v1.5.2
+    // Need to track a name to id map of all in region customers for name lookups in the subject and  
+    // description of "Special Events" that don't have email invites to any customers
+    if (accountType == INTERNAL_CUSTOMER_TYPE) {
+      inRegionCustomersG[accountInfo[j][accountNameIdx]] = id;
+    }
 
     if (filter && filterType == FILTER_TYPE_ID && !filter[id]) {
       continue;
@@ -715,9 +726,12 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
       }
     }
   }
+
+  
+
 }
 
-function tester() { // DAK
+function tester() {
   logStamp("Tester");
   load_partner_info_(false, emailToPartnerMapG, accountTypeG, true);
 }
@@ -725,6 +739,7 @@ function tester() { // DAK
 function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, phase, loggingEnabled) {
   // Returns false on error 
   // Updates emailToCustomerMapG and accountTypeG
+  // load_account_info_worker_ updates var duplicateAccountsG, duplicatePartnersG, primaryAccountsG and primaryPartnersG
 
   //
   // Load up our region's customers
@@ -762,7 +777,7 @@ function load_customer_info_(inRegionOnly, emailToAccountMap, accountTypeMap, ph
   // Get the target list, accounts suspected to be out-of-region customers, to filter out what we need to save in memory.
   //
 
-  targetedAccounts = loadFilter_(MISSING_CUSTOMERS, FILTER_ACCOUNT_ID, false);
+  targetedAccounts = loadFilter_(OUT_REGION_CUSTOMERS, FILTER_ACCOUNT_ID, false);
 
   //
   // Load up customers outside of our region, but only the ones that may be needed (in the targeted list)
@@ -1003,7 +1018,7 @@ function generateLongId_(id) {
 function incrementAgendaItemCounts_(ledger, eventInfo) {
   // This must be keep in sync with the agendaItemsToTrack object in eheuristic.gs
 
-  if (!eventInfo[EVENT_RECURRING]) return;
+  // if (!eventInfo[EVENT_RECURRING]) return; for debugging
 
   let nothing = true;
   if (eventInfo[EVENT_DEMO]) {
@@ -1052,9 +1067,9 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   //  users
   //   userId ...
   //    generalCounts
-  //      op : count
+  //      op : count (All Ops)
   //      op_new : count
-  //      customer : count
+  //      customer : count (All Customers)
   //      customer_new : count
   //      partner : count
   //      partner_new : count
@@ -1135,8 +1150,8 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   let attendees = attendeeString.split(",");
 
   if (!statsLedgerG.users[assignedTo]) {
-    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0};
-    let meetingCounts = { op: 0, op_new: 0, customer: 0, customer_new : 0, partner: 0, partner_new: 0, lead: 0, lead_new : 0, agendaItems: agendaItems};
+    let agendaItems = { demo: 0, pov: 0, workshop: 0, deepdive: 0, nada: 0 };
+    let meetingCounts = { op: 0, op_new: 0, customer: 0, customer_new: 0, partner: 0, partner_new: 0, lead: 0, lead_new: 0, agendaItems: agendaItems };
     statsLedgerG.users[assignedTo] = { generalCounts: meetingCounts, ops: {}, customers: {}, partners: {}, leads: {} };
     // logOneCol("Collecting contact stats for " + assignedTo);
   }
@@ -1148,7 +1163,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
     case OP_EVENT:
       statsLedgerG.users[assignedTo].generalCounts.op++;
       if (!statsLedgerG.users[assignedTo].ops[relatedTo]) {
-        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
+        let agendaItems = { demo: 0, pov: 0, workshop: 0, deepdive: 0, nada: 0 };
         statsLedgerG.users[assignedTo].ops[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} };
       }
       incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].ops[relatedTo].agendaItems, eventInfo);
@@ -1161,9 +1176,9 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
       }
       break;
     case CUSTOMER_EVENT:
-      statsLedgerG.users[assignedTo].generalCounts.customer++;
+      statsLedgerG.users[assignedTo].generalCounts.customer++; // This was missing prior to v1.5.2, doh!
       if (!statsLedgerG.users[assignedTo].customers[relatedTo]) {
-        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
+        let agendaItems = { demo: 0, pov: 0, workshop: 0, deepdive: 0, nada: 0 };
         statsLedgerG.users[assignedTo].customers[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} }; // Object for all possible attendee counts
       }
       incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].customers[relatedTo].agendaItems, eventInfo);
@@ -1178,7 +1193,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
     case PARTNER_EVENT:
       statsLedgerG.users[assignedTo].generalCounts.partner++;
       if (!statsLedgerG.users[assignedTo].partners[relatedTo]) {
-        let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
+        let agendaItems = { demo: 0, pov: 0, workshop: 0, deepdive: 0, nada: 0 };
         statsLedgerG.users[assignedTo].partners[relatedTo] = { new_count: 0, recurring_count: 0, agendaItems: agendaItems, attendees: {} }; // Object for all possible attendee counts
       }
       incrementAgendaItemCounts_(statsLedgerG.users[assignedTo].partners[relatedTo].agendaItems, eventInfo);
@@ -1196,6 +1211,18 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
         statsLedgerG.users[assignedTo].generalCounts.lead_new++;
       }
       break;
+    case GENERAL_EVENT:
+    // DAK
+    // New in v1.5.2 ... this means we can have phantom customer meetings. We don't know who the customer or customers are in a special
+    // meeting, so the count can't be allocated to a specific cusomter's stats. But, we want to track the totals with the special events included,
+    // like large instruqt labs for a customer who wasn't on the calendar invite (they registered through a different system). So, someone might add
+    // up the counts one day and say "hey, you over counted the total number of customer meetings!", to which I say, "no, some of those customers were phantoms,
+    // they didn't want to be identified."
+      statsLedgerG.users[assignedTo].generalCounts.customer++; // Assume special event had some kind of customer interaction
+      if (!eventInfo[EVENT_RECURRING]) {
+        statsLedgerG.users[assignedTo].generalCounts.customer_new++;
+      }
+      break;
     default:
       break;
   }
@@ -1203,13 +1230,13 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   for (let i = 0; i < attendees.length; i++) {
     if (attendees[i].indexOf("hashicorp.com") == -1) {
       switch (eventType) {
-        case OP_EVENT:       
+        case OP_EVENT:
           incrementStat_(statsLedgerG.users[assignedTo].ops[relatedTo].attendees, attendees[i], eventInfo);
           break;
-        case CUSTOMER_EVENT:         
+        case CUSTOMER_EVENT:
           incrementStat_(statsLedgerG.users[assignedTo].customers[relatedTo].attendees, attendees[i], eventInfo);
           break;
-        case PARTNER_EVENT:       
+        case PARTNER_EVENT:
           incrementStat_(statsLedgerG.users[assignedTo].partners[relatedTo].attendees, attendees[i], eventInfo);
           break;
         case LEAD_EVENT:
@@ -1280,10 +1307,10 @@ function printStats_() {
   }
 
   let parms = SpreadsheetApp.getActive().getSheetByName(RUN_PARMS);
-  let dateRange = parms.getRange(DATE_FRAME_ROW, DATE_FRAME_COL, 2, 1); 
+  let dateRange = parms.getRange(DATE_FRAME_ROW, DATE_FRAME_COL, 2, 1);
   let dates = dateRange.getValues();
 
-  let statsOutputIdRange = parms.getRange(STATS_FRAME_ROW, STATS_FRAME_COL); 
+  let statsOutputIdRange = parms.getRange(STATS_FRAME_ROW, STATS_FRAME_COL);
   let rangeValues = statsOutputIdRange.getValues();
   statsOutputWorksheetUrlG = rangeValues[0][0];
 
@@ -1308,7 +1335,7 @@ function printStats_() {
   }
   let tabName = sheet.getName();
 
-  logOneCol("Logging stats to " + tabName + " in "+ worksheet.getName());
+  logOneCol("Logging stats to " + tabName + " in " + worksheet.getName());
   sheet.clearContents();
   deleteCharts_(sheet);
 
@@ -1336,7 +1363,7 @@ function printStats_() {
   let statistics = {};
   for (user in statsLedgerG.users) {
     userCount++;
-    statistics[user] = {ops : 0, customers : 0, partners : 0, new_meetings : 0, recurring_meetings : 0, attendees_new : 0, attendees_recurring : 0 };
+    statistics[user] = { ops: 0, customers: 0, partners: 0, new_meetings: 0, recurring_meetings: 0, attendees_new: 0, attendees_recurring: 0 };
     totalMeetings = totalMeetings + statsLedgerG.users[user].generalCounts.op + statsLedgerG.users[user].generalCounts.customer +
       statsLedgerG.users[user].generalCounts.partner + statsLedgerG.users[user].generalCounts.lead;
     totalNewMeetings = totalNewMeetings + statsLedgerG.users[user].generalCounts.op_new + statsLedgerG.users[user].generalCounts.customer_new +
@@ -1411,7 +1438,7 @@ function printStats_() {
   outputRange.offset(rowOffset++, 0).setValue("Total workshop count: " + statsLedgerG.global.agendaItems.workshop);
   outputRange.offset(rowOffset++, 0).setValue("Total deep dive count: " + statsLedgerG.global.agendaItems.deepdive);
   outputRange.offset(rowOffset++, 0).setValue("Total meeting count with no tracked agenda item: " + statsLedgerG.global.agendaItems.nada);
-  
+
 
   let ave = Math.round(totalMeetings / userCount);
   let aveN = Math.round(totalNewMeetings / userCount);
@@ -1554,7 +1581,7 @@ function printStats_() {
     rowOffset = outputFrameRowOffset + minChartSpacing;
   }
 
- outputRange.offset(rowOffset++, 0).setValue("Agenda Item Counts");
+  outputRange.offset(rowOffset++, 0).setValue("Agenda Item Counts");
   outputFrameRowOffset = rowOffset;
   chartLedger[chartIndex] = { title: "Agenda Item Counts", rowOffset: rowOffset, rowCount: 0, colOffset: 0, colCount: 5 };
   outputRange.offset(rowOffset, 1).setValue("Demo");
@@ -1751,8 +1778,10 @@ function printStats_() {
       rowOffset = rowOffset + 2;
       let contactArray = [];
       for (a in statsLedgerG.users[user].ops[op].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG.users[user].ops[op].attendees[a].new_count, 
-        r: statsLedgerG.users[user].ops[op].attendees[a].recurring_count, ai: statsLedgerG.users[user].ops[op].attendees[a].agendaItems })
+        contactArray.push({
+          n: a, u: statsLedgerG.users[user].ops[op].attendees[a].new_count,
+          r: statsLedgerG.users[user].ops[op].attendees[a].recurring_count, ai: statsLedgerG.users[user].ops[op].attendees[a].agendaItems
+        })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
@@ -1777,8 +1806,10 @@ function printStats_() {
       rowOffset = rowOffset + 2;
       let contactArray = [];
       for (a in statsLedgerG.users[user].customers[account].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG.users[user].customers[account].attendees[a].new_count, 
-        r: statsLedgerG.users[user].customers[account].attendees[a].recurring_count, ai: statsLedgerG.users[user].customers[account].attendees[a].agendaItems })
+        contactArray.push({
+          n: a, u: statsLedgerG.users[user].customers[account].attendees[a].new_count,
+          r: statsLedgerG.users[user].customers[account].attendees[a].recurring_count, ai: statsLedgerG.users[user].customers[account].attendees[a].agendaItems
+        })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
@@ -1803,8 +1834,10 @@ function printStats_() {
       rowOffset = rowOffset + 2;
       let contactArray = [];
       for (a in statsLedgerG.users[user].partners[account].attendees) {
-        contactArray.push({ n: a, u: statsLedgerG.users[user].partners[account].attendees[a].new_count, 
-        r: statsLedgerG.users[user].partners[account].attendees[a].recurring_count, ai: statsLedgerG.users[user].partners[account].attendees[a].agendaItems })
+        contactArray.push({
+          n: a, u: statsLedgerG.users[user].partners[account].attendees[a].new_count,
+          r: statsLedgerG.users[user].partners[account].attendees[a].recurring_count, ai: statsLedgerG.users[user].partners[account].attendees[a].agendaItems
+        })
       }
       contactArray.sort(compareContacts_);
       for (let i = 0; i < contactArray.length; i++) {
@@ -1864,12 +1897,12 @@ function incrementStat_(obj, key, eventInfo) {
     }
   }
   else {
-    let agendaItems = {demo : 0, pov : 0, workshop : 0, deepdive : 0, nada : 0 };
+    let agendaItems = { demo: 0, pov: 0, workshop: 0, deepdive: 0, nada: 0 };
     if (eventInfo[EVENT_RECURRING]) {
-      obj[key] = { new_count: 0, recurring_count: 1, agendaItems: agendaItems};
+      obj[key] = { new_count: 0, recurring_count: 1, agendaItems: agendaItems };
     }
     else {
-      obj[key] = { new_count: 1, recurring_count: 0, agendaItems: agendaItems};
+      obj[key] = { new_count: 1, recurring_count: 0, agendaItems: agendaItems };
     }
   }
   incrementAgendaItemCounts_(obj[key].agendaItems, eventInfo);
@@ -1900,18 +1933,18 @@ function printContactStats_(outputRange, rowOffset, outputFrameColOffset, contac
 function makeStackedColumnChart(title, sheet, dataRange, chartRow, chartColumn) {
   // dataRange = spreadsheet.getRange('B2:F14')
   let chart = sheet.newChart()
-  .asColumnChart()
-  .addRange(dataRange)
-  .setMergeStrategy(Charts.ChartMergeStrategy.MERGE_COLUMNS)
-  .setTransposeRowsAndColumns(false)
-  .setNumHeaders(1)
-  .setHiddenDimensionStrategy(Charts.ChartHiddenDimensionStrategy.IGNORE_BOTH)
-  .setOption('useFirstColumnAsDomain', true)
-  .setOption('isStacked', 'absolute')
-  .setOption('title', title)
-  .setXAxisTitle('')
-  .setPosition(chartRow, chartColumn, 0, 0)
-  .build();
+    .asColumnChart()
+    .addRange(dataRange)
+    .setMergeStrategy(Charts.ChartMergeStrategy.MERGE_COLUMNS)
+    .setTransposeRowsAndColumns(false)
+    .setNumHeaders(1)
+    .setHiddenDimensionStrategy(Charts.ChartHiddenDimensionStrategy.IGNORE_BOTH)
+    .setOption('useFirstColumnAsDomain', true)
+    .setOption('isStacked', 'absolute')
+    .setOption('title', title)
+    .setXAxisTitle('')
+    .setPosition(chartRow, chartColumn, 0, 0)
+    .build();
   sheet.insertChart(chart);
 };
 
