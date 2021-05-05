@@ -27,8 +27,8 @@
 //
 // Written by Dave Knight, Rez Dogs 2020, knight@hashicorp.com
 
-const GAS_VERSION_STRING = "1.6.0";
-const GAS_VERSION = 160; 
+const GAS_VERSION_STRING = "1.6.1";
+const GAS_VERSION = 161; 
 const MIN_SCHEMA_VERSION = 20; // 2.0
 
 // Clear meeting type default
@@ -182,8 +182,8 @@ const EVENT_POV = 19;
 const EVENT_WORKSHOP = 20;
 const EVENT_DIVE = 21;
 const EVENT_ATTENDEES = 22;
-const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Recurring", "Demo", "POV", "Workshop", "Deep Dive", "Attendees"]];
-const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Notes"]];
+const EVENT_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Attachment URL", "Account Type", "Process", "Recurring", "Demo", "POV", "Workshop", "Deep Dive", "Attendees"]];
+const UPLOAD_STAGE_HEADER = [["Assigned To", "Opportunity Stage", "Meeting Type", "Related To", "Subject", "Start", "End", "Rep Attended", "Primary Product", "Description", "Logistics", "Prep", "Quality", "Lead", "Attachment URL"]];
 
 const EVENTS_UNVEILED = "Review"
 const REVIEW_COLUMNS = 19;
@@ -206,7 +206,7 @@ const REVIEW_NOTES = 15;
 const REVIEW_ACCOUNT_TYPE = 16;
 const REVIEW_PROCESS = 17;
 const REVIEW_RECORD_LINK = 18;
-const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Notes", "Account Type", "Process", "Record"]]
+const REVIEW_HEADER = [["Assigned To", "Event Type", "Related To", "Opportunity Stage", "Start", "End", "Subject", "Primary Product", "Description", "Meeting Type", "Rep Attended", "Logistics", "Prep", "Quality", "Lead", "Attachment URL", "Account Type", "Process", "Record"]]
 // There are field protections setup in unveil_se_events that are hardcoded to this header. If you change this, make sure the protections in unveil_se_events are correct or updated. Search for "Review data protection"
 
 // Record original values for highlighting changes by the reviewers

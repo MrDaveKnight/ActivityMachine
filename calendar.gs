@@ -72,6 +72,8 @@ function import_gcal_(calName, startDate, endDate, cursor){
     for (var j=1; j < attendees.length; j++) {
       attendeeList = attendeeList + "," + attendees[j].getEmail();
     }
+
+   
       
     // No tags show up for Notes
     /*
