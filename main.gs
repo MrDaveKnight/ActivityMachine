@@ -257,6 +257,7 @@ const INTERNAL_CUSTOMER_TYPE = 1;
 const EXTERNAL_CUSTOMER_TYPE = 2;
 const PARTNER_TYPE = 3;
 const LEAD_TYPE = 4;
+var internalDomain = "UNKNOWN"; // Our email domain which indicates internal meetings
 var accountTypeG = {}; // Index by account ID
 var accountTypeNamesG = [
   "N/A",

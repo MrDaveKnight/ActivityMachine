@@ -286,12 +286,14 @@ function lookForAccounts_(attendees, customerMap, partnerMap) {
 
   for (var j = 0; j < attendees.length; j++) {
 
+    if (attendees[j].indexOf("calendar-notification@google.com") != -1) continue; // WM1 (need to make these configurable)
+
     var domain = attendees[j].substring(attendees[j].indexOf("@") + 1).trim();
     var accountId = "";
     var type = "hashi";
     if (domain == "gmail.com") continue; // Thanks to Fernando for putting gmail as the domain for a prospect called "Freelance"
 
-    if (domain == "hashicorp.com") {
+    if (domain == internalDomain) {
       rv.stats.hashi++;
     }
     else {

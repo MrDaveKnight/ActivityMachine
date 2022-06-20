@@ -626,7 +626,7 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
     }
 
     if (!emailDomainString && !altDomainString) {
-      if (loggingEnabled && accountType != LEAD_TYPE) logOneCol("NOTICE - " + accountInfo[j][accountNameIdx] + " has no email domain!");
+      // WM1 if (loggingEnabled && accountType != LEAD_TYPE) logOneCol("NOTICE - " + accountInfo[j][accountNameIdx] + " has no email domain!");
       // Thousands of leads don't have an email. Don't try to log!!! Email domains are critical for accounts however.
       continue;
     }
@@ -651,10 +651,11 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
       //let emailRegex = /[-\w]+\.[a-zA-Z]{2,3}$/;
       //let domain = emailRegex.exec(emailDomains[k].trim());
       let superDomain = emailDomains[k].trim(); // probably just one domain, but you never know
+    
 
       // Because sometimes Reps use spaces instead of commas to separate domains in
       // the salesforce field. Deal with it now.
-      let potentiallyMoreDomains = superDomain.split(" ");
+      let potentiallyMoreDomains = superDomain.split(/[ ,;]/); // WM1, added ;
       for (let i = 0; i < potentiallyMoreDomains.length; i++) {
 
         let domain = potentiallyMoreDomains[i].trim();
@@ -662,6 +663,14 @@ function load_account_info_worker_(accountInfo, numberOfRows, filter, filterType
         // FIXME are there other prefixes I don't know about? 
         if (domain.indexOf("www.") == 0) {
           domain = domain.substring(4);
+        }
+        // Some folks like sticking an @ symbol in from the domain - WM1 DAK
+        // WalkMe puts the lead's email address, not the domain, in the
+        // email domain field. Prune it all off (unless it is supposed to be a lead)
+        if (LEAD_TYPE != accountType) {
+          if (domain.indexOf("@") != -1) {
+            domain = domain.substring(domain.indexOf("@")+1);
+          }
         }
 
         if (filter && filterType == FILTER_TYPE_DOMAIN && !filter[domain]) {
@@ -1228,7 +1237,7 @@ function collectStats_(assignedTo, eventType, eventInfo, relatedTo, attendeeStri
   }
 
   for (let i = 0; i < attendees.length; i++) {
-    if (attendees[i].indexOf("hashicorp.com") == -1) {
+    if (attendees[i].indexOf(internalDomain) == -1) {
       switch (eventType) {
         case OP_EVENT:
           incrementStat_(statsLedgerG.users[assignedTo].ops[relatedTo].attendees, attendees[i], eventInfo);
@@ -1258,7 +1267,8 @@ function loadMeetingMap_(map, propertiesTab) {
   // Assets there is a map to load.
   // Initialize the map
 
-  let activityMachineProperties = "https://docs.google.com/spreadsheets/d/1BrNyxuUdl9aKNwGfAwtcQbGckOA4YUMrfyojGhAiIos/edit#gid=602540278";
+  // Hashi Props -let activityMachineProperties = "https://docs.google.com/spreadsheets/d/1BrNyxuUdl9aKNwGfAwtcQbGckOA4YUMrfyojGhAiIos/edit#gid=602540278";
+  let activityMachineProperties = "https://docs.google.com/spreadsheets/d/1xeJsCsYfVLQ7L6F4MmqGyfgaYU0k0fco6_L8lpR9R9o/edit#gid=0";
   let worksheet = SpreadsheetApp.openByUrl(activityMachineProperties);
   if (!worksheet) {
     logOneCol("ERROR - Activity Machine's organization wide properties not found!");

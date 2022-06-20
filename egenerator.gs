@@ -198,6 +198,12 @@ function build_se_events() {
     }
     staffNameToEmailMapG[staffInfo[j][STAFF_NAME].trim()] = staffInfo[j][STAFF_EMAIL].trim();
 
+    if (internalDomain == "UNKNOWN") {
+      internalDomain = staffInfo[j][STAFF_EMAIL].trim().split("@")[1];
+      logOneCol("Internal domain is " + internalDomain);
+      //DAK
+    }
+
     // If the long id is missing, or due to a config refresh is no longer the correct id ... (re)initialize
     if (!staffInfo[j][STAFF_LONG_ID] || staffInfo[j][STAFF_LONG_ID].indexOf(staffInfo[j][STAFF_ID].trim()) == -1) {
       let longId = generateLongId_(staffInfo[j][STAFF_ID].trim());
@@ -530,9 +536,11 @@ function build_se_events() {
   //
 
   let eventCount = 0;
+  let unknownDomains = {}; // WM1
   let scanForInRegionAccount = makeNameScanner_(inRegionCustomersG, accountAliases);
 
   for (j = 0; j < lastRow - 1; j++) {
+
 
     //  
     // Look for and track the "PREP" invites. Save time in minutes
@@ -558,6 +566,9 @@ function build_se_events() {
     if (!inviteInfo[j][ASSIGNED_TO] || !inviteInfo[j][ATTENDEE_STR] || !inviteInfo[j][START]) {
       continue;
     }
+
+    let assignedToEmail = inviteInfo[j][ASSIGNED_TO]; // WM1 for unknownDomains cause
+    let assignedTo = staffEmailToIdMapG[assignedToEmail];
 
     var attendees = inviteInfo[j][ATTENDEE_STR].split(","); // convert comma separated list of emails converted to an array
     if (attendees.length == 0) {
@@ -1000,6 +1011,16 @@ function build_se_events() {
     else if (attendeeInfo.stats.others > 0) {
       // Could not find an account or partner. Look for a lead...
       // Logger.log(inviteInfo[j][SUBJECT] + " fell through.");
+
+      // WM1 
+      // Want to track all of the domains we couldn't find for a list we will use to look them all up and fix Salesforce
+      for (let d in attendeeInfo.others){
+        if (!unknownDomains[d]) {
+          let u = {email: assignedToEmail, id: assignedTo};
+          unknownDomains[d]=u;  // First person we see attending the meeting owns it
+        }
+      }
+
       let lead = findLead_(attendees);
       if (lead) {
         createLeadEvent_(outputCursor, lead, attendees, inviteInfo[j], productInventory);
@@ -1012,6 +1033,12 @@ function build_se_events() {
         logThreeCol("WARNING - Unable to find a customer, partner or lead for:", inviteInfo[j][SUBJECT], inviteInfo[j][ATTENDEE_STR]);
       }
     }
+  }
+
+  // WM1 DAK
+  logOneCol("Unknown Domains:")
+  for (let d in unknownDomains) {
+    logThreeCol(d, unknownDomains[d].email, unknownDomains[d].id);
   }
 
   createChoiceLists(); // For review records. I want the phase 2 maps dak
